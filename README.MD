@@ -1,89 +1,155 @@
 <div align="center">
-  <img src="docs/logo-64x64.png" alt="Foxycape PDF" width="64" height="64" />
-  <h1>Foxycape PDF</h1>
+  <img src="docs/logo-64x64.png" alt="Foxycape Core" width="64" height="64" />
+  <h1>Foxycape Core</h1>
 </div>
 
-A PDF reader for Obsidian that stays connected to your notes — highlights, citations, and deep links that take you back to the source.
+A browser-side multi-format reader kernel — one `Reader` API with pluggable parsers/renderers, services, and plugins for PDF, HTML, and more.
 
-[English](README.md) | [中文](README.zh.md)
+[English](README.MD) | [中文](README.zh.md)
 
-## Why
+## Overview
 
-Reading PDFs inside Obsidian often breaks the note-taking loop:
+Foxycape Core (`@foxycape/core`) is a browser reader runtime you embed in your own app.
 
-- Highlights stay in the PDF; your vault notes stay elsewhere.
-- Grabbing a figure usually means a blurry screenshot.
-- Pasted quotes and images rarely point back to the exact page or region.
-- Light PDF pages feel harsh in a dark vault theme.
-- Switching readers can break page/selection links you already use.
+- **Includes**: the kernel under `kernal/` plus media implementations in `mediaTypes/html` and `mediaTypes/pdf`.
+- **Does not include**: application chrome or product-specific UI — those belong in the host.
 
-Foxycape PDF addresses these gaps without asking you to leave Obsidian.
+Public API barrel: `kernal/index.ts` (also `@foxycape/core` / `@foxycape/core/kernal`). Media implementations are imported by path (for example `@foxycape/core/mediaTypes/pdf/...`).
+
+## Install
+
+```bash
+npm install @foxycape/core
+```
+
+```ts
+import { Options, Reader } from '@foxycape/core'
+import { PdfRenderer } from '@foxycape/core/mediaTypes/pdf/renderer/PdfRenderer'
+```
+
+Build the package before packing or publishing:
+
+```bash
+npm run build
+```
 
 ## Features
 
-### Highlight → note sync
+### Unified open pipeline
 
-Instead of leaving highlights stranded in the PDF, each new highlight can create or update a Markdown note with the same name, append the excerpt with a back-link, and optionally open that note in a split pane. Turn it off anytime in settings.
+Configure with `Options`, then open a document through `Reader.open(source, container, root, openOptions?)`. For parse-only / headless flows without a DOM host, use `FileLoader`.
 
-<!-- GIF: docs/gifs/highlight-notes.gif — highlight creates/updates a sidecar note -->
+### Pluggable media types
 
-### Extract embedded images
+Register format support through `MediaTypeRegistry`:
 
-Skip blurry screenshots. Hover an embedded image (or use the touch control on mobile) to preview, copy, or download the original asset.
+```ts
+reader.mediaTypeRegistry.register(
+  ['.pdf'],
+  async (url, extension) => /* FileParser */,
+  async (owner, fileParser, el) => /* Renderer */,
+)
+```
 
-<!-- GIF: docs/gifs/embed-images.gif — hover lens: preview / copy / download -->
+PDF and HTML parsers/renderers ship under `mediaTypes/`. Samples show the registration pattern.
 
-### Cite text and images, then jump back
+### Service injection
 
-Citations stay tied to the source, so you can jump back from the note later:
+`ServiceCollection` lets hosts replace cross-cutting services such as HTTP, storage, loading UI, notifier, theme, and wallpaper providers:
 
-- Copy a text citation as Markdown with a deep link (`#page=` / `#selection=` / `#markId=`).
-- Copy an image citation; paste into Markdown to save a PNG next to the PDF and insert a clickable link.
-- Right-click the note image → **Open in Foxycape** to return to the page and highlight the original region.
+```ts
+reader.services.add('themeProvider', () => new HostThemeProvider())
+```
 
-<!-- GIF: docs/gifs/cite-and-back.gif — copy cite → paste → open back in PDF -->
+### Plugin system
 
-### Theme-aware PDF pages
+Extend interaction and behavior with `PluginCore`, register globally via `PluginRegistry`, and enable per reader instance through `PluginManager` (filtered by extension / language / version).
 
-Bright PDF pages can fight a dark vault. Optionally remap grayscale vector colors to your theme foreground/background (BETA) — for all themes, dark only, or light only. Color artwork stays as-is.
+### Lifecycle hooks and events
 
-<!-- GIF: docs/gifs/theme-adapt.gif — PDF page follows Obsidian theme -->
+Hook into load and render stages (`onInitialize`, `onFileParsed`, `onRenderer` / `onRenderered`, dispose hooks, and more). Subscribe to `EventNames` for page changes, progress, password prompts, theme changes, and related reader events.
 
-### Compatible with Obsidian’s built-in PDF links
+### Mark contracts
 
-Switching readers shouldn’t break the links you already have. Foxycape understands Obsidian-style `#page=` and `#selection=`, can become the default PDF viewer, reuses an open tab when possible, and adds `#markId=` for precise highlight jumps.
+`kernal/mark` defines `IMarker`, `Mark`, `MarkType`, and `ContentRange`. Core owns the contracts and shared geometry helpers; concrete mark engines usually live in the host.
 
-<!-- GIF: docs/gifs/compat-links.gif — open an existing page/selection link -->
+### Navigation and theme
 
-### Highlights and highlight list
+Paging, outline/nav points, reading progress, and theme/style provider interfaces keep layout and chrome concerns host-replaceable without forking the kernel.
 
-Highlighter, wavy underline, and straight underline with custom colors. Browse highlights in a list — filter, sort, jump, or delete.
+## Architecture
 
-<!-- GIF: docs/gifs/annotations.gif — apply styles and browse the highlight list -->
+```
+.
+├── kernal/        # Reader, FileLoader, services, plugins, mark contracts
+├── mediaTypes/    # base / html / pdf parsers and renderers
+├── samples/       # Vite demos (HTML & PDF)
+├── tests/         # Vitest
+└── pdfjs/         # Vendored PDF.js (relative imports)
+```
 
-### Smart copy — unwrap soft line breaks
+```mermaid
+flowchart LR
+  Host[Host app] --> Options[Options]
+  Options --> Reader[Reader]
+  Reader --> Registry[MediaTypeRegistry]
+  Registry --> Parser[FileParser]
+  Registry --> Renderer[Renderer]
+  Reader --> Services[ServiceCollection]
+  Reader --> Plugins[PluginManager]
+  Reader --> Events[EventEmitter]
+```
 
-PDF lines often insert hard breaks mid-sentence. Select text and copy as usual: Foxycape strips those soft wraps so the paste reads as continuous prose, while keeping real paragraph breaks.
+Typical host flow:
 
-<!-- GIF: docs/gifs/smart-copy.gif — select text → copy → paste without mid-sentence newlines -->
+1. `new Options()` → `new Reader(options)`
+2. Register media types (and optionally services / plugins / lifecycle hooks)
+3. `await reader.open(...)`
 
-### Navigation and search
+## Quick start
 
-Outline (TOC), page thumbnails, page picker, and in-document search (`Mod+F`) with case / diacritic / whole-word options. Search uses the PDF text layer (no OCR).
+From the package root:
 
-<!-- GIF: docs/gifs/navigate-search.gif — TOC, thumbnails, and search -->
+```bash
+npm install
+npm run sample:pdf
+# or
+npm run sample:html
+```
 
-### Reading layout
+Minimal integration sketch (see `samples/pdf/main.ts` for a full example):
 
-Zoom (auto / page width / percentages), vertical or horizontal scroll, single / facing / book layout, page rotation, password-protected PDFs. Works on desktop and mobile.
+```ts
+import { Options, Reader } from '@foxycape/core'
+// registerPdfMediaType(reader) — see samples/pdf/registerPdfMediaType.ts
 
-<!-- GIF: docs/gifs/layout.gif — layout and zoom controls -->
+const options = new Options()
+options.enableHeader = false
+options.enableFooter = false
+
+const reader = new Reader(options)
+// registerPdfMediaType(reader)
+
+await reader.open(source, container, root, {
+  extension: '.pdf',
+  fileName: 'a.pdf',
+})
+```
+
+## Development
+
+| Script | Purpose |
+|--------|---------|
+| `npm run build` | Vite library build → `dist` |
+| `npm run test` | Vitest once |
+| `npm run test:watch` | Vitest watch |
+| `npm run sample:html` | HTML reader demo |
+| `npm run sample:pdf` | PDF reader demo |
+
+PDF.js is vendored under `pdfjs/` and imported via relative paths from `mediaTypes/pdf/**`. The library build copies it into `dist/pdfjs`; the published npm package ships only `dist/` (including `dist/pdfjs`), not the source `pdfjs/` folder.
 
 ## License
 
-Dual licensed under the [GNU Affero General Public License v3](LICENSE.md) (AGPL-3.0) and a commercial license.
+Foxycape Core is licensed under the MIT License.
 
-- **AGPL**: free to use, modify, and redistribute if you comply with the AGPL (including source disclosure for network use of modified versions).
-- **Commercial**: if you cannot comply with the AGPL, contact **company@tiefeiying.com** for a commercial license.
-
-See [LICENSE.md](LICENSE.md) for the full text.
+This package vendors [PDF.js](https://github.com/mozilla/pdf.js) (under `dist/pdfjs` after build), which is licensed under the Apache License 2.0. See `dist/pdfjs/LICENSE` in the published package (or `pdfjs/LICENSE` in the source tree).
