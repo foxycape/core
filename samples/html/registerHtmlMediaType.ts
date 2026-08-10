@@ -20,7 +20,7 @@ export const registerHtmlMediaType = (
   const config: RegisterHtmlMediaTypeOptions =
     options instanceof HtmlOptions ? { htmlOptions: options } : options
 
-  const htmlOptions = config.htmlOptions ?? new HtmlOptions()
+  const htmlOptions = Object.assign(new HtmlOptions(), config.htmlOptions)
 
   const extensions = htmlOptions.htmlExtensions?.length
     ? htmlOptions.htmlExtensions

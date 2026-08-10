@@ -1,4 +1,5 @@
 export * from './network/HttpClient';
+export * from './common/data';
 export * from './EventEmitter';
 export * from './IEventEmitter';
 
@@ -54,3 +55,5 @@ export * from './ISymbolCalclator';
 export * from './services/internalUrlBuilder/IInternalUrlBuilder'
 export * from './storage/IStorage'
 export * from './JsonConvert'
+export * from './ContentRange'
+export * from './mark'

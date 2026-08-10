@@ -1,5 +1,5 @@
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
-import pdfWorkerSource from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?raw'
+import * as pdfjsLib from '../../pdfjs/legacy/build/pdf.mjs'
+import pdfWorkerSource from '../../pdfjs/legacy/build/pdf.worker.min.mjs?raw'
 
 let blobWorkerSrc: string | null = null
 

@@ -1,4 +1,4 @@
-import type { IL10n } from "pdfjs-dist/types/web/interfaces";
+import type { IL10n } from "../../../pdfjs/types/web/interfaces";
 
 /**
  * No-op l10n for pdf.js.

@@ -1,7 +1,7 @@
 import { IFileParser, IDocumentsProvider } from "../../../../kernal";
 import type { IPdfDocument } from "../IPdfDocument";
 import { IPdfFileParser } from "../../fileParser/IPdfFileParser";
-import type * as pdfjsViewer from "pdfjs-dist/legacy/web/pdf_viewer.mjs";
+import type * as pdfjsViewer from "../../../../pdfjs/legacy/web/pdf_viewer.mjs";
 
 export interface IPdfDocumentsProvider<T extends IPdfDocument = IPdfDocument,W extends IFileParser = IPdfFileParser> extends IDocumentsProvider<T,W> {
     getViewerContainer(): HTMLDivElement;

@@ -543,12 +543,12 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             element.style.setProperty("width", "auto", "important");
             element.style.setProperty("max-width", "100%", "important");
             element.style.setProperty("height", actualHeight, "important");
-            element.style.setProperty("margin-top", "0", "important");
-            element.style.setProperty("margin-bottom", "0", "important");
+            element.style.setProperty("margin-block-start", "0", "important");
+            element.style.setProperty("margin-block-end", "0", "important");
         } else {
             element.setAttribute(
                 "style",
-                `width:auto !important;max-width:100% !important;height:${actualHeight} !important;margin-top:0 !important;margin-bottom:0 !important;`
+                `width:auto !important;max-width:100% !important;height:${actualHeight} !important;margin-block-start:0 !important;margin-block-end:0 !important;`
             );
         }
         targetElement.style.setProperty("vertical-align", "-0.2em", "important");

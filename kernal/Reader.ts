@@ -23,7 +23,6 @@ import type { LifecycleHooks } from "./LifecycleHooks";
 import { IFileParser } from "./IFileParser";
 import { IDocumentsProvider } from "./IDocumentsProvider";
 import { IReadingProgressStore } from "./progress/IReadingProgressStore";
-
 export class Reader implements LifecycleHooks {
     readonly version: string;
     readonly fileLoader: FileLoader;
@@ -210,7 +209,8 @@ export class Reader implements LifecycleHooks {
         this.readerWrapper.innerHTML = "";
         await this.loading?.initialize(this.readerWrapper,{
             backgroundColor: `var(${Theme.ReaderBackground})`,
-            textColor: `var(${Theme.ContentTextColor})`,
+            textColor: `var(${Theme.TextMutedColor})`,
+            iconColor: `var(${Theme.TextAccentColor})`,
         });
         await this.loading?.show();
 

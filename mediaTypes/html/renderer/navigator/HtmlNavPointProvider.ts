@@ -2,7 +2,7 @@ import { containValues } from "../../../../kernal/common/array";
 import { deepClone } from "../../../../kernal/common/object";
 import { isNullOrWhiteSpace } from "../../../../kernal/common/text";
 import { getElementIndex } from "../../../../kernal/html/finder";
-import { INavPointProvider, IFileParser, IDocumentsProvider, NavPoint, EventNames, Nav, SymbolType, BrowserCapabilities } from "../../../../kernal";
+import { INavPointProvider, IFileParser, IDocumentsProvider, NavPoint, Nav, SymbolType, BrowserCapabilities } from "../../../../kernal";
 import { getElementByProgress } from "../../../../kernal/html/position";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { IHtmlTextDocument } from "../IHtmlTextDocument";
@@ -23,10 +23,6 @@ export class HtmlNavPointProvider implements INavPointProvider {
         private readonly options: HtmlOptions
     ) {
         this.fileParser = documentsProvider.fileParser;
-        this.documentsProvider.owner.events.on(EventNames.NavChange, (_fileParser, nav) => {
-            // Nav change event
-            this.reset(nav);
-        });
     }
 
     async getFlattingNavPoints(): Promise<NavPoint[]> {
@@ -53,10 +49,6 @@ export class HtmlNavPointProvider implements INavPointProvider {
             return this.reversedFlattingNavPoints;
         }
         return this.flattingNavPoints;
-    }
-
-    private reset(nav: Nav): void {
-        this.initialNav(nav);
     }
 
     private initialNav(nav: Nav) {

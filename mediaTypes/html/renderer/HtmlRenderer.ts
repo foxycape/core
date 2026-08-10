@@ -1,5 +1,5 @@
 ﻿import { getRandomId } from "../../../kernal/common/uuid";
-import { EventNames, FileLocation, ICoreNavigator, IFileParser, isOptionKey, IPagingNavigator, WritingMode, IStyleProvider, INavPointNavigator, INavPointProvider, Theme } from "../../../kernal";
+import { EventNames, FileLocation, ICoreNavigator, IFileParser, isOptionKey, IPagingNavigator, WritingMode, IStyleProvider, INavPointNavigator, INavPointProvider, Theme, Direction } from "../../../kernal";
 import type { Reader } from "../../../kernal/Reader";
 import { watchScroll } from "../../../kernal/html/events";
 import { isHtmlOptionKey } from "../HtmlOptions";
@@ -67,20 +67,20 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     }
 
     private injectProcessHandlers = () => {
-        this.addDocumentPreprocess(this.processHandler);
+        this.addDocumentPreprocess(this.preprocessHandler);
     }
     private async resolveCurrentTheme(): Promise<Theme | undefined> {
         const themeProvider = await this.owner.services.get("themeProvider");
         return themeProvider?.getCurrentTheme() ?? new Theme();
     }
-    protected processHandler = async (doc: IHtmlDocument) => {
-        await this.contentProcessor.process(doc);
+    protected preprocessHandler = async (doc: IHtmlDocument) => {
+        await this.contentProcessor.preprocess(doc);
         await this.styleProvider.injectStyles(doc);
         const theme = await this.resolveCurrentTheme();
         if(theme){
             await this.themeApplier.applyToDocument(doc, theme);
         }
-        await this.rendererLayout.injectColumnStyles(doc);
+        await this.rendererLayout.applyDocStyles(doc);
         await this.imageLoader.preprocessImages(doc);
     };
 
@@ -172,9 +172,12 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
         return this.fileParser;
     }
 
-    async getWritingMode(): Promise<WritingMode> {
-        //todo
-        return 'horizontal-tb';
+    get writingMode(): WritingMode {
+        return this.htmlOptions.writingMode ?? 'horizontal-tb';
+    }
+
+    get direction(): Direction {
+        return this.htmlOptions.direction ?? 'ltr';
     }
 
     get layout(): IHtmlRendererLayout {

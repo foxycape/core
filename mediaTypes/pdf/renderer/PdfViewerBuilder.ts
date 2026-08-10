@@ -1,5 +1,5 @@
 import { MultiPDFViewer } from "./MultiPdfViewer";
-import * as pdfjsViewer from "pdfjs-dist/legacy/web/pdf_viewer.mjs";
+import * as pdfjsViewer from "../../../pdfjs/legacy/web/pdf_viewer.mjs";
 import { PdfOptions } from "../PdfOptions";
 import { PdfNoopL10n } from "./PdfNoopL10n";
 
@@ -35,6 +35,10 @@ export class PdfViewerBuilder {
             eventBus,
         });
         const removePageBorders = false;
+        // Intentionally omit findController on the viewer: TextHighlighter only
+        // supports span text layers and would double-paint with foxycape-pdf
+        // PdfSearchOverlay. Matching still runs via the standalone
+        // findController + eventBus.
         const pdfViewer = new MultiPDFViewer(
             {
                 container,

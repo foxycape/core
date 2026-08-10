@@ -1,10 +1,10 @@
 import { TextFormatOptions, IDisposable, SpineFile, asyncDebounce, IDevice } from "../../../kernal";
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
-import * as pdfjsViewer from 'pdfjs-dist/legacy/web/pdf_viewer.mjs';
+import * as pdfjsLib from '../../../pdfjs/legacy/build/pdf.mjs';
+import * as pdfjsViewer from '../../../pdfjs/legacy/web/pdf_viewer.mjs';
 
-import { PDFViewerOptions } from "pdfjs-dist/types/web/pdf_viewer";
+import { PDFViewerOptions } from "../../../pdfjs/types/web/pdf_viewer";
 import { PdfOptions } from "../PdfOptions";
-import { getPageText } from "../pageText";
+import { getPageText } from "../shared/text/pageText";
 
 export class MultiPDFViewer extends pdfjsViewer.PDFViewer implements IDisposable {
    private isMultiDocument: boolean;

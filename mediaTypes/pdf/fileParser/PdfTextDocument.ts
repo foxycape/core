@@ -1,7 +1,7 @@
 import { TextFormatOptions, SpineFile } from "../../../kernal";
 import { computeUniqueId } from "../../../kernal/common/uuid";
 import { ITextDocument } from "../../../kernal/ITextDocument";
-import { getPageText } from "../pageText";
+import { getPageText } from "../shared/text/pageText";
 import { IPdfFileParser } from "./IPdfFileParser";
 
 export class PdfTextDocument implements ITextDocument {

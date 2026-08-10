@@ -29,6 +29,9 @@ export class Theme {
     selectionBackground: string = "rgba(255,213,0,0.35)";
     selectionColor: string = "inherit";
     columnRuleColor: string = "rgba(100, 100, 100, 0.1)";
+    textAccentColor: string = "#14ae5c";
+    textMutedColor: string = "#999";
+    borderColor: string = "#e9e9e9";
 
     /** scrollbar thumb color */
     scrollbarThumbColor: string = "#999";
@@ -50,9 +53,12 @@ export class Theme {
     static readonly ColumnRuleColor = toCssVariableName("columnRuleColor" satisfies ThemeCssKey);
     static readonly SelectionBackground = toCssVariableName("selectionBackground" satisfies ThemeCssKey);
     static readonly SelectionColor = toCssVariableName("selectionColor" satisfies ThemeCssKey);
+    static readonly TextAccentColor = toCssVariableName("textAccentColor" satisfies ThemeCssKey);
+    static readonly TextMutedColor = toCssVariableName("textMutedColor" satisfies ThemeCssKey);
     static readonly ScrollbarThumbColor = toCssVariableName("scrollbarThumbColor" satisfies ThemeCssKey);
     static readonly ScrollbarThumbHoverColor = toCssVariableName("scrollbarThumbHoverColor" satisfies ThemeCssKey);
     static readonly ScrollbarTrackColor = toCssVariableName("scrollbarTrackColor" satisfies ThemeCssKey);
+    static readonly BorderColor = toCssVariableName("borderColor" satisfies ThemeCssKey);
 
     /** custom scrollbar style class */
     static readonly customScrollerClassName = "custom-scroller";
@@ -100,7 +106,7 @@ export class Theme {
     }
 }
 
-export type ColorMode = "white" | "black" | "other";
+export type ColorMode = "light" | "dark" | "other";
 
 /**
  * The properties that will be injected as CSS variables in Theme.
@@ -118,6 +124,9 @@ export const ThemeCssKeys = [
     "scrollbarThumbColor",
     "scrollbarThumbHoverColor",
     "scrollbarTrackColor",
+    "textAccentColor",
+    "textMutedColor",
+    "borderColor",
 ] as const satisfies readonly (keyof Theme)[];
 
 export type ThemeCssKey = typeof ThemeCssKeys[number];

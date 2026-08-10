@@ -19,6 +19,6 @@ export default defineConfig({
     emptyOutDir: true,
   },
   optimizeDeps: {
-    exclude: ['pdfjs-dist'],
+    exclude: ['pdfjs'],
   },
 })

@@ -1,5 +1,5 @@
 import { Context, EventNames, IEventEmitter, ILocale, IStorage } from "../../../kernal";
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfjsLib from '../../../pdfjs/legacy/build/pdf.mjs';
 import { PdfPasswordPromptCallback } from "./IPdfFileParser";
 
 export class PdfPasswordProvider {

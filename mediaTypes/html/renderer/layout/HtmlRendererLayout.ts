@@ -1,6 +1,6 @@
 import { HtmlLayoutMetrics } from "./HtmlLayoutMetrics";
 import { HtmlOptions } from "../../HtmlOptions";
-import { EventNames, FlipMode, IDocumentsProvider, IProgressTracker, Reader, Theme, WritingMode } from "../../../../kernal";
+import { Direction, EventNames, FlipMode, IDocumentsProvider, IProgressTracker, Reader, Theme, WritingMode } from "../../../../kernal";
 import { ColumnOptions, IHtmlRendererLayout } from "./IHtmlRendererLayout";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { IHtmlDocument } from "../IHtmlDocument";
@@ -12,9 +12,10 @@ import { isNullOrWhiteSpace } from "../../../../kernal/common/text";
 
 export class HtmlRendererLayout implements IHtmlRendererLayout {
     /**Column layout style name */
-    private readonly ColumnsLayoutCssName = "columns-layout";
+    private readonly DocumentLayoutCssName = "document-layout";
+    private readonly DocumentPageModeCssName = "document-page-mode";
     /**Vertical writing scroll mode style name */
-    private readonly WritingVerticalScollColumnsLayoutCssName = "vertical-columns-layout";
+    private readonly WritingVerticalScollDocumentLayoutCssName = "vertical-document-layout";
 
     constructor(private readonly owner: Reader,
         private readonly documentsProvider: IDocumentsProvider<IHtmlDocument>,
@@ -24,20 +25,22 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
 
     }
 
-    async applyCssVariables(): Promise<void> {
+    async applyStyles(): Promise<void> {
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         for (const doc of loadedDocuments) {
-            await this.injectColumnStyles(doc);
+            await this.applyDocStyles(doc);
         }
     }
 
-    async injectColumnStyles(doc: IHtmlDocument): Promise<void> {
+    async applyDocStyles(doc: IHtmlDocument): Promise<void> {
         const contentContainer = doc.getContentContainer() ?? await doc.getVirtualContentContainer();
         const documentElement = contentContainer.ownerDocument.documentElement;
         const flipMode = this.htmlOptions.flipMode;
         const metrics = this.renererviewport.getLayoutMetrics();
+        const writingMode = this.htmlOptions.writingMode ?? 'horizontal-tb';
+        const direction = this.htmlOptions.direction ?? 'ltr';
         //inject column styles
-        const css = await this.prepareColumnsStyes(documentElement.ownerDocument, doc.getWritingMode());
+        const css = await this.prepareDocStyes(documentElement.ownerDocument, writingMode, direction);
         injectCssContent(documentElement.ownerDocument, css, true, 'columns-layout-css');
         const themeProvider = await this.owner.services.get('themeProvider');
         let theme: Theme;
@@ -53,7 +56,7 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
             documentElement.style.setProperty(key, value);
         }
 
-        this.toggleColumnLayout(documentElement, flipMode, doc.getWritingMode());
+        this.toggleColumnLayout(documentElement, flipMode, writingMode, direction);
     }
 
     private async getCssVariables(theme: Theme, metrics: HtmlLayoutMetrics, flipMode: FlipMode) {
@@ -91,16 +94,16 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         return vars;
     }
 
-    private prepareColumnsStyes = async (doc: Document, writingMode: WritingMode) => {
-        let css = "." + this.ColumnsLayoutCssName + "";
-        css += "{";
-        if (writingMode == 'horizontal-tb') {
-            css += "width:var(" + ContentLayoutCssVariableNames.ContentShadowWidth + ")  !important;";
-        }
-        else {
-            css += "width:var(" + ContentLayoutCssVariableNames.PageWidth + ") !important;";
-        }
+    protected async prepareDocStyes(doc: Document, writingMode: WritingMode, direction: Direction): Promise<string> {
+        //default document layout
+        let css = "";
+        css += `html { writing-mode: ${writingMode} !important; direction: ${direction} !important; }`;
+        css += `body { writing-mode: ${writingMode} !important; direction: ${direction} !important; }`;
 
+        //writing mode
+        css += "." + this.DocumentPageModeCssName + "";
+        css += `{`;
+        css += "width:var(" + ContentLayoutCssVariableNames.PageWidth + ") !important;";
         css += "height:var(" + ContentLayoutCssVariableNames.PageHeight + ") !important;";
         css += "column-width:var(" + ContentLayoutCssVariableNames.ColumnWidth + ") !important;";
         css += "column-rule:1px solid var(" + Theme.ColumnRuleColor + ") !important;";
@@ -118,17 +121,17 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         css += "}";
 
 
-        //Vertical writing, scroll mode layout
-        css += "." + this.WritingVerticalScollColumnsLayoutCssName + "";
-        css += "{";
-        //Vertical layout, height using column width
-        css += "width:100%;height:var(" + ContentLayoutCssVariableNames.ColumnWidth + ") !important;";
-        css += "column-fill:auto;column-width:var(" + ContentLayoutCssVariableNames.ColumnWidth + ") !important;"
-        css += "column-gap:var(" + ContentLayoutCssVariableNames.ColumnGap + ") !important;";
-        css += "page-break-inside:avoid;break-inside:avoid;";
-        css += "margin:0 auto !important;padding:0 !important;";
-        css += "column-rule:1px solid var(" + Theme.ColumnRuleColor + ") !important;";
-        css += "}";
+        // //Vertical writing, scroll mode layout
+        // css += "." + this.WritingVerticalScollColumnsLayoutCssName + "";
+        // css += "{";
+        // //Vertical layout, height using column width
+        // css += "width:100%;height:var(" + ContentLayoutCssVariableNames.ColumnWidth + ") !important;";
+        // css += "column-fill:auto;column-width:var(" + ContentLayoutCssVariableNames.ColumnWidth + ") !important;"
+        // css += "column-gap:var(" + ContentLayoutCssVariableNames.ColumnGap + ") !important;";
+        // css += "page-break-inside:avoid;break-inside:avoid;";
+        // css += "margin:0 auto !important;padding:0 !important;";
+        // css += "column-rule:1px solid var(" + Theme.ColumnRuleColor + ") !important;";
+        // css += "}";
 
         const contentContainer = getDocumentBody(doc);
         const lastElementChild = contentContainer.lastElementChild;
@@ -139,19 +142,18 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         return css;
     }
 
-    private toggleColumnLayout(rootElement: HTMLElement, flipMode: FlipMode, writingMode: WritingMode) {
+    private toggleColumnLayout(rootElement: HTMLElement, flipMode: FlipMode, writingMode: WritingMode, direction: Direction) {
+        rootElement.classList.add(this.DocumentLayoutCssName);
         if (flipMode == "page") {
-            rootElement.classList.remove(this.WritingVerticalScollColumnsLayoutCssName);
-            rootElement.classList.add(this.ColumnsLayoutCssName);
+            rootElement.classList.add(this.DocumentPageModeCssName);
         }
         else {
-            if (this.isVerticalWriting(writingMode) && !this.htmlOptions.forceScroll) {
-                rootElement.classList.remove(this.ColumnsLayoutCssName);
-                rootElement.classList.add(this.WritingVerticalScollColumnsLayoutCssName);
+            rootElement.classList.remove(this.DocumentPageModeCssName);
+            if (this.isVerticalWriting(writingMode)) {
+                rootElement.classList.add(this.WritingVerticalScollDocumentLayoutCssName);
             }
             else {
-                rootElement.classList.remove(this.WritingVerticalScollColumnsLayoutCssName);
-                rootElement.classList.remove(this.ColumnsLayoutCssName);
+                rootElement.classList.remove(this.WritingVerticalScollDocumentLayoutCssName);
             }
         }
     }
@@ -165,8 +167,6 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
             return;
         }
         const oldFlipMode = this.htmlOptions.flipMode;
-        const oldColumns = this.htmlOptions.columns;
-        const oldAutoColumns = this.htmlOptions.autoColumns;
         if (!this.owner.context.currentLocation?.precise) {
             const progress = await this.progress.getProgress(true);
             if (progress) {
@@ -178,9 +178,9 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         this.renererviewport.applyCssVariables();
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         for (const doc of loadedDocuments) {
-            await this.injectColumnStyles(doc);
+            await this.applyDocStyles(doc);
         }
-        this.owner.events.emit(EventNames.LayoutChange, oldFlipMode, oldColumns, oldAutoColumns);
+        this.owner.events.emit(EventNames.LayoutChange, { flipMode: { previous: oldFlipMode, current: flipMode } });
         await this.documentsProvider.reload();
     }
 
@@ -188,7 +188,6 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         if (this.htmlOptions.columns === columnOptions.columns && this.htmlOptions.autoColumns === columnOptions.autoColumns) {
             return;
         }
-        const oldFlipMode = this.htmlOptions.flipMode;
         const oldColumns = this.htmlOptions.columns;
         const oldAutoColumns = this.htmlOptions.autoColumns;
         if (!this.owner.context.currentLocation?.precise) {
@@ -203,9 +202,9 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         this.renererviewport.applyCssVariables();
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         for (const doc of loadedDocuments) {
-            await this.injectColumnStyles(doc);
+            await this.applyDocStyles(doc);
         }
-        this.owner.events.emit(EventNames.LayoutChange, oldFlipMode, oldColumns, oldAutoColumns);
+        this.owner.events.emit(EventNames.LayoutChange, { columns: { previous: oldColumns, current: columnOptions.columns }, autoColumns: { previous: oldAutoColumns, current: columnOptions.autoColumns } });
         await this.documentsProvider.reload();
     }
 }

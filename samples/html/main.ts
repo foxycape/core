@@ -1,14 +1,17 @@
 import type { ColorMode, FlipMode, IThemeProvider } from '../../kernal'
 import {
+  FilePackage,
   Options,
   PluginRegistry,
   Reader,
+  SpineFile,
   Theme,
 } from '../../kernal'
 import { HtmlRenderer } from '../../mediaTypes/html/renderer/HtmlRenderer'
 import { ContentCssVariables, registerHtmlMediaType } from './registerHtmlMediaType'
 import { KeyboardPageTurning } from '../../kernal/plugins/keyboard/KeyboardPageTurning'
 import { WheelPageTurning } from '../../kernal/plugins/mouse/WheelPageTurning'
+import { HtmlOptions } from '../../mediaTypes/html/HtmlOptions'
 
 const sampleUrl = new URL('./fixtures/sample.html', import.meta.url).href
 
@@ -52,8 +55,9 @@ if (
 
 type OpenTarget = {
   label: string
-  source: Blob | ArrayBuffer
+  source: Blob | ArrayBuffer | FilePackage
   extension: string
+  resourceId?: string
 }
 
 type StylePreset = {
@@ -99,7 +103,7 @@ const themeDefinitions: Record<string, ThemeDefinition> = {
   default: {
     name: 'default',
     title: 'Default',
-    colorMode: 'white',
+    colorMode: 'light',
     isDefault: true,
     readerBackground: '#f1f1f1',
     contentBackground: '#ffffff',
@@ -112,7 +116,7 @@ const themeDefinitions: Record<string, ThemeDefinition> = {
   night: {
     name: 'night',
     title: 'Night',
-    colorMode: 'black',
+    colorMode: 'dark',
     readerBackground: '#12151a',
     contentBackground: '#1b1f27',
     contentTextColor: '#d7dde8',
@@ -213,8 +217,8 @@ const layoutPresets: Record<string, StylePreset> = {
 const options = new Options()
 options.debug = true
 options.themeName = 'default'
-options.enableFooter=false
-options.enableHeader=false
+options.enableFooter = false
+options.enableHeader = false
 
 const reader = new Reader(options)
 
@@ -232,6 +236,10 @@ reader.services.add('themeProvider', () => sampleThemeProvider)
 
 const htmlOptions = registerHtmlMediaType(reader, {
   defaultContentCssVariables: injectedDefaultCssVariables,
+  htmlOptions: {
+    // writingMode: 'vertical-lr',
+    // direction: 'ltr',
+  } as HtmlOptions,
 })
 // On Chromium, about:blank + document.write can yield an empty document; prefer srcdoc
 // htmlOptions.preferSrcdoc = true
@@ -305,10 +313,10 @@ const isDarkColor = (hex: string) => {
 
 const resolveColorModeForPicker = (bgColor: string, baseThemeName: string): ColorMode => {
   if (baseThemeName === 'night' || isDarkColor(bgColor)) {
-    return 'black'
+    return 'dark'
   }
   if (baseThemeName === 'default' && bgColor.toLowerCase() === '#ffffff') {
-    return 'white'
+    return 'light'
   }
   return 'other'
 }
@@ -359,6 +367,7 @@ const openTarget = async (target: OpenTarget) => {
     await reader.open(target.source, readerRoot, readerRoot, {
       extension: target.extension,
       fileName: target.label,
+      resourceId: target.resourceId,
     })
     lastTarget = target
     const documents = reader.getRenderer()?.getDocuments() ?? []
@@ -373,6 +382,34 @@ const openTarget = async (target: OpenTarget) => {
     setStatus(`Load failed: ${message}`, 'error')
   } finally {
     setBusy(false)
+  }
+}
+
+const buildOpenTargetFromFiles = (files: File[]): OpenTarget | null => {
+  if (files.length === 0) {
+    return null
+  }
+  if (files.length === 1) {
+    const file = files[0]
+    return {
+      label: file.name,
+      source: file,
+      extension: resolveExtension(file.name),
+    }
+  }
+
+  const spineFiles = files.map(
+    (file) => new SpineFile(file, file.name, resolveExtension(file.name)),
+  )
+  const source = new FilePackage()
+  source.spineFiles = spineFiles
+  source.extension = resolveExtension(files[0].name)
+  const label = files.map((file) => file.name).join(', ')
+  return {
+    label,
+    source,
+    extension: source.extension,
+    resourceId: files.map((file) => file.name).join('|'),
   }
 }
 
@@ -403,14 +440,14 @@ const loadSample = async () => {
 }
 
 const resolveContentTextColor = (themeName: string, colorMode: ColorMode) => {
-  if (colorMode === 'white') {
+  if (colorMode === 'light') {
     return 'inherit'
   }
   const definition = themeDefinitions[themeName] ?? themeDefinitions.default
   if (definition.contentTextColor !== 'inherit') {
     return definition.contentTextColor
   }
-  return colorMode === 'black' ? '#d7dde8' : '#5b4636'
+  return colorMode === 'dark' ? '#d7dde8' : '#5b4636'
 }
 
 const applyTypographyStyles = async () => {
@@ -501,15 +538,12 @@ btnReload.addEventListener('click', () => {
 })
 
 fileInput.addEventListener('change', () => {
-  const file = fileInput.files?.[0]
-  if (!file) {
+  const files = Array.from(fileInput.files ?? [])
+  const target = buildOpenTargetFromFiles(files)
+  if (!target) {
     return
   }
-  void openTarget({
-    label: file.name,
-    source: file,
-    extension: resolveExtension(file.name),
-  }).finally(() => {
+  void openTarget(target).finally(() => {
     fileInput.value = ''
   })
 })

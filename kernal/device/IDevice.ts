@@ -1,8 +1,5 @@
 
 export interface IDevice {
-    /** Logical pixel ratio used for mobile layout scaling. */
-    readonly pixelRatio: number;
-
     /** Gets the device model name. */
     getModel(): string;
 

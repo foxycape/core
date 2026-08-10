@@ -49,15 +49,6 @@ export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
     applyCssVariables(): void {
         const vars = new Map<string, string>();
         vars.set(PdfCssVariableNames.ScrollElementOverflow, "auto");
-        var contentWrapperBorderRadius = this.options.contentWrapperBorderRadius;
-        if (this.options.enableContentWrapperBorderRadius) {
-            contentWrapperBorderRadius = this.removePageBorders() ? contentWrapperBorderRadius : contentWrapperBorderRadius + 9;//9px is border width
-        }
-        else {
-            contentWrapperBorderRadius = 0;
-        }
-        vars.set(PdfCssVariableNames.ContentWrapperBorderRadius, contentWrapperBorderRadius + "px");
-        this.injectPageStyles();
         const ownerWindow = this.rendererContainer.ownerDocument.defaultView;
         const applyToRoot = () => {
             vars.forEach((v, k) => {
@@ -146,8 +137,8 @@ export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
         viewerContainer: HTMLDivElement;
     } {
         let rendererCss = `.${this.rendererClassName}{`;
-        rendererCss += `margin-top:var(${Options.HeaderHeight});`;
-        rendererCss += `margin-bottom:var(${Options.FooterHeight});`;
+        rendererCss += `margin-block-start:var(${Options.HeaderHeight});`;
+        rendererCss += `margin-block-end:var(${Options.FooterHeight});`;
         rendererCss += `position:absolute;inset:0;overflow:auto;outline:none;`;
         rendererCss += `}`;
 
@@ -172,15 +163,6 @@ export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
         injectCssContent(this.readerContainer.ownerDocument, rendererCss, true, "pdf-renderer-style");
         this.readerContainer.appendChild(rendererContainer);
         return { rendererContainer, viewerContainer };
-    }
-
-
-    private injectPageStyles() {
-        let css = ` 
-        .pdfViewer .page {border-radius:var(${PdfCssVariableNames.ContentWrapperBorderRadius});}
-        .pdfViewer .canvasWrapper {border-radius:var(${PdfCssVariableNames.ContentWrapperBorderRadius});}
-        `;
-        injectCssContent(this.readerContainer.ownerDocument, css, false, "pdf-page-styles");
     }
 
     private buildLayoutMetrics(): LayoutMetrics {

@@ -3,7 +3,7 @@ import { IPdfDocumentsProvider } from "../documents/IPdfDocumentsProvider";
 import { IPdfDestinationBuilder } from "../location/IPdfDestinationBuilder";
 import type { MultiPDFViewer } from "../MultiPdfViewer";
 import type { IPdfProgressTracker } from "./IPdfProgressTracker";
-import * as pdfjsViewer from "pdfjs-dist/legacy/web/pdf_viewer.mjs";
+import * as pdfjsViewer from "../../../../pdfjs/legacy/web/pdf_viewer.mjs";
 
 export class PdfProgressTracker implements IPdfProgressTracker {
     constructor(

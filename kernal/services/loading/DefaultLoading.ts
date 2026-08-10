@@ -21,10 +21,12 @@ export class DefaultLoading implements ILoading {
                 injectCssContent(container.ownerDocument, css, false, "loader-css");
             }
             let backgroundColor = "#fff"
+            let iconColor = "#14ae5c"   
             if (!(options?.disableLoadingTheme)) {
                 backgroundColor = options?.backgroundColor ?? "#fff";
+                iconColor = options?.iconColor ?? "#14ae5c";
             }
-            injectCssContent(container.ownerDocument, ".loader{background:" + backgroundColor + ";position:absolute;z-index:2;width:100%;height: 100%;box-sizing: border-box;display: flex;-ms-flex: 0 1 auto;flex: 0 1 auto;flex-direction: column;flex-grow: 1;flex-shrink: 0;flex-basis: 25%;-ms-flex-align: center;align-items: center;justify-content: center;}." + this.curentCssName + ">div{background-color:#14ae5c !important}", true, "loaders.min.css-content");
+            injectCssContent(container.ownerDocument, ".loader{background:" + backgroundColor + ";position:absolute;z-index:2;width:100%;height: 100%;box-sizing: border-box;display: flex;-ms-flex: 0 1 auto;flex: 0 1 auto;flex-direction: column;flex-grow: 1;flex-shrink: 0;flex-basis: 25%;-ms-flex-align: center;align-items: center;justify-content: center;}." + this.curentCssName + ">div{background-color:" + iconColor + " !important}", true, "loaders.min.css-content");
         }
     }
     async show(text?: string): Promise<void> {
@@ -47,8 +49,7 @@ export class DefaultLoading implements ILoading {
             }
             const loadingText = text ? text : this.getDefaultLoadingText();
             loadingContainer = createElement(this.container.ownerDocument, "div", loaderId, "loader");
-            // loadingContainer.innerHTML = "<div class=\"" + this.curentCssName + "\"><div></div><div></div><div></div><div></div><div></div></div><div style=\"font-size: 16px;color: " + theme.contentTextColor + ";margin-top: 15px;\">" + this.runtime.locale.getText("share_loading_text", "loading...") + "</div>";
-            loadingContainer.innerHTML = "<div class=\"" + this.curentCssName + "\"><div></div><div></div><div></div><div></div><div></div><div></div></div><div style=\"font-size: 16px;color: " + textColor + ";margin-top: " + this.loadingTextMarginTop + "px;\" class='loading-holder'>" + loadingText + "</div>";
+            loadingContainer.innerHTML = "<div class=\"" + this.curentCssName + "\"><div></div><div></div><div></div><div></div><div></div><div></div></div><div style=\"font-size: 16px;color: " + textColor + ";margin-block-start: " + this.loadingTextMarginTop + "px;\" class='loading-holder'>" + loadingText + "</div>";
 
             this.container.insertAdjacentElement("afterbegin", loadingContainer);
         }

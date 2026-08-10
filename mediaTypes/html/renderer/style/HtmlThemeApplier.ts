@@ -10,23 +10,16 @@ import { IHtmlThemeApplier } from "./IHtmlThemeApplier";
  * Layout / reading preference variables belong to HtmlStyleProvider.
  */
 export class HtmlThemeApplier implements IHtmlThemeApplier {
-    /** placeholder classes to raise CSS selector specificity against book styles */
-    private readonly holderClassNames = [
-        readerPrefixName + "a",
-        readerPrefixName + "b",
-        readerPrefixName + "c",
-        readerPrefixName + "d",
-    ];
-    private readonly allElementSelectorPrefix =
-        `html body *[class*='${readerPrefixName}a'][class*='${readerPrefixName}b'][class*='${readerPrefixName}c']`;
-    private readonly documentElementSelectorPrefix =
-        `html,body[class*='${readerPrefixName}a'][class*='${readerPrefixName}b'][class*='${readerPrefixName}c']`;
-    private readonly preElementSelectorPrefix =
-        `html body pre[class*='${readerPrefixName}a'][class*='${readerPrefixName}b'][class*='${readerPrefixName}c']`;
-    private readonly preAllElementSelectorPrefix =
-        `html body pre *[class*='${readerPrefixName}a'][class*='${readerPrefixName}b'][class*='${readerPrefixName}c']`;
-    private readonly animationElementSelectorPrefix =
-        `html body *[class*='${readerPrefixName}a'][class*='${readerPrefixName}b'][class*='${readerPrefixName}c'][class*='${readerPrefixName}d']`;
+    /** single holder class; repeated in selectors (`.t.t.t`) to raise specificity against book styles */
+    private readonly holderClassName = readerPrefixName + "t";
+    private readonly holderSelector = `.${this.holderClassName}.${this.holderClassName}.${this.holderClassName}`;
+    private readonly animationHolderSelector =
+        `.${this.holderClassName}.${this.holderClassName}.${this.holderClassName}.${this.holderClassName}`;
+    private readonly allElementSelectorPrefix = `html body *${this.holderSelector}`;
+    private readonly documentElementSelectorPrefix = `html,body${this.holderSelector}`;
+    private readonly preElementSelectorPrefix = `html body pre${this.holderSelector}`;
+    private readonly preAllElementSelectorPrefix = `html body pre *${this.holderSelector}`;
+    private readonly animationElementSelectorPrefix = `html body *${this.animationHolderSelector}`;
 
     private readonly specialColorCssName = readerPrefixName + "reader-special-color";
     private readonly specialBackgroundCssName = readerPrefixName + "reader-special-background";
@@ -100,32 +93,27 @@ export class HtmlThemeApplier implements IHtmlThemeApplier {
                 continue;
             }
             if (compareTagName(currentElement.tagName, "PRE")) {
-                currentElement.classList.add(...this.holderClassNames);
-                currentElement.classList.add(this.specialColorCssName, this.specialBackgroundCssName);
+                currentElement.classList.add(this.holderClassName, this.specialColorCssName, this.specialBackgroundCssName);
                 if (currentElement.firstElementChild && compareTagName(currentElement.firstElementChild.tagName, "CODE")) {
-                    currentElement.firstElementChild.classList.add(...this.holderClassNames);
-                    currentElement.firstElementChild.classList.add(this.specialBackgroundCssName);
+                    currentElement.firstElementChild.classList.add(this.holderClassName, this.specialBackgroundCssName);
                 }
                 preElementChildren.push(...Array.from(currentElement.getElementsByTagName("*")));
                 continue;
             }
-            currentElement.classList.add(...this.holderClassNames);
-            currentElement.classList.add(this.specialColorCssName, this.specialBackgroundCssName);
+            currentElement.classList.add(this.holderClassName, this.specialColorCssName, this.specialBackgroundCssName);
             if (i % 100 === 0 && supportScheduler) {
                 await scheduler.yield();
             }
         }
 
-        contentContainer.classList.add(...this.holderClassNames);
-        contentContainer.classList.add(this.specialColorCssName, this.specialBackgroundCssName);
-        documentElement.classList.add(...this.holderClassNames);
-        documentElement.classList.add(this.specialColorCssName, this.specialBackgroundCssName);
+        contentContainer.classList.add(this.holderClassName, this.specialColorCssName, this.specialBackgroundCssName);
+        documentElement.classList.add(this.holderClassName, this.specialColorCssName, this.specialBackgroundCssName);
         documentElement.setAttribute(this.holdersMarkedAttr, "1");
     }
 
     private injectThemeStyles(documentElement: HTMLElement, theme: Theme): void {
-        // text color: only force for black themes (preserve book colors otherwise)
-        if (theme.colorMode === "black" && theme.contentTextColor !== "inherit") {
+        // text color: only force for dark themes (preserve book colors otherwise)
+        if (theme.colorMode === "dark" && theme.contentTextColor !== "inherit") {
             const colorCss =
                 `${this.documentElementSelectorPrefix}.${this.specialColorCssName},` +
                 `${this.allElementSelectorPrefix}.${this.specialColorCssName}` +
@@ -136,9 +124,9 @@ export class HtmlThemeApplier implements IHtmlThemeApplier {
             removeElement(documentElement, this.specialColorCssId);
         }
 
-        // background: white themes keep book backgrounds; others override with !important
-        const importantKey = theme.colorMode === "white" ? "" : "!important";
-        if (theme.colorMode === "white") {
+        // background: light themes keep book backgrounds; others override with !important
+        const importantKey = theme.colorMode === "light" ? "" : "!important";
+        if (theme.colorMode === "light") {
             removeElement(documentElement, this.specialBackgroundCssId);
         }
         else {

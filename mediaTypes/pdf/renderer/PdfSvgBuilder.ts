@@ -4,10 +4,9 @@ import {
     EventNames,
     Theme,
 } from "../../../kernal";
-import { removeAll } from "../../../kernal/common/array";
 import { getByteLength } from "../../../kernal/common/text";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import type * as pdfjsViewer from "pdfjs-dist/legacy/web/pdf_viewer.mjs";
+import * as pdfjsLib from "../../../pdfjs/legacy/build/pdf.mjs";
+import type * as pdfjsViewer from "../../../pdfjs/legacy/web/pdf_viewer.mjs";
 import { PdfOptions } from "../PdfOptions";
 import { IPdfDocument } from "./IPdfDocument";
 import { IPdfRenderer } from "./IPdfRenderer";
@@ -34,10 +33,17 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
     private readonly renderer: IPdfRenderer;
     private readonly options: PdfOptions;
     private pageTasks: SvgPageTask[] = [];
+    /** Pages that currently have an SVG text layer mounted. */
+    private readonly builtPages = new Map<number, Element>();
+    private readonly textContentCache = new Map<number, any>();
     private isScrolling = false;
     private scrollingTimer: ReturnType<typeof setTimeout> | null = null;
     private disposed = false;
-    private readonly batchSize = 10;
+    private readonly batchSize = 64;
+    private measureContext: CanvasRenderingContext2D | null = null;
+    private readonly isFirefox = BrowserCapabilities.isFirefox();
+    private readonly isSafari = BrowserCapabilities.isSafari();
+    private renderLoopPromise: Promise<void> | null = null;
 
     constructor(renderer: IPdfRenderer, options: PdfOptions) {
         this.renderer = renderer;
@@ -77,7 +83,14 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
         await this.delayRenderVisiblePageTexts();
     };
 
-    private getVisiblePageIds = () => this.renderer.getVisibleDocuments().map((x) => x.pageNumber);
+    private getVisiblePageIdSet = (): Set<number> => {
+        const docs = this.renderer.getVisibleDocuments();
+        const ids = new Set<number>();
+        for (let i = 0; i < docs.length; i++) {
+            ids.add(docs[i].pageNumber);
+        }
+        return ids;
+    };
 
     private renderVisiblePageTexts = async () => {
         if (this.disposed) {
@@ -85,7 +98,9 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
         }
         // PDF uses scroll layout; skip heavy work while scrolling.
         if (!this.isScrolling) {
-            await this.appendSvgs(this.getVisiblePageIds());
+            const visiblePages = this.getVisiblePageIdSet();
+            this.removeInvisibleBuiltPages(visiblePages);
+            await this.appendSvgs([...visiblePages]);
         }
     };
 
@@ -98,32 +113,84 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
             clearTimeout(this.scrollingTimer);
             this.scrollingTimer = null;
         }
-        this.pageTasks.splice(0);
+        this.pageTasks.length = 0;
+        this.builtPages.clear();
+        this.textContentCache.clear();
+        this.measureContext = null;
+        this.renderLoopPromise = null;
     }
 
     private onPageRendered = async () => {
-        const visiblePageNumbers = this.getVisiblePageIds();
-        const numberOfPages = this.renderer.numberOfPages;
-        for (let i = 1; i <= numberOfPages; i++) {
-            if (!visiblePageNumbers.includes(i)) {
-                const svgContainer = this.getTextLayerContainer(i);
-                svgContainer?.parentElement?.removeChild(svgContainer);
+        const visiblePages = this.getVisiblePageIdSet();
+        this.removeInvisibleBuiltPages(visiblePages);
+        await this.delayRenderVisiblePageTexts();
+    };
+
+    private removeInvisibleBuiltPages = (visiblePages: Set<number>) => {
+        for (const pageNumber of [...this.builtPages.keys()]) {
+            if (!visiblePages.has(pageNumber)) {
+                this.removePageSvg(pageNumber);
             }
         }
-        await this.delayRenderVisiblePageTexts();
+        this.pruneInvisibleTasks(visiblePages);
+    };
+
+    private removePageSvg = (pageNumber: number) => {
+        const tracked = this.builtPages.get(pageNumber);
+        if (tracked?.parentElement) {
+            tracked.parentElement.removeChild(tracked);
+        } else {
+            const svgContainer = this.getTextLayerContainer(pageNumber);
+            svgContainer?.parentElement?.removeChild(svgContainer);
+        }
+        this.builtPages.delete(pageNumber);
+    };
+
+    private pruneInvisibleTasks = (visiblePages: Set<number>) => {
+        let write = 0;
+        for (let i = 0; i < this.pageTasks.length; i++) {
+            if (visiblePages.has(this.pageTasks[i].pageNumber)) {
+                this.pageTasks[write++] = this.pageTasks[i];
+            }
+        }
+        this.pageTasks.length = write;
     };
 
     private getTextLayerContainer(page: pdfjsViewer.PDFPageView | number | Element): Element | null {
         const className = PdfSvgBuilder.svgClassName;
         if (typeof page === "number") {
-            const pageView = this.renderer.getPageView(page);
-            return pageView?.div?.querySelector(`svg.${className}`) ?? null;
+            return this.builtPages.get(page) ?? this.renderer.getPageView(page)?.div?.querySelector(`svg.${className}`) ?? null;
         }
         if ("tagName" in page) {
             return page.querySelector(`svg.${className}`);
         }
         return page.div?.querySelector(`svg.${className}`) ?? null;
     }
+
+    private getMeasureContext = (): CanvasRenderingContext2D | null => {
+        if (!this.measureContext) {
+            const canvas = document.createElement("canvas");
+            this.measureContext = canvas.getContext("2d");
+        }
+        return this.measureContext;
+    };
+
+    private ensureTextContent = async (pageNumber: number) => {
+        const cached = this.textContentCache.get(pageNumber);
+        if (cached) {
+            return cached;
+        }
+        const pageView = this.renderer.getPageView(pageNumber);
+        if (!pageView?.pdfPage) {
+            return null;
+        }
+        // Keep item sequence identical to PDFFindController / TextLayer (incl. spaces).
+        const textContent = await pageView.pdfPage.getTextContent({
+            disableNormalization: true,
+        });
+        this.textContentCache.set(pageNumber, textContent);
+        return textContent;
+    };
 
     private appendSvg = async (pageNumber: number) => {
         const pageView = this.renderer.getPageView(pageNumber);
@@ -142,6 +209,7 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
         if (svgContainer) {
             const state = svgContainer.getAttribute("data-state");
             if (state == "loading" || state == "loaded") {
+                this.builtPages.set(pageNumber, svgContainer);
                 return;
             }
         }
@@ -153,6 +221,7 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
             }
             pageView.div.appendChild(svgContainer);
         }
+        this.builtPages.set(pageNumber, svgContainer);
         await this.appendTexts(svgContainer, pageNumber);
 
         const doc = this.renderer.getDocument((pageNumber - 1).toString()) as IPdfDocument;
@@ -160,6 +229,8 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
     };
 
     private appendSvgs = async (pageNumbers: number[]) => {
+        // Prefetch text content for visible pages in parallel; DOM/task work stays sequential.
+        await Promise.all(pageNumbers.map((pageNumber) => this.ensureTextContent(pageNumber)));
         for (const pageNumber of pageNumbers) {
             await this.appendSvg(pageNumber);
         }
@@ -170,21 +241,27 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
         if (!pageView?.pdfPage) {
             return;
         }
-        const textContent = await pageView.pdfPage.getTextContent();
-        let batchLength = Math.floor(textContent.items.length / this.batchSize);
-        const lastBatchSize = textContent.items.length % this.batchSize;
-        if (lastBatchSize > 0) {
-            batchLength++;
+        const textContent = await this.ensureTextContent(pageNumber);
+        if (!textContent) {
+            return;
         }
 
-        removeAll(this.pageTasks, (x) => !this.getVisiblePageIds().includes(x.pageNumber));
+        const itemCount = textContent.items.length;
+        const batchLength = Math.ceil(itemCount / this.batchSize) || 0;
+        const lastBatchSize = itemCount % this.batchSize;
+
+        const visiblePages = this.getVisiblePageIdSet();
+        this.pruneInvisibleTasks(visiblePages);
+
+        let hasTasksForPage = false;
         for (const pageTask of this.pageTasks) {
             if (pageTask.pageNumber == pageNumber) {
                 pageTask.svg = svg;
+                hasTasksForPage = true;
             }
         }
 
-        if (!this.pageTasks.find((x) => x.pageNumber == pageNumber)) {
+        if (!hasTasksForPage && batchLength > 0) {
             for (let i = 0; i < batchLength; i++) {
                 let size = this.batchSize;
                 if (i == batchLength - 1 && lastBatchSize > 0) {
@@ -206,28 +283,54 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
     };
 
     private renderSvgTexts = async () => {
-        if (this.pageTasks.length == 0) {
-            return;
-        }
-
-        if (this.isScrolling) {
-            if (this.pageTasks[0].svg.getAttribute("data-state") != "pause") {
-                this.pageTasks[0].svg.setAttribute("data-state", "pause");
+        if (this.renderLoopPromise) {
+            await this.renderLoopPromise;
+            if (this.pageTasks.length > 0 && !this.renderLoopPromise) {
+                await this.renderSvgTexts();
             }
             return;
         }
 
-        const pageTask = this.pageTasks.shift();
-        if (!pageTask?.svg.parentElement) {
+        this.renderLoopPromise = this.runRenderLoop();
+        try {
+            await this.renderLoopPromise;
+        } finally {
+            this.renderLoopPromise = null;
+        }
+
+        if (this.pageTasks.length > 0 && !this.isScrolling && !this.disposed) {
             await this.renderSvgTexts();
-            return;
         }
+    };
 
-        if (pageTask.svg.getAttribute("data-state") != "loading") {
-            pageTask.svg.setAttribute("data-state", "loading");
-        }
+    private runRenderLoop = async () => {
+        while (this.pageTasks.length > 0) {
+            if (this.disposed) {
+                return;
+            }
 
-        const runBatch = async () => {
+            if (this.isScrolling) {
+                const head = this.pageTasks[0];
+                if (head.svg.getAttribute("data-state") != "pause") {
+                    head.svg.setAttribute("data-state", "pause");
+                }
+                return;
+            }
+
+            const pageTask = this.pageTasks.shift();
+            if (!pageTask?.svg.parentElement) {
+                continue;
+            }
+
+            if (pageTask.svg.getAttribute("data-state") != "loading") {
+                pageTask.svg.setAttribute("data-state", "loading");
+            }
+
+            await BrowserCapabilities.yieldToMain();
+            if (this.disposed || !this.renderer.owner.context) {
+                return;
+            }
+
             await this.appendPartialText(
                 pageTask.pageNumber,
                 pageTask.svg,
@@ -239,24 +342,7 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
             if (pageTask.batchLength - 1 == pageTask.current) {
                 pageTask.svg.setAttribute("data-state", "loaded");
             }
-        };
-
-        if (BrowserCapabilities.supportScheduler()) {
-            await BrowserCapabilities.yieldToMain();
-            await runBatch();
-        } else {
-            await new Promise<void>((resolve) => {
-                setTimeout(async () => {
-                    if (!this.renderer.owner.context) {
-                        resolve();
-                        return;
-                    }
-                    await runBatch();
-                    resolve();
-                }, 0);
-            });
         }
-        await this.renderSvgTexts();
     };
 
     private calcTextWidth = (
@@ -280,6 +366,49 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
         return context.measureText(text).width;
     };
 
+    /**
+     * Apply text-width scale in local text space.
+     * Optional rotate/unrotate keep the scale on the text baseline axis.
+     */
+    private applyOrientedTextScale = (
+        tx: number[],
+        textItemTransform: number[],
+        textMetricsWidth: number,
+        textWidth: number,
+        fontSize: number,
+        rotate: number[] | null,
+        unrotate: number[] | null,
+    ): number[] => {
+        let nextTx = rotate ? pdfjsLib.Util.transform(tx, rotate) : tx;
+        const textTransform = rotate
+            ? pdfjsLib.Util.transform(textItemTransform, rotate)
+            : textItemTransform;
+        const axisScale =
+            textTransform[0] == 0 ? Math.abs(textTransform[1]) : Math.abs(textTransform[0]);
+        const metricsWidth = textMetricsWidth * axisScale;
+        const textScale = metricsWidth > 0 ? textWidth / metricsWidth / fontSize : 1;
+        nextTx = pdfjsLib.Util.transform(nextTx, [textScale, 0, 0, textScale, 0, 0]);
+        return unrotate ? pdfjsLib.Util.transform(nextTx, unrotate) : nextTx;
+    };
+
+    /**
+     * Firefox/Safari clamp minimum font-size; move matrix scale into font-size
+     * and keep a unit-scale transform so glyphs stay selectable/visible.
+     */
+    private extractFontSizeFromTransform = (
+        tx: number[],
+        baseFontSize: number,
+    ): { tx: number[]; fontSize: number } => {
+        const scale = Math.hypot(tx[0], tx[1]);
+        if (!(scale > 1e-6)) {
+            return { tx, fontSize: 1 };
+        }
+        return {
+            tx: [tx[0] / scale, tx[1] / scale, tx[2] / scale, tx[3] / scale, tx[4], tx[5]],
+            fontSize: Math.max(baseFontSize * scale, 1),
+        };
+    };
+
     private appendPartialText = async (
         pageNumber: number,
         svg: Element,
@@ -288,160 +417,119 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
         start: number,
         size: number,
     ) => {
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
+        const context = this.getMeasureContext();
+        if (!context) {
+            return;
+        }
         const fontSize = 12;
-        const isFirefox = BrowserCapabilities.isFirefox();
-        const isSafari = BrowserCapabilities.isSafari();
+        const isFirefox = this.isFirefox;
+        const isSafari = this.isSafari;
         const documentFragment = document.createDocumentFragment();
         const ownerDocument = this.renderer.getRendererContainer().ownerDocument;
         const resourceId = this.renderer.owner.context?.id ?? "pdf";
+        const fontFamilyCache = new Map<string, string>();
+        const flipY = [1, 0, 0, -1, 0, 0];
+        const rotate90 = [0, -1, 1, 0, 0, 0];
+        const unrotate90 = [0, 1, -1, 0, 0, 0];
+        const rotate180 = [-1, 0, 0, -1, 0, 0];
+        const rotate270 = [0, 1, -1, 0, 0, 0];
+        const unrotate270 = [0, -1, 1, 0, 0, 0];
 
         for (let i = start; i < start + size; i++) {
             const textItem = textContent.items[i];
-            if (!textItem) {
+            // Keep 1:1 with FindController / TextLayer items (empty + whitespace included).
+            if (!textItem || typeof textItem.str !== "string") {
                 continue;
             }
-            let tx = pdfjsLib.Util.transform(
-                pdfjsLib.Util.transform(viewportTransform, textItem.transform),
-                [1, 0, 0, -1, 0, 0],
-            );
+            const text = textItem.str;
             const style = textContent.styles[textItem.fontName];
-            const tx0 = textItem.transform[0];
-            const tx1 = textItem.transform[1];
-            let angle = Math.atan2(tx1, tx0);
-            if (style.vertical) {
-                angle += Math.PI / 2;
-            }
-            if (angle !== 0) {
-                angle = Math.atan2(tx1, tx0) * (180 / Math.PI);
+            if (!style) {
+                continue;
             }
 
-            let absAngle = angle;
-            if (absAngle < 0) {
-                absAngle += 360;
+            let tx = pdfjsLib.Util.transform(
+                pdfjsLib.Util.transform(viewportTransform, textItem.transform),
+                flipY,
+            );
+            let angle = Math.atan2(textItem.transform[1], textItem.transform[0]) * (180 / Math.PI);
+            if (style.vertical) {
+                angle += 90;
             }
+            let absAngle = angle < 0 ? angle + 360 : angle;
             absAngle = Math.round(absAngle);
-            const text = textItem.str;
-            let fontFamily = style.fontFamily.replaceAll(/^serif/g, "Times");
+
+            let fontFamily = fontFamilyCache.get(style.fontFamily);
+            if (fontFamily === undefined) {
+                fontFamily = style.fontFamily.replace(/^serif/, "Times");
+                fontFamilyCache.set(style.fontFamily, fontFamily);
+            }
 
             if (text.length > 0) {
                 let textMetricsWidth = textItem["textMetricsWidth"];
                 if (!textMetricsWidth) {
                     textMetricsWidth = this.calcTextWidth(
                         context,
-                        textItem.str,
+                        text,
                         textItem.fontName,
                         fontFamily,
                         style.fontName,
                     );
-                    context.font = fontSize + "px " + fontFamily;
                     textItem["textMetricsWidth"] = textMetricsWidth;
                 }
 
-                let textScale = 1;
-                let metricsWidth: number;
                 switch (absAngle) {
-                    case 90: {
-                        tx = pdfjsLib.Util.transform(tx, [0, -1, 1, 0, 0, 0]);
-                        const textTransform = pdfjsLib.Util.transform(textItem.transform, [0, -1, 1, 0, 0, 0]);
-                        metricsWidth =
-                            textMetricsWidth *
-                            (textTransform[0] == 0 ? Math.abs(textTransform[1]) : Math.abs(textTransform[0]));
-                        if (metricsWidth > 0) {
-                            textScale = textItem.width / metricsWidth / fontSize;
-                        }
-                        tx = pdfjsLib.Util.transform(tx, [textScale, 0, 0, textScale, 0, 0]);
-                        tx = pdfjsLib.Util.transform(tx, [0, 1, -1, 0, 0, 0]);
+                    case 90:
+                        tx = this.applyOrientedTextScale(
+                            tx,
+                            textItem.transform,
+                            textMetricsWidth,
+                            textItem.width,
+                            fontSize,
+                            rotate90,
+                            unrotate90,
+                        );
                         break;
-                    }
-                    case 180: {
-                        tx = pdfjsLib.Util.transform(tx, [-1, 0, 0, -1, 0, 0]);
-                        const textTransform = pdfjsLib.Util.transform(textItem.transform, [-1, 0, 0, -1, 0, 0]);
-                        metricsWidth =
-                            textMetricsWidth *
-                            (textTransform[0] == 0 ? Math.abs(textTransform[1]) : Math.abs(textTransform[0]));
-                        if (metricsWidth > 0) {
-                            textScale = textItem.width / metricsWidth / fontSize;
-                        }
-                        tx = pdfjsLib.Util.transform(tx, [textScale, 0, 0, textScale, 0, 0]);
-                        tx = pdfjsLib.Util.transform(tx, [-1, 0, 0, -1, 0, 0]);
+                    case 180:
+                        tx = this.applyOrientedTextScale(
+                            tx,
+                            textItem.transform,
+                            textMetricsWidth,
+                            textItem.width,
+                            fontSize,
+                            rotate180,
+                            rotate180,
+                        );
                         break;
-                    }
-                    case 270: {
-                        tx = pdfjsLib.Util.transform(tx, [0, 1, -1, 0, 0, 0]);
-                        const textTransform = pdfjsLib.Util.transform(textItem.transform, [0, 1, -1, 0, 0, 0]);
-                        metricsWidth =
-                            textMetricsWidth *
-                            (textTransform[0] == 0 ? Math.abs(textTransform[1]) : Math.abs(textTransform[0]));
-                        if (metricsWidth > 0) {
-                            textScale = textItem.width / metricsWidth / fontSize;
-                        }
-                        tx = pdfjsLib.Util.transform(tx, [textScale, 0, 0, textScale, 0, 0]);
-                        tx = pdfjsLib.Util.transform(tx, [0, -1, 1, 0, 0, 0]);
+                    case 270:
+                        tx = this.applyOrientedTextScale(
+                            tx,
+                            textItem.transform,
+                            textMetricsWidth,
+                            textItem.width,
+                            fontSize,
+                            rotate270,
+                            unrotate270,
+                        );
                         break;
-                    }
-                    default: {
-                        const textTransform = textItem.transform;
-                        metricsWidth =
-                            textMetricsWidth *
-                            (textTransform[0] == 0 ? Math.abs(textTransform[1]) : Math.abs(textTransform[0]));
-                        if (metricsWidth > 0) {
-                            textScale = textItem.width / metricsWidth / fontSize;
-                        }
-                        tx = pdfjsLib.Util.transform(tx, [textScale, 0, 0, textScale, 0, 0]);
+                    default:
+                        tx = this.applyOrientedTextScale(
+                            tx,
+                            textItem.transform,
+                            textMetricsWidth,
+                            textItem.width,
+                            fontSize,
+                            null,
+                            null,
+                        );
                         break;
-                    }
                 }
             }
 
             const textId = "p-" + resourceId + "-" + pageNumber + "-t-" + i;
             if (isFirefox || isSafari) {
-                let newFontSize = fontSize;
-                switch (absAngle) {
-                    case 90: {
-                        tx = pdfjsLib.Util.transform(tx, [0, -1, 1, 0, 0, 0]);
-                        const width = Math.abs(tx[0]);
-                        tx = [tx[0] / width, tx[1], tx[2], tx[3] / width, tx[4], tx[5]];
-                        newFontSize = fontSize * width;
-                        if (newFontSize <= 0) {
-                            newFontSize = 1;
-                        }
-                        tx = pdfjsLib.Util.transform(tx, [0, 1, -1, 0, 0, 0]);
-                        break;
-                    }
-                    case 180: {
-                        tx = pdfjsLib.Util.transform(tx, [-1, 0, 0, -1, 0, 0]);
-                        const width = Math.abs(tx[0]);
-                        tx = [tx[0] / width, tx[1], tx[2], tx[3] / width, tx[4], tx[5]];
-                        newFontSize = fontSize * width;
-                        if (newFontSize <= 0) {
-                            newFontSize = 1;
-                        }
-                        tx = pdfjsLib.Util.transform(tx, [-1, 0, 0, -1, 0, 0]);
-                        break;
-                    }
-                    case 270: {
-                        tx = pdfjsLib.Util.transform(tx, [0, 1, -1, 0, 0, 0]);
-                        const width = Math.abs(tx[0]);
-                        tx = [tx[0] / width, tx[1], tx[2], tx[3] / width, tx[4], tx[5]];
-                        newFontSize = fontSize * width;
-                        if (newFontSize <= 0) {
-                            newFontSize = 1;
-                        }
-                        tx = pdfjsLib.Util.transform(tx, [0, -1, 1, 0, 0, 0]);
-                        break;
-                    }
-                    default: {
-                        const width = Math.abs(tx[0]);
-                        tx = [tx[0] / width, tx[1], tx[2], tx[3] / width, tx[4], tx[5]];
-                        newFontSize = fontSize * width;
-                        if (newFontSize <= 0) {
-                            newFontSize = 1;
-                        }
-                        break;
-                    }
-                }
+                const normalized = this.extractFontSizeFromTransform(tx, fontSize);
+                tx = normalized.tx;
+                const newFontSize = normalized.fontSize;
 
                 const g = ownerDocument.createElementNS(this.SVG_NS, "svg:g");
                 g.setAttribute("transform", "matrix(" + tx.join(" ") + ")");
@@ -453,8 +541,9 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
                     svgText.setAttribute("x", "0");
                     svgText.setAttribute("y", newFontSize.toString());
                 }
-                svgText.textContent = textItem.str;
+                svgText.textContent = text;
                 svgText.setAttribute("id", textId);
+                svgText.setAttribute("data-text-index", String(i));
                 g.appendChild(svgText);
                 documentFragment.appendChild(g);
             } else {
@@ -464,8 +553,9 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
                     "style",
                     "font-size:" + fontSize + "px;font-family:" + fontFamily + ";",
                 );
-                svgText.textContent = textItem.str;
+                svgText.textContent = text;
                 svgText.setAttribute("id", textId);
+                svgText.setAttribute("data-text-index", String(i));
                 documentFragment.appendChild(svgText);
             }
         }

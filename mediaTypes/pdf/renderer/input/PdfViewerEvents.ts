@@ -4,7 +4,7 @@ import {
     PageChangeOptions,
 } from "../../../../kernal";
 import type { MultiPDFViewer } from "../MultiPdfViewer";
-import * as pdfjsViewer from "pdfjs-dist/legacy/web/pdf_viewer.mjs";
+import * as pdfjsViewer from "../../../../pdfjs/legacy/web/pdf_viewer.mjs";
 import { IPdfRenderer } from "../IPdfRenderer";
 
 /**
@@ -24,6 +24,7 @@ export class PdfViewerEvents {
         this.eventBus.on("resize", this.onResize);
         this.eventBus.on("pagerender", this.onPageRender);
         this.eventBus.on("pagerendered", this.onPageRendered);
+        this.eventBus.on("textlayerrendered", this.onTextLayerRendered);
         this.eventBus.on("pagechanging", this.onPageChanging);
         this.eventBus.on("scalechanging", this.onScaleChanging);
         this.eventBus.on("scalechanged", this.onScaleChanged);
@@ -35,6 +36,7 @@ export class PdfViewerEvents {
         this.eventBus.off("resize", this.onResize);
         this.eventBus.off("pagerender", this.onPageRender);
         this.eventBus.off("pagerendered", this.onPageRendered);
+        this.eventBus.off("textlayerrendered", this.onTextLayerRendered);
         this.eventBus.off("pagechanging", this.onPageChanging);
         this.eventBus.off("scalechanging", this.onScaleChanging);
         this.eventBus.off("scalechanged", this.onScaleChanged);
@@ -88,6 +90,15 @@ export class PdfViewerEvents {
         if (doc) {
             this.events.emit(EventNames.DocumentLoad, doc);
         }
+    };
+
+    /** Span text layer finished (textLayerMode === 1). Mirrors SvgBuilder's PdfPageTextRendered. */
+    private onTextLayerRendered = ({ pageNumber }: { pageNumber?: number }) => {
+        if (!pageNumber) {
+            return;
+        }
+        const doc = this.renderer.getDocument((pageNumber - 1).toString());
+        this.events.emit(EventNames.PdfPageTextRendered, doc, pageNumber);
     };
 
     private onScaleChanging = async ({ scale }) => {

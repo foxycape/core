@@ -37,7 +37,7 @@ export class HtmlContentProcessor implements IHtmlContentProcessor {
      * @param doc
      * @returns 
      */
-    async process(doc: IHtmlDocument): Promise<void> {
+    async preprocess(doc: IHtmlDocument): Promise<void> {
         const virtualDocument = (await doc.getVirtualContentContainer())?.ownerDocument;
         if (!virtualDocument) {
             return;

@@ -1,4 +1,3 @@
-import { detectWritingMode } from "../../../../kernal/html/detector";
 import { getDocumentBody } from "../../../../kernal/html/finder";
 import { getOrderedElementsIntersectingRect, resolveVisibleViewportInContentWindow } from "../../../../kernal/html/geometry";
 import { getUuid } from "../../../../kernal/common/uuid";
@@ -39,46 +38,10 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         return true;
     }
 
-    getWritingMode(): WritingMode {
-        const contentContainer = this.getContentContainer();
-        let writingMode = contentContainer?.getAttribute("data-writing-mode") as WritingMode;
-        if (writingMode) {
-            return writingMode;
-        }
-        writingMode = this.owner.context?.openOptions?.writingMode;
-        if (!writingMode) {
-            writingMode = this.options.writingMode;
-        }
-        if (!writingMode) {
-            if (contentContainer) {
-                const detectResult = detectWritingMode(contentContainer);
-                if (detectResult.found) {
-                    writingMode = detectResult.writingMode;
-                }
-            }
-        }
-        if (!writingMode) {
-            writingMode = "horizontal-tb";
-        }
-        contentContainer?.setAttribute("data-writing-mode", writingMode);
-        return writingMode;
+    private getWritingMode(): WritingMode {
+        return this.options.writingMode ?? 'horizontal-tb';
     }
 
-    getDirection(): Direction {
-        const rootElement = this.getContentRootElement();
-        if (rootElement) {
-            const rootDir = rootElement.getAttribute("dir")?.toLowerCase();
-            if (rootDir == "ltr" || rootDir == "rtl") {
-                return rootDir;
-            }
-            const contentContainer = this.getContentContainer();
-            const contentDir = contentContainer?.getAttribute("dir")?.toLowerCase();
-            if (contentDir == "ltr" || contentDir == "rtl") {
-                return contentDir;
-            }
-        }
-        return 'ltr';
-    }
     private callbacks: { resolve: any; reject: any; }[] = [];
     override async load(): Promise<void> {
         await new Promise<void>(async (resolve, reject) => {

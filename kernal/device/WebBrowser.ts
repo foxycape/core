@@ -9,25 +9,11 @@ export class WebBrowser implements IDevice {
     private readonly uaDevice=uaParser.getDevice();
 
     private deviceId: string | null = null;
-    private currentPixelRatio: number;
     private currentModel: string;
     private currentIsMobile: boolean;
     private info: DeviceInfo;
     constructor(private readonly platform: IPlatform, private readonly  environment: IEnvironment) {
         
-    }
-    get pixelRatio() {
-        if (this.currentPixelRatio > 0) {
-            if (this.currentPixelRatio > 1.5) {
-                return 1.5;
-            }
-            if (this.currentPixelRatio < 1) {
-                return 1;
-            }
-            return this.currentPixelRatio;
-        }
-        this.currentPixelRatio = 1;
-        return this.currentPixelRatio;
     }
 
     getModel() {

@@ -1,4 +1,4 @@
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import * as pdfjsLib from "../../../../pdfjs/legacy/build/pdf.mjs";
 import { MultiPDFViewer } from "../MultiPdfViewer";
 
 export class PdfZoomInputController {

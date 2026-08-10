@@ -6,6 +6,7 @@ import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { HtmlOptions } from "../../HtmlOptions";
+import { HtmlSettings } from "../../HtmlSettings";
 
 export class HtmlPageCalculator {
     constructor(
@@ -25,13 +26,13 @@ export class HtmlPageCalculator {
         if (!documentElement || !documentElement.firstElementChild)
             return 1;
         if (!update) {
-            numberOfPages = parseNumber(documentElement.getAttribute("data-number-of-pages"), 0, 'parseInt');
+            numberOfPages = parseNumber(documentElement.getAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName), 0, 'parseInt');
             if (numberOfPages > 1) {
                 return numberOfPages;
             }
         }
         const documentViewport = this.layout.getLayoutMetrics();
-        const writingMode = this.doc.getWritingMode();
+        const writingMode = this.options.writingMode ?? 'horizontal-tb';
         const iframe = this.getIframe();
         if (this.isVerticalWriting(writingMode)) {
             let totalLength = 0;
@@ -91,7 +92,7 @@ export class HtmlPageCalculator {
                 numberOfPages = numberOfPages + 1;
             }
         }
-        documentElement.setAttribute("data-number-of-pages", numberOfPages.toString());
+        documentElement.setAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName, numberOfPages.toString());
         return numberOfPages;
     }
 
@@ -108,7 +109,7 @@ export class HtmlPageCalculator {
         const documentViewport = this.layout.getLayoutMetrics();
         const elementRect = element.getBoundingClientRect();
         let pageNumber = 1;
-        const writingMode = this.doc.getWritingMode();
+        const writingMode = this.options.writingMode ?? 'horizontal-tb';
         const isVertical = this.isVerticalWriting(writingMode);
         if (isVertical) {
             const translatey = getTransformLength(ownerDocument.documentElement, "y");
@@ -129,7 +130,7 @@ export class HtmlPageCalculator {
         if (pageNumber == 0)
             pageNumber = 1;
 
-        if (!isVertical && this.doc.getDirection() == "rtl") {
+        if (!isVertical && this.options.direction == "rtl") {
             const numberOfPages = this.calcNumberOfPages();
             pageNumber = Math.max(1, numberOfPages - pageNumber + 1);
         }

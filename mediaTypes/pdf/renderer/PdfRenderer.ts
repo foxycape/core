@@ -1,4 +1,4 @@
-import "pdfjs-dist/legacy/build/pdf.mjs"
+import "../../../pdfjs/legacy/build/pdf.mjs"
 import { getRandomId } from "../../../kernal/common/uuid";
 import { watchScroll } from "../../../kernal/html/events";
 import type { Reader } from "../../../kernal/Reader";
@@ -51,7 +51,7 @@ export class PdfRenderer extends PdfDocumentsProvider implements IPdfRenderer {
     constructor(owner: Reader, fileParser: IFileParser, readerContainer: HTMLElement, options: PdfOptions) {
         super(owner, fileParser, readerContainer, options);
 
-        this.layout = new PdfRendererLayout(this.pdfViewer);
+        this.layout = new PdfRendererLayout(this.pdfViewer, this.owner.events);
         this.scalable = new PdfScalable(this.pdfViewer, this.options);
         this.themeApplier = new PdfThemeApplier(this.readerContainer);
         this.destinationBuilder = new PdfDestinationBuilder(this);
@@ -61,6 +61,9 @@ export class PdfRenderer extends PdfDocumentsProvider implements IPdfRenderer {
         const rendererContainer = this.getRendererContainer();
         this.zoomInputController = new PdfZoomInputController(this.pdfViewer, rendererContainer);
         this.keyboardController = new PdfKeyboardController(this.pdfViewer, rendererContainer);
+        this.keyboardController.setFindRequestHandler(() => {
+            this.owner.events.emit(EventNames.RequestOpenFind);
+        });
 
         this.navPointProvider = new PdfNavPointProvider(this);
         this.navigator = new PdfCoreNavigator(this);
@@ -131,7 +134,6 @@ export class PdfRenderer extends PdfDocumentsProvider implements IPdfRenderer {
     }
 
     private bindEvents() {
-        this.owner.events.on(EventNames.WindowResize, this.onWindowResize);
         this.owner.events.on(EventNames.OptionsChange, this.onOptionsChange);
         this.owner.events.on(EventNames.PdfScaleChanging, this.onScaleChanging);
         this.documentEventBridge.bind();
@@ -141,7 +143,6 @@ export class PdfRenderer extends PdfDocumentsProvider implements IPdfRenderer {
     }
 
     private unbindEvents() {
-        this.owner.events.off(EventNames.WindowResize, this.onWindowResize);
         this.owner.events.off(EventNames.OptionsChange, this.onOptionsChange);
         this.owner.events.off(EventNames.PdfScaleChanging, this.onScaleChanging);
         this.documentEventBridge.unbind();
@@ -157,10 +158,6 @@ export class PdfRenderer extends PdfDocumentsProvider implements IPdfRenderer {
     private delayApplyCssVariables = asyncDebounce(async () => {
         this.rendererViewport.applyCssVariables();
     }, 200);
-
-    private onWindowResize = async (_ownerWindow: Window) => {
-        this.owner.context.setUserChangedProgress(false);
-    };
 
     private onOptionsChange = async (path: string) => {
         if (isOptionKey(path)) {

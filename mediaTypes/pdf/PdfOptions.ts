@@ -37,6 +37,4 @@ export class PdfOptions {
 
     /** Whether to enable pdf password input prompt */
     showPasswordPrompt: boolean;
-    contentWrapperBorderRadius: number = 3;
-    enableContentWrapperBorderRadius: boolean;
 }

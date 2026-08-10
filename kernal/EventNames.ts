@@ -2,10 +2,8 @@
 export class EventNames {
     static readonly ReaderDisposed = "readerDisposed";
     static readonly ReaderCleared = "readerCleared";
-    static readonly WindowResize = "windowResize";
     static readonly RendererLoad = "rendererLoad";
 
-    static readonly VisibleElementsChange = "visibleElementsChange";
     static readonly ImageElementsVisible = "imageElementsVisible";
     static readonly RendererContainerSizeChange = "rendererContainerSizeChange";
 
@@ -21,30 +19,18 @@ export class EventNames {
     static readonly ResourceUnload = "resourceUnload";
 
     static readonly ProgressChange = "progressChange";
-    static readonly StyleChange = "styleChange";
-    static readonly WritingModeChange = "writingModeChange";
-    static readonly CssVarsChange = "cssVarsChange";
     static readonly LayoutChange = "layoutChange";
-    static readonly NavChange = "navChange";
     static readonly ThemeChange = "themeChange";
     static readonly OptionsChange = "optionsChange";
-    static readonly LocaleChange = "localeChange";
     static readonly PageChange = "pageChange";
     static readonly PdfPageTextRendered = "pageTextRendered";
     static readonly PdfPageRender = "pagerender";
     static readonly PdfPageRendered = "pagerendered";
     static readonly PdfPagesInit = "pdfPagesInit";
     static readonly PdfScaleChanging = "scalechanging";
-    static readonly NumberOfPagesChange = "numberOfPagesChange";
 
     static readonly PdfPagesLoaded = "pdfPagesLoaded";
     static readonly PdfUpdateViewArea = "updateviewarea";
-    static readonly SelectionClick = "selection:click";
-    static readonly SelectionHover = "selection:hover";
-    static readonly SelectionHoverOut = "selection:hoverOut";
-
-    /**content overlay status change */
-    static readonly ContentOverlayIsChange = "contentOverlayIsChange";
 
     /**single document loaded */
     static readonly DocumentLoad = "documentLoad";
@@ -91,16 +77,15 @@ export class EventNames {
     static readonly Pointermove = "pointermove";
     static readonly Pointerup = "pointerup";
     static readonly Pointercancel = "pointercancel";
-    static readonly DocumentNumberOfPagesChange = "documentNumberOfPagesChange";
     static readonly RequirePdfPassword = "requirePdfPassword";
 
-    static readonly RequestOpenFile = "requestOpenFile";
+    /** Host should open the integrated PDF find / search UI (e.g. Ctrl/Cmd+F). */
+    static readonly RequestOpenFind = "requestOpenFind";
 
     /**general data change event notification (notification format: dataType-data type, action-operation type, items-data list) */
     static readonly DataChange = "dataChange";
 
     static readonly ProcessedImageCount = "processedImageCount";
     static readonly PdfLoadFinished = "pdfLoadFinished";
-    static readonly SpineFileDataChanged = "spineFileDataChanged";
 
 }

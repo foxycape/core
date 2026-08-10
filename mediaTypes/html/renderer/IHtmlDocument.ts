@@ -1,4 +1,4 @@
-import { Direction, IDocument, WritingMode } from "../../../kernal";
+import { IDocument } from "../../../kernal";
 
 export interface IHtmlDocument extends IDocument {
     /**
@@ -16,16 +16,6 @@ export interface IHtmlDocument extends IDocument {
      * @param element 
      */
     getPageNumber(element: Element): Promise<number>;
-
-    /**
-     * Get the writing direction.
-     */
-    getWritingMode(): WritingMode;
-
-    /**
-     * Get the text direction.
-     */
-    getDirection(): Direction;
 
     /**
      * Get the content container of the current document that has not been loaded (if there is an iframe, return the body of the iframe, otherwise return the same as getContentContainer).

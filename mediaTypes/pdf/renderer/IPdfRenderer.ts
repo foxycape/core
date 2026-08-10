@@ -5,7 +5,8 @@ import { IPdfRendererLayout } from "./layout/IPdfRendererLayout";
 import { IPdfScalable } from "./zoom/IPdfScalable";
 import { IPdfFileParser } from "../fileParser/IPdfFileParser";
 import { IPdfProgressTracker } from "./progress/IPdfProgressTracker";
-import type * as pdfjsViewer from "pdfjs-dist/legacy/web/pdf_viewer.mjs";
+import type * as pdfjsLib from "../../../pdfjs/legacy/build/pdf.mjs";
+import type * as pdfjsViewer from "../../../pdfjs/legacy/web/pdf_viewer.mjs";
 
 export interface IPdfRenderer<T extends IPdfDocument = IPdfDocument, W extends IFileParser = IPdfFileParser> extends IRenderer<T, W> {
      get progressTracker(): IPdfProgressTracker;
@@ -27,6 +28,15 @@ export interface IPdfRenderer<T extends IPdfDocument = IPdfDocument, W extends I
 
      get numberOfPages(): number;
 
+     get currentPage(): number;
+     set currentPage(value: number);
+
+     /**
+      * Update the current page index.
+      * When `scroll` is false, only syncs the page number (no viewport jump).
+      */
+     setCurrentPage(pageNumber: number, scroll?: boolean): void;
+
      getPageViews(): pdfjsViewer.PDFPageView[];
 
      getPageView(pageNumber: number): pdfjsViewer.PDFPageView | undefined;
@@ -37,4 +47,13 @@ export interface IPdfRenderer<T extends IPdfDocument = IPdfDocument, W extends I
       * @param options 
       */
      buildDest(pageNumber: number, options?: 'current' | { x: number, y: number }): string
+
+     /** pdf.js EventBus used by the viewer stack. */
+     getEventBus(): pdfjsViewer.EventBus;
+
+     /** Standalone PDFFindController used for document text search. */
+     getFindController(): pdfjsViewer.PDFFindController;
+
+     /** Resolve a page proxy even if the page view has not rendered yet. */
+     getPdfPage(pageNumber: number): Promise<pdfjsLib.PDFPageProxy | undefined>;
 }

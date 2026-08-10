@@ -1,16 +1,24 @@
 import { getExtentionByMimetype, getMimetype } from "./mimetypes";
-import { checkIsAbsoluteUrl } from "./url";
+import { checkIsAbsoluteUrl, getFullUrl } from "./url";
 import { getRandomId, getUuid } from "./uuid";
 import { isNullOrWhiteSpace, startsWith } from "./text";
 
 export const getExtension = (url: string, toLowerCase?: boolean): string => {
     if (isNullOrWhiteSpace(url))
         return null;
-    const lastDotPosition = url.lastIndexOf(".");
+    let path = url;
+    try {
+        const fullUrl = getFullUrl(url);
+        path = fullUrl.pathname;
+    }
+    catch (e) {
+        //
+    }
+    const lastDotPosition = path.lastIndexOf(".");
     if (lastDotPosition < 0) {
         return null;
     }
-    let extension = url.substring(lastDotPosition);
+    let extension = path.substring(lastDotPosition);
     if (extension.lastIndexOf("?") > 0) {
         extension = extension.substring(0, extension.lastIndexOf("?"));
     }

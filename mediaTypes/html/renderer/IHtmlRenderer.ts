@@ -1,4 +1,4 @@
-import { IFileParser, INavPointNavigator, INavPointProvider, IPagingNavigator, IRenderer, IStyleProvider, WritingMode } from "../../../kernal";
+import { Direction, IFileParser, INavPointNavigator, INavPointProvider, IPagingNavigator, IRenderer, IStyleProvider, WritingMode } from "../../../kernal";
 import type { IHtmlDocument } from "./IHtmlDocument";
 import { IHtmlRendererLayout } from "./layout/IHtmlRendererLayout";
 import { IHtmlProgressTracker } from "./progress/IHtmlIProgressTracker";
@@ -10,7 +10,12 @@ export interface IHtmlRenderer<T extends IHtmlDocument = IHtmlDocument,W extends
 	/**
 	 * Get the writing direction.
 	 */
-	getWritingMode(): Promise<WritingMode>
+	get writingMode(): WritingMode;
+
+	/**
+	 * Get the text direction.
+	 */
+	get direction(): Direction;
 
 	/** Navigator for navigation points. */
 	get navPointNavigator(): INavPointNavigator;

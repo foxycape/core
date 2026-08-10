@@ -1,13 +1,16 @@
 import { MTTAG, STTAG, whitespaceRegex } from "../../kernal/Constants";
-import type { FlipMode, FlipPageStyle, SymbolType, WritingMode } from "../../kernal/types";
+import type { Direction, FlipMode, FlipPageStyle, SymbolType, WritingMode } from "../../kernal/types";
 
 /**
  * Configuration dedicated to HTML / reflowable document media types
  */
 export class HtmlOptions {
     
-    /** Writing / layout direction */
-    writingMode?: WritingMode;
+    /** Writing mode */
+    writingMode: WritingMode="horizontal-tb";
+
+    /** Text direction */
+    direction: Direction="ltr";
 
     /** Flip mode: auto-web prefers scroll, mobile prefers page; scroll - continuous scroll, page - paginated */
     flipMode: FlipMode = "scroll";
@@ -19,16 +22,16 @@ export class HtmlOptions {
     autoColumns: boolean = true;
 
     /** Whether to force HTML documents to display in scroll mode */
-    forceScroll: boolean;
+    forceScroll: boolean=false;
 
     /** Flip page style: none - no style, slide - sliding */
     flipPageStyle: FlipPageStyle = "none";
 
     /** Whether to prevent the parent element from scrolling */
-    preventParentElementScroll: boolean;
+    preventParentElementScroll: boolean=false;
 
     /** Maximum number of columns */
-    maxColumns: number;
+    maxColumns: number=10;
 
     /** Column gap in px */
     columnGap: number = 40;
@@ -46,7 +49,7 @@ export class HtmlOptions {
     enableAutoFitPageWidth?: boolean;
 
     /** Maximum single-column width in page (paginated) mode */
-    maxColumnWidth: number;
+    maxColumnWidth?: number;
 
     /** When multiple columns are specified, width factor of each column relative to single-column width (between 0.5 and 1) */
     multiColumnWidthFactor: number = 0.8;

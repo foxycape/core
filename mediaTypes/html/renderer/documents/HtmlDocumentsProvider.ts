@@ -3,7 +3,7 @@ import { parseNumber } from "../../../../kernal/common/number";
 import { compareTagName } from "../../../../kernal/html/finder";
 import { wrapperCharacters, recoverWrapperCharacters } from "../../../../kernal/html/manipulator";
 import { scrollElementIntoView, getTransformLength } from "../../../../kernal/html/style";
-import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, WritingMode, asyncDebounce, BrowserCapabilities, Theme } from "../../../../kernal";
+import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, WritingMode, asyncDebounce, BrowserCapabilities, Theme, FlipMode } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
 import { HtmlSettings } from "../../HtmlSettings";
 import { BaseDocumentsProvider } from "../../../base/renderer/BaseDocumentsProvider";
@@ -331,7 +331,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                 newTransformLegnth = 0;
             }
 
-            const writingMode = doc.getWritingMode();
+            const writingMode = this.htmlOptions.writingMode ?? 'horizontal-tb';
             const axis = this.isVerticalWriting(writingMode) ? 'y' : 'x';
             if (axis == "x") {
                 if (!transformContainer.style.transition && this.htmlOptions.flipPageStyle == 'slide' && (direction == 'next' || direction == 'previous')) {

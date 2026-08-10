@@ -13,16 +13,16 @@ export class HtmlContainerBuilder {
 
     createContainers() {
         const { rendererCss, rendererContainer } = this.createRendererContainer();
-        const { contentsContainer, transformContainer, contentsContainerCss, transformContainerCss, contentContainerCss, fixedContainerCss } = this.createOtherContainers();
+        const { contentsContainer, transformContainer, contentsContainerCss, transformContainerCss, contentContainerCss } = this.createOtherContainers();
         rendererContainer.appendChild(contentsContainer);
-        const otherCss = contentsContainerCss + transformContainerCss + contentContainerCss + fixedContainerCss;
+        const otherCss = contentsContainerCss + transformContainerCss + contentContainerCss;
         return { rendererContainer, rendererCss, otherCss, contentsContainer, transformContainer };
     }
 
     private createRendererContainer() {
         const rendererClassName = "renderer";
-        let rendererCss = `.${rendererClassName}{margin-top:var(${Options.HeaderHeight});`
-        rendererCss += `margin-bottom:var(${Options.FooterHeight});`
+        let rendererCss = `.${rendererClassName}{margin-block-start:var(${Options.HeaderHeight});`
+        rendererCss += `margin-block-end:var(${Options.FooterHeight});`
         rendererCss += `overflow:auto;outline:none;width:100%;`
         rendererCss += `height:calc(100% - var(${Options.HeaderHeight}) - var(${Options.FooterHeight}));`;
         rendererCss += `overflow-y:var(${ViewportCssVariableNames.ScrollElementOverflow});`;
@@ -36,7 +36,7 @@ export class HtmlContainerBuilder {
     }
 
     private createOtherContainers() {
-        //所有内容容器div
+        // All contents container div
         const contentsContainerClassName = HtmlSettings.ContentsContainerCssName;
         let contentsContainerCss = `.${contentsContainerClassName}{width:var(${ViewportCssVariableNames.ContentsContainerWidth});`;
         contentsContainerCss += `margin:0 auto;`;
@@ -45,10 +45,10 @@ export class HtmlContainerBuilder {
         const contentsContainer = createElement(document, "div", getRandomId(true), contentsContainerClassName);
         contentsContainer.setAttribute("data-role", "contents-container");
 
-        //所有内容容器影子层
+        // Shadow layer for all contents container
         const contentsContainerShadow = createElement(document, "div", getRandomId(true), HtmlSettings.ContentsShadowContainerCssName);
 
-        //滑动翻页div
+        // Slide page-turn div
         const transformContainer = createElement(document, "div", getRandomId(true), HtmlSettings.TransformContainerCssName);
         if (this.htmlOptions.flipPageStyle == 'slide') {
             transformContainer.classList.add('slide');
@@ -62,7 +62,7 @@ export class HtmlContainerBuilder {
         contentContainerCss += "min-width:var(" + ViewportCssVariableNames.ContentWrapperMinWidth + ");";
         contentContainerCss += "overflow:hidden;height:var(" + ViewportCssVariableNames.ContentWrapperHeight + ");";
         contentContainerCss += "padding:var(" + ViewportCssVariableNames.ContentWrapperPadding + ");";
-        contentContainerCss += "margin-bottom: var(" + ViewportCssVariableNames.ContentWrapperMarginBottom + ");";
+        contentContainerCss += "margin-block-end: var(" + ViewportCssVariableNames.ContentWrapperMarginBottom + ");";
         if (this.htmlOptions.enableContentWrapperBorderRadius && this.htmlOptions.flipMode == 'scroll') {
             contentContainerCss += "border-radius: var(" + ViewportCssVariableNames.ContentWrapperBorderRadius + ");";
         }
@@ -70,15 +70,15 @@ export class HtmlContainerBuilder {
         contentContainerCss += "}";
 
         contentContainerCss += "." + HtmlSettings.FileContentContainerClassName + ":first-child{";
-        contentContainerCss += "margin-top: var(" + ViewportCssVariableNames.ContentWrapperMarginTop + ");";
+        contentContainerCss += "margin-block-start: var(" + ViewportCssVariableNames.ContentWrapperMarginTop + ");";
         contentContainerCss += "}";
-        //触摸翻页样式
+        // Touch page-turn styles
 
         contentContainerCss += "." + HtmlSettings.FileContentContainerClassName + "." + HtmlSettings.FileContentContainerHeightClassName + "{";
         contentContainerCss += "min-height:var(" + ViewportCssVariableNames.ContentWrapperMinHeight + ");";
         contentContainerCss += "max-height:var(" + ViewportCssVariableNames.ContentWrapperMaxHeight + ");";
         contentContainerCss += "}";
-        //触摸翻页样式
+        // Touch page-turn styles
         let transformContainerCss = "";
         transformContainerCss += "." + HtmlSettings.TransformPagesClassName + " ." + HtmlSettings.ContentsContainerCssName + "{";
         transformContainerCss += `overflow:hidden;background-color:var(${Theme.ContentBackground})`;
@@ -105,11 +105,6 @@ export class HtmlContainerBuilder {
         transformContainerCss += "." + HtmlSettings.TransformContainerCssName + "{";
         transformContainerCss += "}";
 
-        //固定当前文档样式
-        let fixedContainerCss = "." + HtmlSettings.FixedCurrentFileContentContainerClassName + "{";
-        fixedContainerCss += "position:absolute;width: var(" + ViewportCssVariableNames.ContentWrapperWidth + ");height: var(" + ViewportCssVariableNames.ContentWrapperHeight + ");margin: 0 auto;top:0;bottom:0;z-index:1;";
-        fixedContainerCss += "}";
-
-        return { contentsContainer, transformContainer, contentsContainerCss, transformContainerCss, contentContainerCss, fixedContainerCss };
+        return { contentsContainer, transformContainer, contentsContainerCss, transformContainerCss, contentContainerCss };
     }
 }

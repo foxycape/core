@@ -76,7 +76,7 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
             }
         }
         this.rendererViewport.applyCssVariables();
-        await this.rendererLayout.applyCssVariables();
+        await this.rendererLayout.applyStyles();
         // Column metrics changed: drop cached page counts so reload remaps against the new layout.
         for (const doc of this.documentsProvider.getLoadedDocuments()) {
             doc.getContentContainer()?.ownerDocument?.documentElement

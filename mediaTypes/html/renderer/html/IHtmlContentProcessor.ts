@@ -6,7 +6,7 @@ export interface IHtmlContentProcessor {
      * @param doc 
      * @returns 
      */
-    process(doc: IHtmlDocument): Promise<void>;
+    preprocess(doc: IHtmlDocument): Promise<void>;
 
     /**
      * Dispose the content processor.

@@ -60,20 +60,26 @@ export class PdfDocumentEvents {
             return;
         }
         const range = getRange(this.rendererContainer.ownerDocument, false);
-        const startContentContainer = range.startContainer.parentElement;
-        const doc = await this.findPageDocument(startContentContainer);
-        if (doc) {
-            this.owner.events.emit(EventNames.DocumentSelectionChange, e, doc);
-        }
+        const startContentContainer =
+            range.startContainer.nodeType === Node.ELEMENT_NODE
+                ? (range.startContainer as HTMLElement)
+                : range.startContainer.parentElement;
+        const doc =
+            (await this.findPageDocument(startContentContainer)) ??
+            this.documentsProvider.getDocuments()[0];
+        // Always emit when selection is valid; toolbar must not depend on page-doc lookup.
+        this.owner.events.emit(EventNames.DocumentSelectionChange, e, doc);
     };
 
     private eventListener = async (e: Event) => {
         const customEventKey = this.eventKeyMap.get(e.type as any);
         if (customEventKey) {
-            const doc = await this.findPageDocument(e.target as HTMLElement);
-            if (doc) {
-                this.owner.events.emit(customEventKey, e, doc);
-            }
+            const doc =
+                (await this.findPageDocument(e.target as HTMLElement)) ??
+                this.documentsProvider.getDocuments()[0];
+            // Emit even when page lookup fails (e.g. release outside .page);
+            // selection toolbar depends on pointerup.
+            this.owner.events.emit(customEventKey, e, doc);
         }
     };
 

@@ -8,6 +8,7 @@ import { IHtmlDocument } from "../IHtmlDocument";
 import { IHtmlDocumentsProvider } from "../IHtmlDocumentsProvider";
 import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSymbolCalclator } from "../doc/HtmlSymbolCalclator";
+import { getAdjacentText } from "./adjacent";
 
 export class HtmlProgressTracker implements IHtmlProgressTracker {
     private readonly logger: ILogger;
@@ -104,7 +105,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
         location.precise = true;
         location.ignoreOverlayHeader = true;
         location.scrollBehavior = "smooth";
-
+        location.text = getAdjacentText(this.documentsProvider, this.options.htmlBlockTags, firstVisibleDocument.extension, firstVisibleElement);
         if (this.options.flipMode === "page") {
             const pageNumber = this.documentsProvider.getCurrentPageNumber(firstVisibleDocument);
             const numberOfPages = await firstVisibleDocument.getNumberOfPages();

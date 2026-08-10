@@ -13,9 +13,9 @@ import { PdfViewerBuilder } from "../PdfViewerBuilder";
 import { PdfRendererViewport } from "../layout/PdfRendererViewport";
 import type { MultiPDFViewer } from "../MultiPdfViewer";
 import type { IPdfDocumentsProvider } from "./IPdfDocumentsProvider";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import * as pdfjsViewer from "pdfjs-dist/legacy/web/pdf_viewer.mjs";
-import "pdfjs-dist/legacy/web/pdf_viewer.css";
+import * as pdfjsLib from "../../../../pdfjs/legacy/build/pdf.mjs";
+import * as pdfjsViewer from "../../../../pdfjs/legacy/web/pdf_viewer.mjs";
+import "../../../../pdfjs/legacy/web/pdf_viewer.css";
 
 /**
  * PDF documents lifecycle: containers, engine load, page document collection, navigation.
@@ -28,7 +28,7 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
     protected readonly pdfViewer: MultiPDFViewer;
     protected readonly eventBus: pdfjsViewer.EventBus;
     private readonly linkService: pdfjsViewer.PDFLinkService;
-    private readonly findController: pdfjsViewer.PDFFindController;
+    protected readonly findController: pdfjsViewer.PDFFindController;
     private readonly maxCanvasPixels: number;
     private pdfDocument: pdfjsLib.PDFDocumentProxy | null = null;
     private isEngineInitialized = false;
@@ -57,6 +57,14 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
 
     getViewerContainer(): HTMLDivElement {
         return this.rendererViewport.getViewerContainer();
+    }
+
+    getEventBus(): pdfjsViewer.EventBus {
+        return this.eventBus;
+    }
+
+    getFindController(): pdfjsViewer.PDFFindController {
+        return this.findController;
     }
 
     override getRendererContainer(): HTMLDivElement {
@@ -494,6 +502,17 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
         this.setCurrentPageNumber(value);
     }
 
+    setCurrentPage(pageNumber: number, scroll = true): void {
+        if (!scroll) {
+            // pdf.js public setter always resets the page into view; bypass that.
+            (this.pdfViewer as unknown as {
+                _setCurrentPageNumber?: (val: number, resetCurrentPageView?: boolean) => boolean;
+            })._setCurrentPageNumber?.(pageNumber, false);
+            return;
+        }
+        this.setCurrentPageNumber(pageNumber);
+    }
+
     get isSpreadMode(): boolean {
         return this.pdfViewer?.spreadMode !== pdfjsViewer.SpreadMode.NONE;
     }
@@ -602,6 +621,17 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
             return undefined;
         }
         return this.pdfViewer.getPageView(pageNumber - 1) as pdfjsViewer.PDFPageView | undefined;
+    }
+
+    async getPdfPage(pageNumber: number): Promise<pdfjsLib.PDFPageProxy | undefined> {
+        if (!this.pdfDocument || pageNumber < 1 || pageNumber > this.numberOfPages) {
+            return undefined;
+        }
+        const fromView = this.getPageView(pageNumber)?.pdfPage as pdfjsLib.PDFPageProxy | undefined;
+        if (fromView) {
+            return fromView;
+        }
+        return this.pdfDocument.getPage(pageNumber);
     }
 
     override async dispose(): Promise<void> {

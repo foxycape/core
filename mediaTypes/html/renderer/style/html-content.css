@@ -17,9 +17,6 @@ body {
     line-height: var(--text-line-height);
 }
 
-
-html,
-body,
 div,
 span,
 applet,
@@ -171,9 +168,8 @@ h6 {
     word-wrap: break-word;
     margin-block-start: var(--head-margin-top) !important;
     margin-block-end: var(--head-margin-bottom) !important;
-
     line-height: var(--head-line-height, 1.5em);
-    text-align: left;
+    text-align: start;
     text-indent: 0;
 }
 
@@ -221,7 +217,7 @@ td * {
 
 pre,
 code {
-    text-align: left;
+    text-align: start;
 }
 
 ul {
@@ -244,7 +240,7 @@ font {
     font-size: var(--font-size) !important;
 }
 
-html body p[text-align='right'] {
+html body p[text-align='end'] {
     text-indent: 0 !important;
 }
 

@@ -1,4 +1,10 @@
 export interface IPdfRendererLayout {
+    /** Current scroll direction. */
+    get scrollMode(): PdfScrollMode;
+
+    /** Current page spread mode. */
+    get spreadMode(): PdfSpreadMode;
+
     /**
      * Change the scroll mode of the document.
      */

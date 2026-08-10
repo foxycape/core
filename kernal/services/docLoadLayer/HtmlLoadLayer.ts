@@ -57,7 +57,7 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
     setReloadButton() {
         let loadingLayer = '<div style="width:100%;height:100%;min-height: inherit;display: flex;justify-content: center;align-items: center;flex-direction: column;">';
         loadingLayer += '<div style="color:#666666;font-size: 14px;">Load failed</div>';
-        loadingLayer += '<div class="reload_button" style="font-size: 16px;margin-top: 10px;background: #14ae5c;color: #fff;padding: 5px 10px;border-radius: 4px;cursor: pointer;">Reload</div>';
+        loadingLayer += '<div class="reload_button" style="font-size: 16px;margin-block-start: 10px;background: #14ae5c;color: #fff;padding: 5px 10px;border-radius: 4px;cursor: pointer;">Reload</div>';
         loadingLayer += '</div>';
         this.wrapperContainer.innerHTML = loadingLayer;
         const reloadButton = this.wrapperContainer.querySelector(".reload_button");

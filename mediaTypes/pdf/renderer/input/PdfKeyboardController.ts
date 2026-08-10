@@ -1,10 +1,15 @@
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import * as pdfjsLib from "../../../../pdfjs/legacy/build/pdf.mjs";
 import { MultiPDFViewer } from "../MultiPdfViewer";
 
+export type PdfFindRequestHandler = () => void;
+
 export class PdfKeyboardController {
-    constructor(private readonly pdfViewer: MultiPDFViewer,
-        private readonly container: HTMLDivElement) {
-    }
+    private findRequestHandler?: PdfFindRequestHandler;
+
+    constructor(
+        private readonly pdfViewer: MultiPDFViewer,
+        private readonly container: HTMLDivElement,
+    ) {}
 
     bind() {
         this.container.addEventListener("click", this.webViewerClick);
@@ -16,12 +21,16 @@ export class PdfKeyboardController {
         this.container.removeEventListener("keydown", this.webViewerKeyDown);
     }
 
-    get supportsIntegratedFind() {
-        return pdfjsLib.shadow(this, "supportsIntegratedFind", false);
+    setFindRequestHandler(handler?: PdfFindRequestHandler) {
+        this.findRequestHandler = handler;
     }
 
-    private webViewerClick = (_evt: MouseEvent) => {
-    };
+    /** Integrated find is handled by the host search UI via RequestOpenFind. */
+    get supportsIntegratedFind() {
+        return pdfjsLib.shadow(this, "supportsIntegratedFind", true);
+    }
+
+    private webViewerClick = (_evt: MouseEvent) => {};
 
     private webViewerKeyDown = (evt: KeyboardEvent) => {
         const { pdfViewer } = this;
@@ -35,11 +44,15 @@ export class PdfKeyboardController {
             (evt.shiftKey ? 4 : 0) |
             (evt.metaKey ? 8 : 0);
 
+        const curElement = this.getActiveOrFocusedElement();
+        const curElementTagName = curElement?.tagName?.toUpperCase() ?? "";
+
         if (cmd === 1 || cmd === 8 || cmd === 5 || cmd === 12) {
             switch (evt.keyCode) {
                 case 70:
-                    if (!this.supportsIntegratedFind && !evt.shiftKey) {
+                    if (!evt.shiftKey) {
                         handled = true;
+                        this.findRequestHandler?.();
                     }
                     break;
                 case 71:
@@ -78,7 +91,10 @@ export class PdfKeyboardController {
                     }
                     break;
                 case 40:
-                    if (isViewerInPresentationMode || pdfViewer.currentPageNumber < pdfViewer.pagesCount) {
+                    if (
+                        isViewerInPresentationMode ||
+                        pdfViewer.currentPageNumber < pdfViewer.pagesCount
+                    ) {
                         pdfViewer.currentPageNumber = pdfViewer.pagesCount;
                         handled = true;
                         ensureViewerFocused = true;
@@ -87,89 +103,44 @@ export class PdfKeyboardController {
             }
         }
 
-        if (cmd === 3 || cmd === 10) {
-            switch (evt.keyCode) {
-                case 80:
-                    handled = true;
-                    break;
-                case 71:
-                    break;
-            }
-        }
+        let turnPage = 0;
+        let turnOnlyIfPageFit = false;
 
-        if (handled) {
-            if (ensureViewerFocused && !isViewerInPresentationMode) {
-                pdfViewer.focus();
-            }
-            evt.preventDefault();
-            return;
-        }
-
-        const curElement = this.getActiveOrFocusedElement();
-        const curElementTagName = curElement?.tagName.toUpperCase();
-        if (
-            curElementTagName === "INPUT" ||
-            curElementTagName === "TEXTAREA" ||
-            curElementTagName === "SELECT" ||
-            (curElement as HTMLElement)?.isContentEditable
-        ) {
-            if (evt.keyCode !== 27) {
-                return;
-            }
-        }
-
-        if (cmd === 0) {
-            let turnPage = 0;
-            let turnOnlyIfPageFit = false;
+        if (cmd === 0 || (cmd === 4 && !isViewerInPresentationMode)) {
             switch (evt.keyCode) {
                 case 38:
                 case 33:
                     if (pdfViewer.isVerticalScrollbarEnabled) {
-                        turnOnlyIfPageFit = true;
+                        turnPage = -1;
+                    } else if (
+                        isViewerInPresentationMode ||
+                        (cmd === 4 && pdfViewer.currentScaleValue !== "page-fit")
+                    ) {
+                        turnPage = -1;
+                        turnOnlyIfPageFit = cmd === 0;
                     }
-                    turnPage = -1;
-                    break;
-                case 8:
-                    if (!isViewerInPresentationMode) {
-                        turnOnlyIfPageFit = true;
-                    }
-                    turnPage = -1;
                     break;
                 case 37:
                     if (pdfViewer.isHorizontalScrollbarEnabled) {
-                        turnOnlyIfPageFit = true;
+                        turnPage = -1;
                     }
-                    turnPage = -1;
-                    break;
-                case 75:
-                case 80:
-                    turnPage = -1;
-                    break;
-                case 27:
                     break;
                 case 40:
                 case 34:
                     if (pdfViewer.isVerticalScrollbarEnabled) {
-                        turnOnlyIfPageFit = true;
+                        turnPage = 1;
+                    } else if (
+                        isViewerInPresentationMode ||
+                        (cmd === 4 && pdfViewer.currentScaleValue !== "page-fit")
+                    ) {
+                        turnPage = 1;
+                        turnOnlyIfPageFit = cmd === 0;
                     }
-                    turnPage = 1;
-                    break;
-                case 13:
-                case 32:
-                    if (!isViewerInPresentationMode) {
-                        turnOnlyIfPageFit = true;
-                    }
-                    turnPage = 1;
                     break;
                 case 39:
                     if (pdfViewer.isHorizontalScrollbarEnabled) {
-                        turnOnlyIfPageFit = true;
+                        turnPage = 1;
                     }
-                    turnPage = 1;
-                    break;
-                case 74:
-                case 78:
-                    turnPage = 1;
                     break;
                 case 36:
                     if (isViewerInPresentationMode || pdfViewer.currentPageNumber > 1) {
@@ -179,21 +150,18 @@ export class PdfKeyboardController {
                     }
                     break;
                 case 35:
-                    if (isViewerInPresentationMode || pdfViewer.currentPageNumber < pdfViewer.pagesCount) {
+                    if (
+                        isViewerInPresentationMode ||
+                        pdfViewer.currentPageNumber < pdfViewer.pagesCount
+                    ) {
                         pdfViewer.currentPageNumber = pdfViewer.pagesCount;
                         handled = true;
                         ensureViewerFocused = true;
                     }
                     break;
-            }
-
-            if (turnPage !== 0 && (!turnOnlyIfPageFit || pdfViewer.currentScaleValue === "page-fit")) {
-                if (turnPage > 0) {
-                    pdfViewer.nextPage();
-                } else {
-                    pdfViewer.previousPage();
-                }
-                handled = true;
+                case 32:
+                    turnPage = evt.shiftKey ? -1 : 1;
+                    break;
             }
         }
 
@@ -201,13 +169,25 @@ export class PdfKeyboardController {
             switch (evt.keyCode) {
                 case 13:
                 case 32:
-                    if (!isViewerInPresentationMode && pdfViewer.currentScaleValue !== "page-fit") {
+                    if (
+                        !isViewerInPresentationMode &&
+                        pdfViewer.currentScaleValue !== "page-fit"
+                    ) {
                         break;
                     }
                     pdfViewer.previousPage();
                     handled = true;
                     break;
             }
+        }
+
+        if (turnPage !== 0 && (!turnOnlyIfPageFit || pdfViewer.currentScaleValue === "page-fit")) {
+            if (turnPage > 0) {
+                pdfViewer.nextPage();
+            } else {
+                pdfViewer.previousPage();
+            }
+            handled = true;
         }
 
         if (!handled && !isViewerInPresentationMode) {
@@ -240,4 +220,4 @@ export class PdfKeyboardController {
 
         return curActiveOrFocused;
     };
-};
+}

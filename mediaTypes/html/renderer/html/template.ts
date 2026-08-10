@@ -1,6 +1,6 @@
-import { createElement } from "@/kernal/html/injector";
+import { createElement } from "../../../../kernal/html/injector";
 import { formatFileSize } from "../../../../kernal/common/data";
-import { BrowserCapabilities } from "@/kernal/web/BrowserCapabilities";
+import { BrowserCapabilities } from "../../../../kernal/web/BrowserCapabilities";
 import { ViewportCssVariableNames } from "../layout/ViewportCssVariableNames";
 
 export const htmlTemplate = `<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><title></title></head><body>{custom-htmls}</body></html>`;

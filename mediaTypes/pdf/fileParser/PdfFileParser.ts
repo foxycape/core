@@ -1,8 +1,8 @@
 import { isNullOrWhiteSpace } from "../../../kernal/common/text";
 import { Nav, SpineFile, FileLocation, NavPoint, IFileDecrypter, IStorage, Context, ILocale, IEventEmitter } from "../../../kernal";
 import { IPdfFileParser, PdfFileParserOptions } from "./IPdfFileParser";
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { PdfJsAssistant } from "../PdfJsAssistant";
+import * as pdfjsLib from '../../../pdfjs/legacy/build/pdf.mjs';
+import { loadPdfDocument } from "../loadPdfDocument";
 import { ITextDocument } from "../../../kernal/ITextDocument";
 import { PdfTextDocument } from "./PdfTextDocument";
 import { BaseFileParser } from "../../base/fileParser/BaseFileParser";
@@ -118,7 +118,7 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
             password = await this.options.standardPasswordProvider(this, spineFile);
         }
         const data = await this.getPdfSpineFileData(spineFile)
-        const doc = await PdfJsAssistant.getPdfDocument(data, {
+        const doc = await loadPdfDocument(data, {
             password: password,
             cMapUrl: this.options.cMapUrl,
             standardFontDataUrl: this.options.standardFontDataUrl,
