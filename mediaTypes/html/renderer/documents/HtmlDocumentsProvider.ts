@@ -7,7 +7,7 @@ import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, WritingMode, asyn
 import type { Reader } from "../../../../kernal/Reader";
 import { HtmlSettings } from "../../HtmlSettings";
 import { BaseDocumentsProvider } from "../../../base/renderer/BaseDocumentsProvider";
-import { HtmlDocument } from "../doc/HtmlDocument";
+import { HtmlDocument } from "../document/HtmlDocument";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlDocumentsPreloader } from "./HtmlDocumentsPreloader";

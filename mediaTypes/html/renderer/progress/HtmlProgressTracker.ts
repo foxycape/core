@@ -7,7 +7,7 @@ import { IHtmlProgressTracker } from "./IHtmlIProgressTracker";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { IHtmlDocumentsProvider } from "../IHtmlDocumentsProvider";
 import { HtmlOptions } from "../../HtmlOptions";
-import { HtmlSymbolCalclator } from "../doc/HtmlSymbolCalclator";
+import { HtmlSymbolCalclator } from "../document/HtmlSymbolCalclator";
 import { getAdjacentText } from "./adjacent";
 
 export class HtmlProgressTracker implements IHtmlProgressTracker {
