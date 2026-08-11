@@ -1,6 +1,6 @@
 {
   "name": "@foxycape/core",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Browser-side multi-format reader kernel with pluggable parsers, renderers, services, and plugins.",
   "license": "MIT",
   "type": "module",
@@ -36,10 +36,16 @@
       "import": "./dist/mediaTypes/*.mjs",
       "require": "./dist/mediaTypes/*.cjs"
     },
+    "./pdfjs": "./dist/pdfjs/package.json",
+    "./pdfjs/*": "./dist/pdfjs/*",
+    "./global.d.ts": "./global.d.ts",
+    "./types.d.ts": "./types.d.ts",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
+    "global.d.ts",
+    "types.d.ts",
     "LICENSE",
     "README.MD",
     "README.zh.md",
