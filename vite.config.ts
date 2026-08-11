@@ -103,7 +103,7 @@ export default defineConfig({
     }),
     dts({
       entryRoot: path.resolve(__dirname, '.'),
-      outDir: ['dist'],
+      outDirs: ['dist'],
       include: ['kernal/**/*.ts', 'mediaTypes/**/*.ts'],
       exclude: ['**/*.test.ts', '**/*.spec.ts', 'samples/**', 'tests/**'],
       staticImport: true,
