@@ -124,7 +124,8 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
             standardFontDataUrl: this.options.standardFontDataUrl,
             showPasswordPrompt: this.options.showPasswordPrompt,
             passwordPrompt: this.passwordProvider.onPasswordPrompt,
-            internalUrlBuilder: this.options.internalUrlBuilder
+            internalUrlBuilder: this.options.internalUrlBuilder,
+            documentInitParametersCallback: this.options.documentInitParametersCallback,
         })
         return doc;
     }
