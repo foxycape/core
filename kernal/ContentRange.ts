@@ -19,8 +19,8 @@ export type TextOffsetRange = {
 /**
  * Fixed-layout visual geometry (one entry per page; multi-page marks use multiple entries).
  * `coords` are relative to the page's visual width/height at annotation time;
- * restore by scaling to the current display size (platform/zoom independent):
- * currentX = coords.x / width * currentPageDisplayWidth
+ * restore by rotating from `rotation` to the current viewport rotation, then scaling:
+ * currentX = rotatedX / rotatedPageWidth * currentPageDisplayWidth
  */
 export type ContentGeometry = {
     /** Page number */
@@ -33,6 +33,11 @@ export type ContentGeometry = {
     shape: ContentShape;
     /** Coordinate list: rect - x,y,w,h; circ - x,y,radius; poly - x,y,x1,y1,x2,y2,... */
     coords: number[];
+    /**
+     * Viewport rotation at annotation time (0 | 90 | 180 | 270).
+     * Paint remaps by (currentRotation - rotation). Missing / legacy defaults to 0.
+     */
+    rotation?: number;
 };
 
 /**
