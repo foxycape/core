@@ -1,13 +1,48 @@
-
-declare module '*.html';
-declare module "*.scss";
-declare module "*.css" {}
-declare module "*.png";
-declare module "*.js";
-declare module '*.html?raw';
-declare module '*.js?raw';
-declare module '*.mjs?raw';
-declare module '*.js?url';
-declare module '*.mjs?url';
-declare module '*/?url';
-declare module '*.css?raw';
+declare module '*.html' {
+  const src: string;
+  export default src;
+}
+declare module '*.scss' {
+  const src: string;
+  export default src;
+}
+declare module '*.css' {
+  const src: string;
+  export default src;
+}
+declare module '*.png' {
+  const src: string;
+  export default src;
+}
+declare module '*.js' {
+  const src: string;
+  export default src;
+}
+declare module '*.html?raw' {
+  const src: string;
+  export default src;
+}
+declare module '*.js?raw' {
+  const src: string;
+  export default src;
+}
+declare module '*.mjs?raw' {
+  const src: string;
+  export default src;
+}
+declare module '*.js?url' {
+  const src: string;
+  export default src;
+}
+declare module '*.mjs?url' {
+  const src: string;
+  export default src;
+}
+declare module '*/?url' {
+  const src: string;
+  export default src;
+}
+declare module '*.css?raw' {
+  const src: string;
+  export default src;
+}

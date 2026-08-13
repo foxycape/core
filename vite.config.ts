@@ -1,4 +1,4 @@
-import path, { resolve } from 'path'
+import path from 'path'
 import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from 'fs'
 import { defineConfig, type Plugin } from 'vite'
 import dts from 'vite-plugin-dts'
@@ -6,10 +6,12 @@ import { glob } from 'glob';
 import commonjs from '@rollup/plugin-commonjs'
 import requireTransform from 'vite-plugin-require-transform';//引入require
 
-emptyDir(resolve(__dirname, 'dist'))
-emptyDir(resolve(__dirname, 'types'))
+const rootDir = import.meta.dirname
 
-const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as {
+emptyDir(path.resolve(rootDir, 'dist'))
+emptyDir(path.resolve(rootDir, 'types'))
+
+const pkg = JSON.parse(readFileSync(path.resolve(rootDir, 'package.json'), 'utf-8')) as {
   dependencies?: Record<string, string>
   peerDependencies?: Record<string, string>
 }
@@ -19,7 +21,7 @@ const dependencyNames = [
   ...Object.keys(pkg.peerDependencies ?? {}),
 ]
 
-const pdfjsRoot = resolve(__dirname, 'pdfjs').replace(/\\/g, '/')
+const pdfjsRoot = path.resolve(rootDir, 'pdfjs').replace(/\\/g, '/')
 
 const isPdfjsId = (id: string) => {
   const normalized = id.replace(/\\/g, '/')
@@ -39,8 +41,8 @@ const isExternal = (id: string) =>
 const copyPdfjsToDistPlugin = (): Plugin => ({
   name: 'copy-pdfjs-to-dist',
   closeBundle() {
-    const from = resolve(__dirname, 'pdfjs')
-    const to = resolve(__dirname, 'dist/pdfjs')
+    const from = path.resolve(rootDir, 'pdfjs')
+    const to = path.resolve(rootDir, 'dist/pdfjs')
     if (!existsSync(from)) {
       return
     }
@@ -51,14 +53,14 @@ const copyPdfjsToDistPlugin = (): Plugin => ({
 
 // const input = await glob(['./kernal/**/*.{ts,js}', './mediaTypes/**/*.{ts,js}'], {
 const input = await glob(['./kernal/**/*.ts', './mediaTypes/**/*.ts'], {
-  cwd: __dirname,
+  cwd: rootDir,
   absolute: true
 })
 // console.log(input)
 export default defineConfig({
   resolve: {
     alias: {
-      '@': resolve(__dirname, './')
+      '@': path.resolve(rootDir, './')
     }
   },
   build: {
@@ -66,7 +68,7 @@ export default defineConfig({
 
     // sourcemap: true,
     lib: {
-      entry: path.resolve(__dirname, './kernal/index.ts'),
+      entry: path.resolve(rootDir, './kernal/index.ts'),
       name: 'FoxycapeCore',
       // formats: ['es'],
       // fileName: "[name]"
@@ -79,14 +81,14 @@ export default defineConfig({
         {
           format: 'cjs',
           preserveModules: true,
-          preserveModulesRoot: __dirname,
+          preserveModulesRoot: rootDir,
           dir: 'dist',
           entryFileNames: '[name].cjs'
         },
         {
           format: 'es',
           preserveModules: true,
-          preserveModulesRoot: __dirname,
+          preserveModulesRoot: rootDir,
           dir: 'dist',
           entryFileNames: '[name].mjs'
         }
@@ -102,9 +104,9 @@ export default defineConfig({
       fileRegex: /.js$|.ts$/
     }),
     dts({
-      entryRoot: path.resolve(__dirname, '.'),
+      entryRoot: path.resolve(rootDir, '.'),
       outDirs: ['dist'],
-      include: ['kernal/**/*.ts', 'mediaTypes/**/*.ts'],
+      include: ['kernal/**/*.ts', 'mediaTypes/**/*.ts', 'types.d.ts', 'global.d.ts'],
       exclude: ['**/*.test.ts', '**/*.spec.ts', 'samples/**', 'tests/**'],
       staticImport: true,
     }),
@@ -118,6 +120,6 @@ function emptyDir(dir: string) {
   }
 
   for (const file of readdirSync(dir)) {
-    rmSync(resolve(dir, file), { recursive: true, force: true })
+    rmSync(path.resolve(dir, file), { recursive: true, force: true })
   }
 }
