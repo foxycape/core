@@ -19,7 +19,7 @@ import { IDevice } from "./device/IDevice";
 export type { FileLoadPipelineOptions, FileLoadResult } from "./pipelines/FileLoadPipeline";
 import { InputFormatter } from "./pipelines/InputFormatter";
 import { ReaderInfo } from "./ReaderInfo";
-import { CoreServiceMap, ServiceCollection } from "./services/ServiceCollection";
+import { CORE_SERVICE_KEYS, CoreServiceMap, ServiceCollection } from "./services/ServiceCollection";
 import { WebBrowser } from "./device/WebBrowser";
 import { IPlatform } from "./device/IPlatform";
 import { IEnvironment } from "./device/IEnvironment";
@@ -34,7 +34,7 @@ export type CoreServices = {
     locale?: ILocale;
     storage?: IStorage;
     loggerFactory?: ILoggerFactory;
-};
+} & Partial<CoreServiceMap>;
 
 /**
  * Headless file loader: parse a resource without DOM / renderer / interactive.
@@ -82,11 +82,14 @@ export class FileLoader {
 
         this.mediaTypeRegistry = new MediaTypeRegistry();
         this.services = new ServiceCollection<CoreServiceMap>(this.locale, this.events, this.readerInfo);
-        if (services?.storage) {
-            const storage = services.storage;
-            this.services.add("storage", () => storage);
+        if (services) {
+            for (const key of CORE_SERVICE_KEYS) {
+                const instance = services[key];
+                if (instance !== undefined) {
+                    this.services.add(key, () => instance as CoreServiceMap[typeof key]);
+                }
+            }
         }
-
         this.services.registerCoreServices();
 
         this.inputFormatter = new InputFormatter(this.services, this.options);

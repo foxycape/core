@@ -15,6 +15,19 @@ export type CoreServiceMap = {
     readingProgressStore: import("../progress/IReadingProgressStore").IReadingProgressStore;
 };
 
+/** Runtime keys of {@link CoreServiceMap}; adding a map field without updating this is a type error. */
+export const CORE_SERVICE_KEYS = Object.keys({
+    httpClient: true,
+    internalUrlBuilder: true,
+    fileUrlParser: true,
+    crypto: true,
+    fileUrlProvider: true,
+    fileDecrypter: true,
+    fileProvider: true,
+    storage: true,
+    readingProgressStore: true,
+} satisfies Record<keyof CoreServiceMap, true>) as Array<keyof CoreServiceMap>;
+
 /** DOM / reader UI services (only registered for Reader). */
 export type UiServiceMap = {
     notifier: import("./notifier/INotifier").INotifier;
@@ -24,6 +37,16 @@ export type UiServiceMap = {
     loadLayer: import("./docLoadLayer/IHtmlLoadLayer").IHtmlLoadLayer;
     symbolCalclator: import("../ISymbolCalclator").ISymbolCalclator;
 };
+
+/** Runtime keys of {@link UiServiceMap}; adding a map field without updating this is a type error. */
+export const UI_SERVICE_KEYS = Object.keys({
+    notifier: true,
+    loading: true,
+    themeProvider: true,
+    wallpaperProvider: true,
+    loadLayer: true,
+    symbolCalclator: true,
+} satisfies Record<keyof UiServiceMap, true>) as Array<keyof UiServiceMap>;
 
 /** Full service map for the reader host. */
 export type ServiceMap = CoreServiceMap & UiServiceMap;
