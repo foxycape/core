@@ -4,8 +4,6 @@
 export class PdfCssVariableNames {
     /** Contents container width */
     static readonly ContentsContainerWidth = "--pdf-contents-container-width";
-    /** Contents container offset left */
-    static readonly ContentsContainerOffsetLeft = "--pdf-contents-container-offsetleft";
 
     /** Scroll element overflow */
     static readonly ScrollElementOverflow = "--pdf-scroll-element-overflow";

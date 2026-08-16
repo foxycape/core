@@ -15,7 +15,6 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
     private readonly rendererContainer: HTMLElement;
     private readonly scrollElement: HTMLElement;
     private readonly contentsShadowContainer: HTMLElement;
-    private readonly contentsContainer: HTMLElement;
     private readonly device: IDevice;
     private updateCssVariablesTimeoutId: any;
     private readonly optionsProvider: OptionsProvider;
@@ -33,8 +32,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         this.rendererContainer = rendererContainer;
         this.scrollElement = this.rendererContainer;
         this.contentsShadowContainer = this.rendererContainer.querySelector('.' + HtmlSettings.ContentsShadowContainerCssName) as HTMLElement;
-        this.contentsContainer = this.rendererContainer.querySelector('.' + HtmlSettings.ContentsContainerCssName) as HTMLElement;
-    }
+       }
 
     getRendererContainer(): HTMLElement {
         return this.rendererContainer;
@@ -46,13 +44,18 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
 
     getLayoutMetrics(): HtmlLayoutMetrics {
         if (!this.layout) {
-            this.applyCssVariables();
+            this.internlApplyCssVariables();
             this.layout = this.buildLayoutMetrics();
         }
         return this.layout;
     }
 
     applyCssVariables(): void {
+        this.internlApplyCssVariables();
+        this.layout = this.buildLayoutMetrics();
+    }
+
+    private internlApplyCssVariables(): void {
         const rendererCssVariables = this.prepareRendererCssVariables();
         const otherCssVariables = this.prepareOtherCssVariables();
         const vars = new Map<string, string>();
@@ -66,8 +69,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         vars.forEach((v, k) => {
             rootContainer.style.setProperty(k, v);
         })
-        this.layout = this.buildLayoutMetrics();
-    }
+    } 
 
     private prepareRendererCssVariables() {
         const flipMode = this.getFlipMode();
@@ -177,22 +179,6 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         const contentContainerHeight = `calc(var(${ViewportCssVariableNames.ContentWrapperHeight}) - ${contentWrapperPaddingTopBottom})`
         vars.set(ViewportCssVariableNames.ContentContainerHeight, contentContainerHeight);
         vars.set(ViewportCssVariableNames.ContentColumnGap, columnGap + 'px');
-
-        if (this.rendererContainer) {
-            vars.set(ViewportCssVariableNames.ContentsContainerOffsetLeft, "calc((" + this.rendererContainer.clientWidth + "px - " + contentsContainerWidth + ") / 2)");
-            this.updateCssVariablesTimeoutId = setTimeout(() => {
-                const offsetLeftVars = new Map<string, string>();
-                offsetLeftVars.set(ViewportCssVariableNames.ContentsContainerOffsetLeft, this.contentsContainer.offsetLeft + "px");
-                offsetLeftVars.forEach((v, k) => {
-                    rootContainer.style.setProperty(k, v);
-                })
-                if (rootContainer) {
-                    offsetLeftVars.forEach((v, k) => {
-                        rootContainer.style.setProperty(k, v);
-                    })
-                }
-            }, 1000);
-        }
         return vars;
     }
 
