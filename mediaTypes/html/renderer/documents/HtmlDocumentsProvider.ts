@@ -451,10 +451,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     private transformColumnPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous', isRtlProgression?: boolean) {
         const transformContainer = this.getTransformContainer();
         const documentViewport = this.rendererViewport.getLayoutMetrics();
-        const wrapperContainer = doc.getWrapperContainer();
+        const pageBox = this.getDocumentPageBox(doc);
         const newTransformLegnth = getPageTransformOffset(
-            wrapperContainer.offsetLeft,
-            this.getDocumentPageContentWidth(doc),
+            pageBox.offsetLeft,
+            pageBox.contentWidth,
             pageNumber,
             documentViewport.pageMoveLength,
             isRtlProgression,
@@ -464,18 +464,25 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         this.setCurrentPageNumber(doc, pageNumber);
     }
 
-    /** Iframe / document content width, excluding wrapper padding used as page-gap chrome. */
-    private getDocumentPageContentWidth(doc: IHtmlDocument): number {
+    /**
+     * Page origin is the iframe, not the wrapper. RTL puts the inter-document
+     * gap on the wrapper's inline-start, so wrapper.offsetLeft is ~20px left of
+     * the columns and every page (including the last) undershoots pageMoveLength.
+     */
+    private getDocumentPageBox(doc: IHtmlDocument): { offsetLeft: number, contentWidth: number } {
+        const wrapperContainer = doc.getWrapperContainer();
         const documentElement = doc.getContentContainer()?.ownerDocument?.documentElement;
         const iframe = documentElement?.ownerDocument?.defaultView?.frameElement as HTMLElement | undefined;
-        const width = Math.max(
+        const contentWidth = Math.max(
             iframe?.offsetWidth ?? 0,
             documentElement?.scrollWidth ?? 0
-        );
-        if (width > 0) {
-            return width;
+        ) || (wrapperContainer?.clientWidth ?? 0);
+        const transformContainer = this.getTransformContainer();
+        if (iframe && transformContainer) {
+            const offsetLeft = iframe.getBoundingClientRect().left - transformContainer.getBoundingClientRect().left;
+            return { offsetLeft, contentWidth };
         }
-        return doc.getWrapperContainer()?.clientWidth ?? 0;
+        return { offsetLeft: wrapperContainer?.offsetLeft ?? 0, contentWidth };
     }
 
     private applyPageTransform(
@@ -546,9 +553,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                 transformContainer.setAttribute("data-target-transform", `${transform}`);
             }
             else {
+                const pageBox = this.getDocumentPageBox(doc);
                 const transform = getPageTransformOffset(
-                    wrapperContainer.offsetLeft,
-                    this.getDocumentPageContentWidth(doc),
+                    pageBox.offsetLeft,
+                    pageBox.contentWidth,
                     1,
                     metrics.pageMoveLength,
                     flow.isRtlProgression,

@@ -87,6 +87,10 @@ export class HtmlContainerBuilder {
         transformContainerCss += "}";
         transformContainerCss += "." + HtmlSettings.TransformPagesClassName + " ." + HtmlSettings.TransformContainerCssName + "{";
         transformContainerCss += "display:flex;flex-wrap:nowrap;position: relative;transition-property:transform;";
+        transformContainerCss += "width:max-content;min-width:max-content;";
+        transformContainerCss += "}";
+        transformContainerCss += `.renderer.${HtmlSettings.FlipPageClassName}.${HtmlSettings.TransformPagesClassName}.${HtmlSettings.RtlProgressionClassName} .${HtmlSettings.TransformContainerCssName}{`;
+        transformContainerCss += "flex-direction:row-reverse;";
         transformContainerCss += "}";
         transformContainerCss += "." + HtmlSettings.TransformPagesClassName + " ." + HtmlSettings.TransformContainerCssName + ".slide{";
         transformContainerCss += "transition-property:transform;";
@@ -98,6 +102,15 @@ export class HtmlContainerBuilder {
         transformContainerCss += "}";
         transformContainerCss += "." + HtmlSettings.TransformPagesClassName + " ." + HtmlSettings.FileContentContainerClassName + ":last-child{";
         transformContainerCss += `border-right:none;`;
+        transformContainerCss += "}";
+        transformContainerCss += `.renderer.${HtmlSettings.FlipPageClassName}.${HtmlSettings.TransformPagesClassName}.${HtmlSettings.RtlProgressionClassName} .${HtmlSettings.FileContentContainerClassName}{`;
+        transformContainerCss += `padding-inline-end:0;margin-inline-end:0;border-right:none;`;
+        transformContainerCss += `padding-inline-start:calc(var(${ViewportCssVariableNames.ContentColumnGap}) / 2 - ${columnRuleWidth}px);`;
+        transformContainerCss += `margin-inline-start:calc(var(${ViewportCssVariableNames.ContentColumnGap}) / 2);`;
+        transformContainerCss += `border-left: ${columnRuleWidth}px solid var(${Theme.ColumnRuleColor});`;
+        transformContainerCss += "}";
+        transformContainerCss += `.renderer.${HtmlSettings.FlipPageClassName}.${HtmlSettings.TransformPagesClassName}.${HtmlSettings.RtlProgressionClassName} .${HtmlSettings.FileContentContainerClassName}:last-child{`;
+        transformContainerCss += `border-left:none;padding-inline-start:0;margin-inline-start:0;`;
         transformContainerCss += "}";
 
         transformContainerCss += "." + HtmlSettings.TransformPagesClassName + " ." + HtmlSettings.ContentsShadowContainerCssName + "{";

@@ -124,6 +124,10 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         css += "max-width: none !important;";
         css += "}";
 
+        css += "." + this.DocumentPageModeCssName + "." + HtmlSettings.RtlProgressionClassName + "{";
+        css += "min-width:100% !important;";
+        css += "}";
+
         css += "." + this.WritingVerticalScollDocumentLayoutCssName + ",";
         css += "." + this.WritingVerticalScollDocumentLayoutCssName + " body{";
         css += "height:100% !important;";
@@ -145,6 +149,7 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         rootElement.classList.add(this.DocumentLayoutCssName);
         rootElement.classList.toggle(this.DocumentPageModeCssName, flow.useColumnLayout);
         rootElement.classList.toggle(this.DocumentVerticalPageModeCssName, flow.useColumnLayout && flow.pageAxis == "y");
+        rootElement.classList.toggle(HtmlSettings.RtlProgressionClassName, flow.useColumnLayout && flow.isRtlProgression);
         rootElement.classList.toggle(this.WritingVerticalScollDocumentLayoutCssName, flow.flipMode == "scroll" && flow.isVerticalWriting);
     }
 

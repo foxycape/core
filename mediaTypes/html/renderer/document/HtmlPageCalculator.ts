@@ -61,6 +61,9 @@ export class HtmlPageCalculator {
         if (axis == "y") {
             totalLength = Math.max(totalLength, iframe?.scrollHeight ?? 0);
         }
+        else {
+            totalLength = Math.max(totalLength, iframe?.scrollWidth ?? 0, iframe?.offsetWidth ?? 0);
+        }
         numberOfPages = Math.floor(totalLength / documentViewport.pageMoveLength);
         if (totalLength % documentViewport.pageMoveLength > documentViewport.columnGap) {
             numberOfPages = numberOfPages + 1;

@@ -232,6 +232,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.iframe.style.removeProperty("will-change");
         if (flow.useColumnLayout) {
             this.growIframeToColumnOverflow(rootContent, body, flow.pageAxis);
+            this.pageCalculator.calcNumberOfPages(true);
             return;
         }
         if (flow.iframeGrow == "width") {
@@ -279,21 +280,71 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.iframe.style.removeProperty("min-height");
         this.iframe.style.setProperty("width", `var(${ViewportCssVariableNames.ContentContainerWidth})`);
         this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
-        if (axis == "y") {
-            void this.iframe.offsetHeight;
-            void rootContent.offsetHeight;
-            const grownHeight = Math.max(1, rootContent.scrollHeight, body?.scrollHeight ?? 0);
-            this.iframe.style.height = "auto";
-            this.iframe.style.minHeight = grownHeight + "px";
-            return;
+        const restoreMeasureStyles = this.beginColumnOverflowMeasure(rootContent, body, axis);
+        try {
+            if (axis == "y") {
+                void this.iframe.offsetHeight;
+                void rootContent.offsetHeight;
+                const grownHeight = Math.max(1, rootContent.scrollHeight, body?.scrollHeight ?? 0);
+                this.iframe.style.height = "auto";
+                this.iframe.style.minHeight = grownHeight + "px";
+                return;
+            }
+            void this.iframe.offsetWidth;
+            void rootContent.offsetWidth;
+            const grownWidth = Math.max(1, rootContent.scrollWidth, body?.scrollWidth ?? 0);
+            this.iframe.style.width = "auto";
+            this.iframe.style.minWidth = grownWidth + "px";
         }
-        void this.iframe.offsetWidth;
-        void rootContent.offsetWidth;
-        const grownWidth = Math.max(1, rootContent.scrollWidth, body?.scrollWidth ?? 0);
-        const bodyWidth = getDocumentBody(rootContent.ownerDocument).getBoundingClientRect().width;
-        const minWidth = Math.min(grownWidth, bodyWidth);
-        this.iframe.style.width = this.getFlipMode() == "page" ? "var(" + ViewportCssVariableNames.ContentContainerWidth + ")" : "auto";
-        this.iframe.style.minWidth = minWidth + "px";
+        finally {
+            restoreMeasureStyles();
+        }
+    }
+
+    /**
+     * RTL columns overflow to the left, so html.scrollWidth stays at one page.
+     * Measure as LTR (and without min-width:100%) so extra columns extend to the right.
+     */
+    private beginColumnOverflowMeasure(rootContent: HTMLElement, body: HTMLElement | null, axis: "x" | "y"): () => void {
+        const originMinWidth = rootContent.style.minWidth;
+        const originDirection = rootContent.style.direction;
+        const originBodyDirection = body?.style.direction ?? "";
+        const hadRtlClass = rootContent.classList.contains(HtmlSettings.RtlProgressionClassName);
+        const shouldMeasureAsLtr = axis == "x" && resolveLayoutFlow(this.options).isRtlProgression;
+        rootContent.style.setProperty("min-width", "0", "important");
+        if (shouldMeasureAsLtr) {
+            rootContent.style.setProperty("direction", "ltr", "important");
+            body?.style.setProperty("direction", "ltr", "important");
+            rootContent.classList.remove(HtmlSettings.RtlProgressionClassName);
+        }
+        return () => {
+            if (originMinWidth) {
+                rootContent.style.minWidth = originMinWidth;
+            }
+            else {
+                rootContent.style.removeProperty("min-width");
+            }
+            if (!shouldMeasureAsLtr) {
+                return;
+            }
+            if (originDirection) {
+                rootContent.style.direction = originDirection;
+            }
+            else {
+                rootContent.style.removeProperty("direction");
+            }
+            if (body) {
+                if (originBodyDirection) {
+                    body.style.direction = originBodyDirection;
+                }
+                else {
+                    body.style.removeProperty("direction");
+                }
+            }
+            if (hadRtlClass) {
+                rootContent.classList.add(HtmlSettings.RtlProgressionClassName);
+            }
+        };
     }
 
     private clearInlineContentBox(rootContent: HTMLElement, body: HTMLElement | null) {
