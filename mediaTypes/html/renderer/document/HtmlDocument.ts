@@ -2,7 +2,7 @@ import { getDocumentBody } from "../../../../kernal/html/finder";
 import { getOrderedElementsIntersectingRect, resolveVisibleViewportInContentWindow } from "../../../../kernal/html/geometry";
 import { emptyElement, setElementHtml } from "../../../../kernal/html/dom";
 import { getUuid } from "../../../../kernal/common/uuid";
-import { EventNames, FlipMode, IFileParser, ILogger, WritingMode, TextFormatOptions, SpineFile, BrowserCapabilities, Direction, readerPrefixName } from "../../../../kernal";
+import { EventNames, FlipMode, IFileParser, ILogger, TextFormatOptions, SpineFile, BrowserCapabilities, readerPrefixName } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
 import { HtmlSettings } from "../../HtmlSettings";
 import { IHtmlDocument } from "../IHtmlDocument";
@@ -17,6 +17,8 @@ import { createIframe, getTooBigHtmlTemplate } from "../html/template";
 import { HtmlPageCalculator } from "./HtmlPageCalculator";
 import { HtmlDocumentResizeObserver } from "./HtmlDocumentResizeObserver";
 import { collectContentUnitElements } from "../visibilityCandidates";
+import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
+import { ViewportCssVariableNames } from "../layout/ViewportCssVariableNames";
 
 export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     private docContent: string;
@@ -37,10 +39,6 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
 
     override get inIframe(): boolean {
         return true;
-    }
-
-    private getWritingMode(): WritingMode {
-        return this.options.writingMode ?? 'horizontal-tb';
     }
 
     private callbacks: { resolve: any; reject: any; }[] = [];
@@ -65,7 +63,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                 if (this.inIframe) {
                     if (!this.iframe) {
                         const iframeId = readerPrefixName + getUuid(true);
-                        this.iframe = createIframe(this.wrapperContainer.ownerDocument, iframeId, this.options.forceScroll);
+                        this.iframe = createIframe(this.wrapperContainer.ownerDocument, iframeId, this.options.forceScroll, resolveLayoutFlow(this.options));
                         if (this.options.forceScroll) {
                             this.iframe.removeAttribute("scrolling");
                         }
@@ -200,47 +198,108 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.callbacks = [];
     };
 
-    private internalResetSizes = async () => {
+    resetLayoutSizes(): void {
         const contentRootElement = this.getContentRootElement();
-        if (!contentRootElement) {
+        if (!contentRootElement || !this.iframe) {
             return;
         }
-        const writingMode = this.getWritingMode();
-        this.resetIframeMinWidthHeight(contentRootElement, this.getFlipMode(), writingMode);
+        this.resetIframeMinWidthHeight(contentRootElement);
+    }
+    private internalResetSizes = async () => {
+        this.resetLayoutSizes();
     };
-    private resetIframeMinWidthHeight(rootContent: Element, flipMode: FlipMode, writingMode: WritingMode) {
-        if (!rootContent)
+    private resetIframeMinWidthHeight(rootContent: HTMLElement) {
+        if (!rootContent || !this.iframe) {
             return;
-        if (flipMode == "scroll") {
-            if (this.iframe) {
-                if (this.isVerticalWriting(writingMode)) {
-                    let iframeMinHeight = rootContent.scrollHeight;
-                    this.iframe.style.willChange = 'transform';
-                    this.iframe.style.removeProperty("min-width");
-                    this.iframe.style.minHeight = iframeMinHeight + "px";
-                    this.iframe.style.removeProperty('will-change');
-                    this.iframe.style.removeProperty('transform');
-                }
-                else {
-                    const iframeMinHeight = rootContent.getBoundingClientRect().height;
-                    this.iframe.style.willChange = 'transform';
-                    this.iframe.style.removeProperty("min-width");
-                    this.iframe.style.minHeight = Math.round(iframeMinHeight) + "px";
-                    this.iframe.style.removeProperty('will-change');
-                    this.iframe.style.removeProperty('transform');
+        }
+        const flow = resolveLayoutFlow(this.options);
+        const body = getDocumentBody(rootContent.ownerDocument);
+        this.iframe.style.removeProperty("transform");
+        this.iframe.style.removeProperty("will-change");
+        if (flow.useColumnLayout && flow.pageAxis == "y") {
+            rootContent.style.removeProperty("height");
+            rootContent.style.removeProperty("max-height");
+            rootContent.style.removeProperty("width");
+            if (body) {
+                body.style.removeProperty("height");
+                body.style.removeProperty("max-height");
+                body.style.removeProperty("width");
+            }
+            this.iframe.style.removeProperty("min-width");
+            this.iframe.style.removeProperty("min-height");
+            this.iframe.style.setProperty("width", `var(${ViewportCssVariableNames.ContentContainerWidth})`);
+            this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
+            void this.iframe.offsetHeight;
+            const grownHeight = Math.max(
+                1,
+                rootContent.scrollHeight,
+                body?.scrollHeight ?? 0
+            );
+            this.iframe.style.height = "auto";
+            this.iframe.style.minHeight = grownHeight + "px";
+        }
+        else if (flow.useColumnLayout) {
+            rootContent.style.removeProperty("height");
+            rootContent.style.removeProperty("max-height");
+            rootContent.style.removeProperty("width");
+            if (body) {
+                body.style.removeProperty("height");
+                body.style.removeProperty("max-height");
+                body.style.removeProperty("width");
+            }
+            this.iframe.style.removeProperty("min-height");
+            this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
+            this.iframe.style.width = "auto";
+            void this.iframe.offsetWidth;
+            this.iframe.style.minWidth = Math.max(1, rootContent.scrollWidth) + "px";
+        }
+        else if (flow.iframeGrow == "width") {
+            this.iframe.style.removeProperty("min-height");
+            const lockedHeight = this.getParentContentHeight(this.iframe.parentElement) || this.iframe.clientHeight;
+            this.iframe.style.height = lockedHeight
+                ? lockedHeight + "px"
+                : `var(${ViewportCssVariableNames.ContentContainerHeight})`;
+            this.iframe.style.width = "auto";
+            if (lockedHeight) {
+                rootContent.style.height = lockedHeight + "px";
+                rootContent.style.maxHeight = lockedHeight + "px";
+                if (body) {
+                    body.style.height = lockedHeight + "px";
+                    body.style.maxHeight = lockedHeight + "px";
                 }
             }
+            void this.iframe.offsetHeight;
+            this.iframe.style.minWidth = Math.max(1, rootContent.scrollWidth) + "px";
         }
         else {
-            if (this.iframe) {
-                this.iframe.style.removeProperty("min-height");
-                this.iframe.style.removeProperty("min-width");
-                const iframeMinWidth = rootContent.scrollWidth;
-                const bodyWidth = getDocumentBody(rootContent.ownerDocument).getBoundingClientRect().width;
-                const minWidth = Math.min(iframeMinWidth, bodyWidth);
-                this.iframe.style.minWidth = minWidth + "px";
+            rootContent.style.removeProperty("height");
+            rootContent.style.removeProperty("max-height");
+            rootContent.style.removeProperty("width");
+            if (body) {
+                body.style.removeProperty("height");
+                body.style.removeProperty("max-height");
+                body.style.removeProperty("width");
             }
+            this.iframe.style.removeProperty("min-width");
+            this.iframe.style.setProperty(
+                "width",
+                this.options.forceScroll
+                    ? "100%"
+                    : `var(${ViewportCssVariableNames.ContentContainerWidth})`
+            );
+            this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
+            const iframeMinHeight = rootContent.getBoundingClientRect().height;
+            this.iframe.style.minHeight = Math.round(iframeMinHeight) + "px";
         }
+    }
+    private getParentContentHeight(parent: HTMLElement | null): number {
+        if (!parent) {
+            return 0;
+        }
+        const style = parent.ownerDocument.defaultView?.getComputedStyle(parent);
+        const paddingTop = parseFloat(style?.paddingTop ?? "0") || 0;
+        const paddingBottom = parseFloat(style?.paddingBottom ?? "0") || 0;
+        return Math.max(0, Math.round(parent.clientHeight - paddingTop - paddingBottom));
     }
     async getContent(): Promise<string> {
         if (this.docContent) {
@@ -329,7 +388,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         }
 
         return getOrderedElementsIntersectingRect(this.visibilityCandidates, viewport, {
-            writingMode: this.getWritingMode(),
+            writingMode: resolveLayoutFlow(this.options).writingMode,
             fullVisible: fullVisibleInWindow
         });
     }
@@ -368,11 +427,6 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             this.owner.events.emit(customEventKey, e, this);
         }
     };
-    private isVerticalWriting(writingMode: WritingMode) {
-        return writingMode == "vertical-lr" || writingMode == "vertical-rl";
-    }
-
-
     private getFlipMode(): FlipMode {
         if (this.options.forceScroll) {
             return "scroll";

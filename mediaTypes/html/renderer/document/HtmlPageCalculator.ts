@@ -1,12 +1,12 @@
 import { getTransformLength } from "../../../../kernal/html/style";
 import { compareTagName, getDocumentBody } from "../../../../kernal/html/finder";
 import { parseNumber } from "../../../../kernal/common/number";
-import { WritingMode } from "../../../../kernal";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSettings } from "../../HtmlSettings";
+import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
 
 export class HtmlPageCalculator {
     constructor(
@@ -18,7 +18,8 @@ export class HtmlPageCalculator {
 
     calcNumberOfPages(update?: boolean) {
         let numberOfPages = 1;
-        if (this.options.flipMode == "scroll") {
+        const flow = resolveLayoutFlow(this.options);
+        if (flow.flipMode == "scroll") {
             return numberOfPages;
         }
         const ownerDocument = this.doc.getContentContainer()?.ownerDocument;
@@ -32,65 +33,37 @@ export class HtmlPageCalculator {
             }
         }
         const documentViewport = this.layout.getLayoutMetrics();
-        const writingMode = this.options.writingMode ?? 'horizontal-tb';
         const iframe = this.getIframe();
-        if (this.isVerticalWriting(writingMode)) {
-            let totalLength = 0;
-            let scrollHeight = documentElement.scrollHeight;
-            if (scrollHeight < 1)
-                scrollHeight = 1;
-            let translateY = getTransformLength(documentElement, "y");
-            if (Math.abs(translateY) > 0) {
-                if (iframe) {
-                    const iframeScrollHeight = iframe.scrollHeight;
-                    if (scrollHeight == iframeScrollHeight) {
-                        this.transformCurrentDocument(this.getContentRootElement(), translateY - 2, "y");
-                        const newHtmlScrollHeight = documentElement.scrollHeight;
-                        if (scrollHeight == newHtmlScrollHeight) {
-                            this.transformCurrentDocument(this.getContentRootElement(), 0, "y");
-                            translateY = 0;
-                            scrollHeight = documentElement.scrollHeight;
-                        }
-                        else {
-                            this.transformCurrentDocument(this.getContentRootElement(), translateY, "y");
-                        }
+        const axis = flow.pageAxis;
+        let totalLength = 0;
+        let htmlScrollLength = axis == "y" ? documentElement.scrollHeight : documentElement.scrollWidth;
+        if (htmlScrollLength < 1)
+            htmlScrollLength = 1;
+        let translateLength = getTransformLength(documentElement, axis);
+        if (Math.abs(translateLength) > 0) {
+            if (iframe) {
+                const iframeScrollLength = axis == "y" ? iframe.scrollHeight : iframe.scrollWidth;
+                if (htmlScrollLength == iframeScrollLength) {
+                    this.transformCurrentDocument(this.getContentRootElement(), translateLength - 2, axis);
+                    const newHtmlScrollLength = axis == "y" ? documentElement.scrollHeight : documentElement.scrollWidth;
+                    if (htmlScrollLength == newHtmlScrollLength) {
+                        this.transformCurrentDocument(this.getContentRootElement(), 0, axis);
+                        translateLength = 0;
+                        htmlScrollLength = axis == "y" ? documentElement.scrollHeight : documentElement.scrollWidth;
+                    }
+                    else {
+                        this.transformCurrentDocument(this.getContentRootElement(), translateLength, axis);
                     }
                 }
-            }
-            totalLength = scrollHeight + translateY;
-            numberOfPages = Math.floor(totalLength / documentViewport.pageMoveLength);
-            if (totalLength % documentViewport.pageMoveLength > documentViewport.columnGap) {
-                numberOfPages = numberOfPages + 1;
             }
         }
-        else {
-            let totalLength = 0;
-            let htmlScrollWidth = documentElement.scrollWidth;
-            if (htmlScrollWidth < 1)
-                htmlScrollWidth = 1;
-            let translateX = getTransformLength(documentElement, "x");
-            if (Math.abs(translateX) > 0) {
-                if (iframe) {
-                    const iframeScrollWidth = iframe.scrollWidth;
-                    if (htmlScrollWidth == iframeScrollWidth) {
-                        this.transformCurrentDocument(this.getContentRootElement(), translateX - 2, "x");
-                        const newHtmlScrollWidth = documentElement.scrollWidth;
-                        if (htmlScrollWidth == newHtmlScrollWidth) {
-                            this.transformCurrentDocument(this.getContentRootElement(), 0, "x");
-                            translateX = 0;
-                            htmlScrollWidth = documentElement.scrollWidth;
-                        }
-                        else {
-                            this.transformCurrentDocument(this.getContentRootElement(), translateX, "x");
-                        }
-                    }
-                }
-            }
-            totalLength = translateX + htmlScrollWidth;
-            numberOfPages = Math.floor(totalLength / documentViewport.pageMoveLength);
-            if (totalLength % documentViewport.pageMoveLength > documentViewport.columnGap) {
-                numberOfPages = numberOfPages + 1;
-            }
+        totalLength = translateLength + htmlScrollLength;
+        if (axis == "y") {
+            totalLength = Math.max(totalLength, iframe?.scrollHeight ?? 0);
+        }
+        numberOfPages = Math.floor(totalLength / documentViewport.pageMoveLength);
+        if (totalLength % documentViewport.pageMoveLength > documentViewport.columnGap) {
+            numberOfPages = numberOfPages + 1;
         }
         documentElement.setAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName, numberOfPages.toString());
         return numberOfPages;
@@ -107,30 +80,27 @@ export class HtmlPageCalculator {
             return 1;
         }
         const documentViewport = this.layout.getLayoutMetrics();
+        const flow = resolveLayoutFlow(this.options);
         const elementRect = element.getBoundingClientRect();
-        let pageNumber = 1;
-        const writingMode = this.options.writingMode ?? 'horizontal-tb';
-        const isVertical = this.isVerticalWriting(writingMode);
-        if (isVertical) {
-            const translatey = getTransformLength(ownerDocument.documentElement, "y");
-            const top = (elementRect?.top ?? 0) + translatey;
-            pageNumber = Math.floor(top / documentViewport.pageMoveLength);
-            if (top % documentViewport.pageMoveLength >= 0) {
+        if (flow.pageAxis == "y") {
+            const translateY = getTransformLength(ownerDocument.documentElement, "y");
+            const top = (elementRect?.top ?? 0) + translateY;
+            let pageNumber = Math.floor(top / documentViewport.pageMoveLength);
+            if (top > documentViewport.pageHeight && top % documentViewport.pageMoveLength >= 0) {
                 pageNumber = pageNumber + 1;
             }
+            return pageNumber == 0 ? 1 : pageNumber;
         }
-        else {
-            const translatex = getTransformLength(ownerDocument.documentElement, "x");
-            const left = (elementRect?.left ?? 0) + translatex;
-            pageNumber = Math.floor(left / documentViewport.pageMoveLength);
-            if (left > documentViewport.pageWidth && left % documentViewport.pageMoveLength >= 0) {
-                pageNumber = pageNumber + 1;
-            }
+        const translatex = getTransformLength(ownerDocument.documentElement, "x");
+        const left = (elementRect?.left ?? 0) + translatex;
+        let pageNumber = Math.floor(left / documentViewport.pageMoveLength);
+        if (left > documentViewport.pageWidth && left % documentViewport.pageMoveLength >= 0) {
+            pageNumber = pageNumber + 1;
         }
         if (pageNumber == 0)
             pageNumber = 1;
 
-        if (!isVertical && this.options.direction == "rtl") {
+        if (flow.isRtlProgression) {
             const numberOfPages = this.calcNumberOfPages();
             pageNumber = Math.max(1, numberOfPages - pageNumber + 1);
         }
@@ -157,9 +127,5 @@ export class HtmlPageCalculator {
         else {
             rootElement.style.transform = "translateY(-" + parseFloat(translateLegnth.toFixed(10)) + "px)";
         }
-    }
-
-    private isVerticalWriting(writingMode: WritingMode) {
-        return writingMode == "vertical-lr" || writingMode == "vertical-rl";
     }
 }

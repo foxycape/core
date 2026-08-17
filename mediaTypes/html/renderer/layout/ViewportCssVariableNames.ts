@@ -8,6 +8,7 @@ export class ViewportCssVariableNames {
     static readonly ContentsContainerPadding = "--contents-container-padding";
 
     static readonly ScrollElementOverflow = "--scroll-element-overflow";
+    static readonly ScrollElementOverflowX = "--scroll-element-overflow-x";
     static readonly ScrollElementVerticalScrollBarWidth = "--scroll-element-vertial-scrollbar-width";
     static readonly ScrollElementHorizontalScrollBarHeight = "--scroll-element-horizontal-scrollbar-height";
 

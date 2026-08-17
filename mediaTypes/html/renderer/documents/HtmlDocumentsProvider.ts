@@ -4,7 +4,7 @@ import { compareTagName } from "../../../../kernal/html/finder";
 import { emptyElement } from "../../../../kernal/html/dom";
 import { wrapperCharacters, recoverWrapperCharacters } from "../../../../kernal/html/manipulator";
 import { scrollElementIntoView, getTransformLength } from "../../../../kernal/html/style";
-import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, WritingMode, asyncDebounce, BrowserCapabilities, Theme, FlipMode } from "../../../../kernal";
+import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, asyncDebounce, BrowserCapabilities } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
 import { HtmlSettings } from "../../HtmlSettings";
 import { BaseDocumentsProvider } from "../../../base/renderer/BaseDocumentsProvider";
@@ -20,6 +20,7 @@ import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { HtmlRendererViewport } from "../layout/HtmlRendererViewport";
 import { IHtmlDocumentsPreloader } from "./IHtmlDocumentsPreloader";
 import { IHtmlElementLocator } from "../location/IHtmlElementLocator";
+import { getPageTransformOffset, resolveLayoutFlow } from "../layout/resolveLayoutFlow";
 
 /**
  * HTML documents provider.
@@ -65,6 +66,41 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         return this.loadingDoc;
     }
 
+    override getVisibleDocuments(): IHtmlDocument[] {
+        return this.getDocuments().filter(doc => doc.getWrapperContainer()?.isVisible);
+    }
+
+    override getFirstVisibleDocument(containVisibleElements?: boolean): IHtmlDocument {
+        const visible = this.getVisibleDocuments();
+        if (containVisibleElements) {
+            const withElements = visible.find(doc => doc.getVisibleElements(true).length > 0);
+            if (withElements) {
+                return withElements;
+            }
+        }
+        if (visible[0]) {
+            return visible[0];
+        }
+        const currentUrl = this.owner.context.currentLocation?.url;
+        return (currentUrl && this.getDocument(currentUrl)) || this.getDocuments()[0] || null;
+    }
+
+    override getLastVisibleDocument(containVisibleElements?: boolean): IHtmlDocument {
+        const visible = this.getVisibleDocuments();
+        if (containVisibleElements) {
+            const withElements = [...visible].reverse().find(doc => doc.getVisibleElements().length > 0);
+            if (withElements) {
+                return withElements;
+            }
+        }
+        if (visible.length > 0) {
+            return visible[visible.length - 1];
+        }
+        const currentUrl = this.owner.context.currentLocation?.url;
+        const documents = this.getDocuments();
+        return (currentUrl && this.getDocument(currentUrl)) || documents[documents.length - 1] || null;
+    }
+
     override async createDocument(documentContainer: HTMLElement, spineFile: SpineFile, fileIndex: number): Promise<IHtmlDocument> {
         return new HtmlDocument(this.owner, this.rendererViewport, this.fileParser, documentContainer, spineFile, this.htmlOptions);
     }
@@ -102,7 +138,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             }
         }
 
-        if (this.htmlOptions.flipMode == "page") {
+        if (resolveLayoutFlow(this.htmlOptions).flipMode == "page") {
             this.appendPageStyles();
         }
         else {
@@ -140,7 +176,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         if (!contentContainer)
             return;
         isReload = isReload ?? false;
-        const flipMode = this.htmlOptions.flipMode;
+        const flipMode = resolveLayoutFlow(this.htmlOptions).flipMode;
 
         let redirectElement: Element = undefined, target: Element;
         try {
@@ -199,6 +235,11 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
      * Scroll mode positioning
      */
     private async gotoScroll(doc: IHtmlDocument, location: FileLocation, redirectElement: Element, isDocumentStart: boolean): Promise<void> {
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        if (flow.blockAxis == "x") {
+            await this.gotoScrollX(doc, location, redirectElement, isDocumentStart);
+            return;
+        }
         const redirectElementRect = redirectElement.getBoundingClientRect();
         let scrollTopOffset = 0;
         if (!location?.ignoreOverlayHeader) {
@@ -260,11 +301,55 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         }
     }
 
+    private async gotoScrollX(doc: IHtmlDocument, location: FileLocation, redirectElement: Element, isDocumentStart: boolean): Promise<void> {
+        const scrollElement = this.getScrollElement();
+        if (isDocumentStart) {
+            this.scrollWrapperIntoView(doc, true);
+            return;
+        }
+
+        const redirectElementRect = redirectElement.getBoundingClientRect();
+        const iframe = doc.getContentContainer().ownerDocument.defaultView?.frameElement as HTMLElement;
+        const iframeX = iframe?.getBoundingClientRect()?.x ?? 0;
+        const distance = redirectElementRect.x + iframeX;
+        const scrollLeftOffset = location.offsetLeft ?? 0;
+
+        if (location.useAbsoluteScrollTop) {
+            scrollElement.scrollTo(scrollElement.scrollLeft + distance - scrollLeftOffset, scrollElement.scrollTop);
+            this.setDocumentVisible(doc.getWrapperContainer(), true);
+            return;
+        }
+
+        const delta = distance - scrollLeftOffset - scrollElement.getBoundingClientRect().left;
+        const toEndDistance = scrollElement.scrollWidth - scrollElement.scrollLeft - scrollElement.clientWidth;
+        if (delta > 0 && toEndDistance <= 0) {
+            scrollElementIntoView(redirectElement, undefined, location?.scrollIntoViewIfNeeded, this.owner.getRootContainer()?.ownerDocument);
+        }
+        else {
+            scrollElement.scrollBy(delta, 0);
+        }
+        this.setDocumentVisible(doc.getWrapperContainer(), true);
+    }
+
     private async findTarget(doc: IHtmlDocument, location: FileLocation) {
         return this.elementLocator.locateElement(doc, location, this.htmlOptions);
     }
 
     private async transformPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous') {
+        this.setCurrentVisibleDocument(doc);
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        if (flow.pageAxis == "y") {
+            this.transformVerticalPage(doc, pageNumber, direction);
+            return;
+        }
+        if (flow.isRtlProgression) {
+            this.transformColumnPage(doc, pageNumber, direction, true);
+            return;
+        }
+        this.transformHorizontalPage(doc, pageNumber, direction);
+    }
+
+    private transformHorizontalPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous') {
         const transformContainer = this.getTransformContainer();
         const targetTransform = transformContainer.getAttribute("data-target-transform");
         let currentTransformedLength = 0;
@@ -280,13 +365,11 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         const wrapperContainer = doc.getWrapperContainer();
         const offsetLeft = wrapperContainer.offsetLeft;
 
-        // Distance the current document has already been transformed
         const currentDocumentTransformedLength = Math.abs(offsetLeft - currentTransformedLength);
         const diff = currentDocumentTransformedLength == 0 ? 0 : currentDocumentTransformedLength % columnTransformLength;
 
         let fixedCurrentTransformedLength = currentTransformedLength;
         if (diff > 0) {
-            // If diff is not 0, a page-flip error or async loading caused the offset to change
             if (direction == 'previous') {
                 fixedCurrentTransformedLength = currentTransformedLength - diff;
             } else {
@@ -295,67 +378,132 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         }
         let newTransformLegnth = fixedCurrentTransformedLength;
 
-        try {
-            /**
-             * Previous page flip has several cases:
-             * 1. Target doc's movable width is enough for a full page flip
-             * 2. Target doc's width is not enough for a full page flip
-             */
-            if (direction == 'previous') {
-                /** Whether there is enough space for a full previous page flip */
-                const previousSpaceIsEnough = fixedCurrentTransformedLength - documentViewport.pageMoveLength >= 0;
-                /** Desired transform length for this positioning */
-                const readyToTransformLegnth = offsetLeft + (pageNumber - 1) * documentViewport.pageMoveLength;
-                if (previousSpaceIsEnough) {
-                    newTransformLegnth = fixedCurrentTransformedLength - documentViewport.pageMoveLength;
-                }
-                else if (fixedCurrentTransformedLength <= documentViewport.pageMoveLength) {
-                    newTransformLegnth = 0;
-                }
-                else {
-                    newTransformLegnth = readyToTransformLegnth;
-                }
+        if (direction == 'previous') {
+            const previousSpaceIsEnough = fixedCurrentTransformedLength - documentViewport.pageMoveLength >= 0;
+            const readyToTransformLegnth = offsetLeft + (pageNumber - 1) * documentViewport.pageMoveLength;
+            if (previousSpaceIsEnough) {
+                newTransformLegnth = fixedCurrentTransformedLength - documentViewport.pageMoveLength;
             }
-            else if (direction == 'next') {
-                newTransformLegnth = fixedCurrentTransformedLength + documentViewport.pageMoveLength;
-                const documents = this.getDocuments();
-                const lastDocument = documents[documents.length - 1];
-                if (lastDocument.getWrapperContainer().offsetLeft + lastDocument.getWrapperContainer().scrollWidth - newTransformLegnth <= 0) {
-                    return;
-                }
-            }
-            else {
-                newTransformLegnth = offsetLeft + (pageNumber - 1) * documentViewport.pageMoveLength;
-            }
-
-            if (newTransformLegnth < 0) {
+            else if (fixedCurrentTransformedLength <= documentViewport.pageMoveLength) {
                 newTransformLegnth = 0;
             }
+            else {
+                newTransformLegnth = readyToTransformLegnth;
+            }
+        }
+        else if (direction == 'next') {
+            newTransformLegnth = fixedCurrentTransformedLength + documentViewport.pageMoveLength;
+            const documents = this.getDocuments();
+            const lastDocument = documents[documents.length - 1];
+            if (lastDocument.getWrapperContainer().offsetLeft + lastDocument.getWrapperContainer().scrollWidth - newTransformLegnth <= 0) {
+                return;
+            }
+        }
+        else {
+            newTransformLegnth = offsetLeft + (pageNumber - 1) * documentViewport.pageMoveLength;
+        }
 
-            const writingMode = this.htmlOptions.writingMode ?? 'horizontal-tb';
-            const axis = this.isVerticalWriting(writingMode) ? 'y' : 'x';
-            if (axis == "x") {
-                if (!transformContainer.style.transition && this.htmlOptions.flipPageStyle == 'slide' && (direction == 'next' || direction == 'previous')) {
-                    transformContainer.style.transition = 'transform 0.2s ease';
-                }
-                if (transformContainer.style.transition) {
-                    transformContainer.addEventListener('transitionend', this.removeElementTransitionEvent);
-                }
-                transformContainer.setAttribute('data-target-transform', `${newTransformLegnth}`);
-                // Always write style.transform. After narrow→wide, snapped fixedCurrent can equal
-                // the target page offset while the live style still holds the old misaligned value;
-                // skipping the write would leave columns visually shifted.
-                transformContainer.style.transform = "translate3d(-" + parseFloat(newTransformLegnth.toFixed(10)) + "px,0,0)";
+        if (newTransformLegnth < 0) {
+            newTransformLegnth = 0;
+        }
+
+        this.applyPageTransform(transformContainer, newTransformLegnth, direction, "x");
+        this.setCurrentPageNumber(doc, pageNumber);
+    }
+
+    private transformVerticalPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous') {
+        const transformContainer = this.getTransformContainer();
+        const targetTransform = transformContainer.getAttribute("data-target-transform");
+        let currentTransformedLength = 0;
+        if (targetTransform) {
+            currentTransformedLength = parseNumber(targetTransform, 0, 'parseFloat');
+        }
+        else {
+            currentTransformedLength = getTransformLength(transformContainer, "y");
+        }
+        const documentViewport = this.rendererViewport.getLayoutMetrics();
+        const wrapperContainer = doc.getWrapperContainer();
+        const offsetTop = wrapperContainer.offsetTop;
+        const columnTransformLength = documentViewport.pageMoveLength;
+
+        const currentDocumentTransformedLength = Math.abs(offsetTop - currentTransformedLength);
+        const diff = currentDocumentTransformedLength == 0 ? 0 : currentDocumentTransformedLength % columnTransformLength;
+
+        let fixedCurrentTransformedLength = currentTransformedLength;
+        if (diff > 0) {
+            if (direction == 'previous') {
+                fixedCurrentTransformedLength = currentTransformedLength - diff;
+            } else {
+                fixedCurrentTransformedLength = currentTransformedLength + columnTransformLength - diff;
+            }
+        }
+        let newTransformLegnth = fixedCurrentTransformedLength;
+
+        if (direction == 'previous') {
+            const previousSpaceIsEnough = fixedCurrentTransformedLength - documentViewport.pageMoveLength >= 0;
+            const readyToTransformLegnth = offsetTop + (pageNumber - 1) * documentViewport.pageMoveLength;
+            if (previousSpaceIsEnough) {
+                newTransformLegnth = fixedCurrentTransformedLength - documentViewport.pageMoveLength;
+            }
+            else if (fixedCurrentTransformedLength <= documentViewport.pageMoveLength) {
+                newTransformLegnth = 0;
             }
             else {
-                transformContainer.style.transform = "translateX(" + (-offsetLeft) + "px)";
-                const rootElement = doc.getContentContainer().ownerDocument.documentElement;
-                const currentTransformedYLength = getTransformLength(rootElement, "y") + (pageNumber - 1) * documentViewport.columnWidth;
-                rootElement.style.transform = "translateY(-" + parseFloat(currentTransformedYLength.toFixed(10)) + "px)";
+                newTransformLegnth = readyToTransformLegnth;
             }
-            this.setCurrentPageNumber(doc, pageNumber);
-        } finally {
         }
+        else if (direction == 'next') {
+            newTransformLegnth = fixedCurrentTransformedLength + documentViewport.pageMoveLength;
+            const documents = this.getDocuments();
+            const lastDocument = documents[documents.length - 1];
+            if (lastDocument.getWrapperContainer().offsetTop + lastDocument.getWrapperContainer().scrollHeight - newTransformLegnth <= 0) {
+                return;
+            }
+        }
+        else {
+            newTransformLegnth = offsetTop + (pageNumber - 1) * documentViewport.pageMoveLength;
+        }
+
+        if (newTransformLegnth < 0) {
+            newTransformLegnth = 0;
+        }
+
+        this.applyPageTransform(transformContainer, newTransformLegnth, direction, "y");
+        this.setCurrentPageNumber(doc, pageNumber);
+    }
+
+    private transformColumnPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous', isRtlProgression?: boolean) {
+        const transformContainer = this.getTransformContainer();
+        const documentViewport = this.rendererViewport.getLayoutMetrics();
+        const wrapperContainer = doc.getWrapperContainer();
+        const documentElement = doc.getContentContainer()?.ownerDocument?.documentElement;
+        const contentWidth = Math.max(
+            wrapperContainer.scrollWidth,
+            documentElement?.scrollWidth ?? 0
+        );
+        const newTransformLegnth = getPageTransformOffset(
+            wrapperContainer.offsetLeft,
+            contentWidth,
+            pageNumber,
+            documentViewport.pageMoveLength,
+            isRtlProgression
+        );
+        this.applyPageTransform(transformContainer, newTransformLegnth, direction, "x");
+        this.setCurrentPageNumber(doc, pageNumber);
+    }
+
+    private applyPageTransform(transformContainer: HTMLElement, newTransformLegnth: number, direction?: 'next' | 'previous', axis: 'x' | 'y' = "x") {
+        if (!transformContainer.style.transition && this.htmlOptions.flipPageStyle == 'slide' && (direction == 'next' || direction == 'previous')) {
+            transformContainer.style.transition = 'transform 0.2s ease';
+        }
+        if (transformContainer.style.transition) {
+            transformContainer.addEventListener('transitionend', this.removeElementTransitionEvent);
+        }
+        transformContainer.setAttribute('data-target-transform', `${newTransformLegnth}`);
+        const length = parseFloat(newTransformLegnth.toFixed(10));
+        transformContainer.style.transform = axis == "y"
+            ? `translate3d(0,-${length}px,0)`
+            : `translate3d(-${length}px,0,0)`;
     }
 
     private resetTransformContainer = () => {
@@ -391,17 +539,39 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
 
     private scrollWrapperIntoView = (doc: IHtmlDocument, forceScroll?: boolean) => {
         const wrapperContainer = doc.getWrapperContainer();
-        if (this.htmlOptions.flipMode == 'page') {
-            const offsetLeft = wrapperContainer.offsetLeft;
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        if (flow.flipMode == 'page') {
+            const metrics = this.rendererViewport.getLayoutMetrics();
             const transformContainer = this.getTransformContainer();
-            transformContainer.style.transform = "translateX(" + (-offsetLeft) + "px)";
+            if (flow.pageAxis == "y") {
+                const transform = Math.max(0, wrapperContainer.offsetTop);
+                transformContainer.style.transform = `translate3d(0,-${transform}px,0)`;
+                transformContainer.setAttribute("data-target-transform", `${transform}`);
+            }
+            else {
+                const transform = getPageTransformOffset(
+                    wrapperContainer.offsetLeft,
+                    wrapperContainer.scrollWidth,
+                    1,
+                    metrics.pageMoveLength,
+                    flow.isRtlProgression
+                );
+                transformContainer.style.transform = "translateX(" + (-transform) + "px)";
+                transformContainer.setAttribute("data-target-transform", `${transform}`);
+            }
         }
-        else {
-            if (!wrapperContainer.isVisible || forceScroll) {
+        else if (!wrapperContainer.isVisible || forceScroll) {
+            if (flow.blockAxis == "x" && flow.initialScroll == "end") {
+                const scrollElement = this.getScrollElement();
+                const wrapperRect = wrapperContainer.getBoundingClientRect();
+                const scrollRect = scrollElement.getBoundingClientRect();
+                scrollElement.scrollBy(wrapperRect.right - scrollRect.right, 0);
+            }
+            else {
                 scrollElementIntoView(wrapperContainer, undefined, undefined, this.owner.getRootContainer()?.ownerDocument);
             }
         }
-        this.setDocumentVisible(wrapperContainer, true);
+        this.setCurrentVisibleDocument(doc);
     }
 
     getCurrentPageNumber(doc: IHtmlDocument): number {
@@ -416,8 +586,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         wrapperContainer.isVisible = isVisible;
     }
 
-    private isVerticalWriting(writingMode: WritingMode) {
-        return writingMode == "vertical-lr" || writingMode == "vertical-rl";
+    private setCurrentVisibleDocument(doc: IHtmlDocument) {
+        for (const item of this.getDocuments()) {
+            this.setDocumentVisible(item.getWrapperContainer(), item === doc);
+        }
     }
 
     reload = async (): Promise<void> => {

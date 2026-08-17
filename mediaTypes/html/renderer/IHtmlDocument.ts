@@ -28,4 +28,7 @@ export interface IHtmlDocument extends IDocument {
      * @param fullVisibleInWindow when true, only fully contained elements are returned.
      */
     getVisibleElements(fullVisibleInWindow?: boolean): Element[];
+
+    /** Recalculate iframe min-width / min-height from the current writing flow. */
+    resetLayoutSizes(): void;
 }

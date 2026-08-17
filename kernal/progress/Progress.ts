@@ -80,6 +80,9 @@ export class FileLocation extends ReadingLocation {
     /** Extra top offset after jumping (negative moves up; relative to the target element's visible position) */
     offsetTop?: number;
 
+    /** Extra left offset after jumping, used when the reading flow scrolls on X */
+    offsetLeft?: number;
+
     /** PDF in-document jump params; typical destination format (string): [{"num":3,"gen":0},{"name":"XYZ"},68,440,0] */
     pdfDest?: string;
 
