@@ -2,7 +2,7 @@ import { getDocumentBody } from "../../../../kernal/html/finder";
 import { getOrderedElementsIntersectingRect, resolveVisibleViewportInContentWindow } from "../../../../kernal/html/geometry";
 import { emptyElement, setElementHtml } from "../../../../kernal/html/dom";
 import { getUuid } from "../../../../kernal/common/uuid";
-import { EventNames, FlipMode, IFileParser, ILogger, TextFormatOptions, SpineFile, BrowserCapabilities, readerPrefixName } from "../../../../kernal";
+import { EventNames, FlipMode, IFileParser, ILogger, LocationState, TextFormatOptions, SpineFile, BrowserCapabilities, readerPrefixName } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
 import { HtmlSettings } from "../../HtmlSettings";
 import { IHtmlDocument } from "../IHtmlDocument";
@@ -19,6 +19,7 @@ import { HtmlDocumentResizeObserver } from "./HtmlDocumentResizeObserver";
 import { collectContentUnitElements } from "../visibilityCandidates";
 import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
 import { ViewportCssVariableNames } from "../layout/ViewportCssVariableNames";
+import { HtmlLayoutStatePreserver } from "../location/HtmlLayoutStatePreserver";
 
 export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     private docContent: string;
@@ -28,11 +29,13 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     private readonly pageCalculator: HtmlPageCalculator;
     private readonly eventKeyMap = getEventKeyMap();
     private readonly resizeObserver: HtmlDocumentResizeObserver;
+    private readonly layoutStatePreserver: HtmlLayoutStatePreserver;
     private visibilityCandidates: Element[] | null = null;
     constructor(owner: Reader, viewport: IRendererViewport<HtmlLayoutMetrics>, fileParser: IFileParser, wrapperContainer: HTMLElement, spineFile: SpineFile, private readonly options: HtmlOptions) {
         super(owner, fileParser, wrapperContainer, spineFile);
 
         this.pageCalculator = new HtmlPageCalculator(this, viewport, options);
+        this.layoutStatePreserver = new HtmlLayoutStatePreserver(this, viewport, options);
         this.logger = this.owner.loggerFactory.getLogger(this.constructor.name);
         this.resizeObserver = new HtmlDocumentResizeObserver(this, this.owner.events);
     }
@@ -156,6 +159,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             return;
         }
         contentContainer.setAttribute("data-url", this.url);
+        const layoutState = this.captureLayoutState();
         this.wrapperContainer.classList.remove(HtmlSettings.FileContentContainerHeightClassName);
         const postprocesses = this.owner.getRenderer()?.documentPostprocesses ?? [];
         for (const postprocess of postprocesses) {
@@ -168,17 +172,21 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             }
         }
 
+        await this.layoutStatePreserver.waitUntilPageTransformStable();
+        await this.internalResetSizes();
+        await this.restoreLayoutState(layoutState);
         this.loadingLayer?.removeLoadingLayer();
         this.loadStatus = "success";
         this.visibilityCandidates = null;
         this.bindDocumentEvents();
         this.owner.events.emit(EventNames.DocumentLoad, this);
-        await this.internalResetSizes();
         this.resizeObserver.observeIframeSize(async () => {
+            const resizeState = this.captureLayoutState();
             await this.internalResetSizes();
             if (this.getFlipMode() == "page") {
                 this.pageCalculator.calcNumberOfPages(true);
             }
+            await this.restoreLayoutState(resizeState);
         });
         this.loadCompleted(true);
     };
@@ -205,6 +213,12 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         }
         this.resetIframeMinWidthHeight(contentRootElement);
     }
+    captureLayoutState(): LocationState {
+        return this.layoutStatePreserver.capture();
+    }
+    async restoreLayoutState(locationState: LocationState): Promise<void> {
+        await this.layoutStatePreserver.restore(locationState);
+    }
     private internalResetSizes = async () => {
         this.resetLayoutSizes();
     };
@@ -216,45 +230,13 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         const body = getDocumentBody(rootContent.ownerDocument);
         this.iframe.style.removeProperty("transform");
         this.iframe.style.removeProperty("will-change");
-        if (flow.useColumnLayout && flow.pageAxis == "y") {
-            rootContent.style.removeProperty("height");
-            rootContent.style.removeProperty("max-height");
-            rootContent.style.removeProperty("width");
-            if (body) {
-                body.style.removeProperty("height");
-                body.style.removeProperty("max-height");
-                body.style.removeProperty("width");
-            }
+        if (flow.useColumnLayout) {
+            this.growIframeToColumnOverflow(rootContent, body, flow.pageAxis);
+            return;
+        }
+        if (flow.iframeGrow == "width") {
+            this.iframe.style.removeProperty("min-height");
             this.iframe.style.removeProperty("min-width");
-            this.iframe.style.removeProperty("min-height");
-            this.iframe.style.setProperty("width", `var(${ViewportCssVariableNames.ContentContainerWidth})`);
-            this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
-            void this.iframe.offsetHeight;
-            const grownHeight = Math.max(
-                1,
-                rootContent.scrollHeight,
-                body?.scrollHeight ?? 0
-            );
-            this.iframe.style.height = "auto";
-            this.iframe.style.minHeight = grownHeight + "px";
-        }
-        else if (flow.useColumnLayout) {
-            rootContent.style.removeProperty("height");
-            rootContent.style.removeProperty("max-height");
-            rootContent.style.removeProperty("width");
-            if (body) {
-                body.style.removeProperty("height");
-                body.style.removeProperty("max-height");
-                body.style.removeProperty("width");
-            }
-            this.iframe.style.removeProperty("min-height");
-            this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
-            this.iframe.style.width = "auto";
-            void this.iframe.offsetWidth;
-            this.iframe.style.minWidth = Math.max(1, rootContent.scrollWidth) + "px";
-        }
-        else if (flow.iframeGrow == "width") {
-            this.iframe.style.removeProperty("min-height");
             const lockedHeight = this.getParentContentHeight(this.iframe.parentElement) || this.iframe.clientHeight;
             this.iframe.style.height = lockedHeight
                 ? lockedHeight + "px"
@@ -268,29 +250,62 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                     body.style.maxHeight = lockedHeight + "px";
                 }
             }
-            void this.iframe.offsetHeight;
+            void this.iframe.offsetWidth;
             this.iframe.style.minWidth = Math.max(1, rootContent.scrollWidth) + "px";
+            return;
         }
-        else {
-            rootContent.style.removeProperty("height");
-            rootContent.style.removeProperty("max-height");
-            rootContent.style.removeProperty("width");
-            if (body) {
-                body.style.removeProperty("height");
-                body.style.removeProperty("max-height");
-                body.style.removeProperty("width");
-            }
-            this.iframe.style.removeProperty("min-width");
-            this.iframe.style.setProperty(
-                "width",
-                this.options.forceScroll
-                    ? "100%"
-                    : `var(${ViewportCssVariableNames.ContentContainerWidth})`
-            );
-            this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
-            const iframeMinHeight = rootContent.getBoundingClientRect().height;
-            this.iframe.style.minHeight = Math.round(iframeMinHeight) + "px";
+        this.clearInlineContentBox(rootContent, body);
+        this.iframe.style.removeProperty("min-width");
+        this.iframe.style.setProperty(
+            "width",
+            this.options.forceScroll
+                ? "100%"
+                : `var(${ViewportCssVariableNames.ContentContainerWidth})`
+        );
+        this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
+        const iframeMinHeight = rootContent.getBoundingClientRect().height;
+        this.iframe.style.minHeight = Math.round(iframeMinHeight) + "px";
+    }
+
+    /**
+     * Grow the iframe to the columned content size.
+     * Old min-width/min-height must be cleared and the iframe locked to the
+     * current page box first; otherwise scrollWidth/Height stays at the previous
+     * iframe size and later documents get the wrong offset for transformPage.
+     */
+    private growIframeToColumnOverflow(rootContent: HTMLElement, body: HTMLElement | null, axis: "x" | "y") {
+        this.clearInlineContentBox(rootContent, body);
+        this.iframe.style.removeProperty("min-width");
+        this.iframe.style.removeProperty("min-height");
+        this.iframe.style.setProperty("width", `var(${ViewportCssVariableNames.ContentContainerWidth})`);
+        this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
+        if (axis == "y") {
+            void this.iframe.offsetHeight;
+            void rootContent.offsetHeight;
+            const grownHeight = Math.max(1, rootContent.scrollHeight, body?.scrollHeight ?? 0);
+            this.iframe.style.height = "auto";
+            this.iframe.style.minHeight = grownHeight + "px";
+            return;
         }
+        void this.iframe.offsetWidth;
+        void rootContent.offsetWidth;
+        const grownWidth = Math.max(1, rootContent.scrollWidth, body?.scrollWidth ?? 0);
+        const bodyWidth = getDocumentBody(rootContent.ownerDocument).getBoundingClientRect().width;
+        const minWidth = Math.min(grownWidth, bodyWidth);
+        this.iframe.style.width = this.getFlipMode() == "page" ? "var(" + ViewportCssVariableNames.ContentContainerWidth + ")" : "auto";
+        this.iframe.style.minWidth = minWidth + "px";
+    }
+
+    private clearInlineContentBox(rootContent: HTMLElement, body: HTMLElement | null) {
+        rootContent.style.removeProperty("height");
+        rootContent.style.removeProperty("max-height");
+        rootContent.style.removeProperty("width");
+        if (!body) {
+            return;
+        }
+        body.style.removeProperty("height");
+        body.style.removeProperty("max-height");
+        body.style.removeProperty("width");
     }
     private getParentContentHeight(parent: HTMLElement | null): number {
         if (!parent) {
@@ -394,6 +409,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     }
 
     override async dispose(): Promise<void> {
+        const layoutState = this.captureLayoutState();
         this.owner.events.emit(EventNames.DocumentDisposing, this);
         this.unbindDocumentEvents();
         this.resizeObserver.unobserveIframeSize();
@@ -401,10 +417,13 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.visibilityCandidates = null;
         const wrapperContainer = this.getWrapperContainer();
         wrapperContainer.classList.add(HtmlSettings.FileContentContainerHeightClassName);
-        wrapperContainer.removeChild(this.iframe);
+        if (this.iframe && wrapperContainer.contains(this.iframe)) {
+            wrapperContainer.removeChild(this.iframe);
+        }
         emptyElement(this.wrapperContainer);
         this.iframe = undefined;
         this.formattedVirtualDocument = null;
+        await this.restoreLayoutState(layoutState);
         await super.dispose();
     }
 

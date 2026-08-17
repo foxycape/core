@@ -350,156 +350,153 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     }
 
     private transformHorizontalPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous') {
-        const transformContainer = this.getTransformContainer();
-        const targetTransform = transformContainer.getAttribute("data-target-transform");
-        let currentTransformedLength = 0;
-        if (targetTransform) {
-            currentTransformedLength = parseNumber(targetTransform, 0, 'parseFloat');
+        const resolved = this.resolveRelativePageTransform(doc, pageNumber, direction, "x");
+        if (!resolved) {
+            return;
         }
-        else {
-            currentTransformedLength = getTransformLength(transformContainer, "x");
-        }
-        const documentViewport = this.rendererViewport.getLayoutMetrics();
-        const columnTransformLength = documentViewport.columnWidth + documentViewport.columnGap;
-
-        const wrapperContainer = doc.getWrapperContainer();
-        const offsetLeft = wrapperContainer.offsetLeft;
-
-        const currentDocumentTransformedLength = Math.abs(offsetLeft - currentTransformedLength);
-        const diff = currentDocumentTransformedLength == 0 ? 0 : currentDocumentTransformedLength % columnTransformLength;
-
-        let fixedCurrentTransformedLength = currentTransformedLength;
-        if (diff > 0) {
-            if (direction == 'previous') {
-                fixedCurrentTransformedLength = currentTransformedLength - diff;
-            } else {
-                fixedCurrentTransformedLength = currentTransformedLength + columnTransformLength - diff;
-            }
-        }
-        let newTransformLegnth = fixedCurrentTransformedLength;
-
-        if (direction == 'previous') {
-            const previousSpaceIsEnough = fixedCurrentTransformedLength - documentViewport.pageMoveLength >= 0;
-            const readyToTransformLegnth = offsetLeft + (pageNumber - 1) * documentViewport.pageMoveLength;
-            if (previousSpaceIsEnough) {
-                newTransformLegnth = fixedCurrentTransformedLength - documentViewport.pageMoveLength;
-            }
-            else if (fixedCurrentTransformedLength <= documentViewport.pageMoveLength) {
-                newTransformLegnth = 0;
-            }
-            else {
-                newTransformLegnth = readyToTransformLegnth;
-            }
-        }
-        else if (direction == 'next') {
-            newTransformLegnth = fixedCurrentTransformedLength + documentViewport.pageMoveLength;
-            const documents = this.getDocuments();
-            const lastDocument = documents[documents.length - 1];
-            if (lastDocument.getWrapperContainer().offsetLeft + lastDocument.getWrapperContainer().scrollWidth - newTransformLegnth <= 0) {
-                return;
-            }
-        }
-        else {
-            newTransformLegnth = offsetLeft + (pageNumber - 1) * documentViewport.pageMoveLength;
-        }
-
-        if (newTransformLegnth < 0) {
-            newTransformLegnth = 0;
-        }
-
-        this.applyPageTransform(transformContainer, newTransformLegnth, direction, "x");
+        this.applyPageTransform(resolved.transformContainer, resolved.newTransformLength, direction, "x", resolved.styleTransformedLength);
         this.setCurrentPageNumber(doc, pageNumber);
     }
 
     private transformVerticalPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous') {
+        const resolved = this.resolveRelativePageTransform(doc, pageNumber, direction, "y");
+        if (!resolved) {
+            return;
+        }
+        this.applyPageTransform(resolved.transformContainer, resolved.newTransformLength, direction, "y", resolved.styleTransformedLength);
+        this.setCurrentPageNumber(doc, pageNumber);
+    }
+
+    /**
+     * Relative next/previous must snap against the live style transform and only
+     * correct column-phase drift for those directions. Absolute goto (reload /
+     * resize remap) uses offset + pageNumber so a stale grid after viewport
+     * resize cannot skip writing the new translate.
+     */
+    private resolveRelativePageTransform(
+        doc: IHtmlDocument,
+        pageNumber: number,
+        direction: 'next' | 'previous' | undefined,
+        axis: 'x' | 'y'
+    ) {
         const transformContainer = this.getTransformContainer();
+        if (!transformContainer) {
+            return null;
+        }
+        const styleTransformedLength = getTransformLength(transformContainer, axis);
         const targetTransform = transformContainer.getAttribute("data-target-transform");
         let currentTransformedLength = 0;
         if (targetTransform) {
             currentTransformedLength = parseNumber(targetTransform, 0, 'parseFloat');
         }
         else {
-            currentTransformedLength = getTransformLength(transformContainer, "y");
+            currentTransformedLength = styleTransformedLength;
         }
         const documentViewport = this.rendererViewport.getLayoutMetrics();
         const wrapperContainer = doc.getWrapperContainer();
-        const offsetTop = wrapperContainer.offsetTop;
-        const columnTransformLength = documentViewport.pageMoveLength;
+        const offset = axis == "y" ? wrapperContainer.offsetTop : wrapperContainer.offsetLeft;
+        const columnTransformLength = axis == "y"
+            ? documentViewport.pageMoveLength
+            : documentViewport.columnWidth + documentViewport.columnGap;
 
-        const currentDocumentTransformedLength = Math.abs(offsetTop - currentTransformedLength);
+        const currentDocumentTransformedLength = Math.abs(offset - currentTransformedLength);
         const diff = currentDocumentTransformedLength == 0 ? 0 : currentDocumentTransformedLength % columnTransformLength;
 
         let fixedCurrentTransformedLength = currentTransformedLength;
-        if (diff > 0) {
+        if (diff > 0 && (direction == 'previous' || direction == 'next')) {
             if (direction == 'previous') {
                 fixedCurrentTransformedLength = currentTransformedLength - diff;
             } else {
                 fixedCurrentTransformedLength = currentTransformedLength + columnTransformLength - diff;
             }
         }
-        let newTransformLegnth = fixedCurrentTransformedLength;
+        let newTransformLength = fixedCurrentTransformedLength;
 
         if (direction == 'previous') {
             const previousSpaceIsEnough = fixedCurrentTransformedLength - documentViewport.pageMoveLength >= 0;
-            const readyToTransformLegnth = offsetTop + (pageNumber - 1) * documentViewport.pageMoveLength;
+            const readyToTransformLength = offset + (pageNumber - 1) * documentViewport.pageMoveLength;
             if (previousSpaceIsEnough) {
-                newTransformLegnth = fixedCurrentTransformedLength - documentViewport.pageMoveLength;
+                newTransformLength = fixedCurrentTransformedLength - documentViewport.pageMoveLength;
             }
             else if (fixedCurrentTransformedLength <= documentViewport.pageMoveLength) {
-                newTransformLegnth = 0;
+                newTransformLength = 0;
             }
             else {
-                newTransformLegnth = readyToTransformLegnth;
+                newTransformLength = readyToTransformLength;
             }
         }
         else if (direction == 'next') {
-            newTransformLegnth = fixedCurrentTransformedLength + documentViewport.pageMoveLength;
+            newTransformLength = fixedCurrentTransformedLength + documentViewport.pageMoveLength;
             const documents = this.getDocuments();
             const lastDocument = documents[documents.length - 1];
-            if (lastDocument.getWrapperContainer().offsetTop + lastDocument.getWrapperContainer().scrollHeight - newTransformLegnth <= 0) {
-                return;
+            const lastWrapper = lastDocument.getWrapperContainer();
+            const lastExtent = axis == "y"
+                ? lastWrapper.offsetTop + lastWrapper.scrollHeight
+                : lastWrapper.offsetLeft + lastWrapper.scrollWidth;
+            if (lastExtent - newTransformLength <= 0) {
+                return null;
             }
         }
         else {
-            newTransformLegnth = offsetTop + (pageNumber - 1) * documentViewport.pageMoveLength;
+            newTransformLength = offset + (pageNumber - 1) * documentViewport.pageMoveLength;
         }
 
-        if (newTransformLegnth < 0) {
-            newTransformLegnth = 0;
+        if (newTransformLength < 0) {
+            newTransformLength = 0;
         }
 
-        this.applyPageTransform(transformContainer, newTransformLegnth, direction, "y");
-        this.setCurrentPageNumber(doc, pageNumber);
+        return { transformContainer, newTransformLength, styleTransformedLength };
     }
 
     private transformColumnPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous', isRtlProgression?: boolean) {
         const transformContainer = this.getTransformContainer();
         const documentViewport = this.rendererViewport.getLayoutMetrics();
         const wrapperContainer = doc.getWrapperContainer();
-        const documentElement = doc.getContentContainer()?.ownerDocument?.documentElement;
-        const contentWidth = Math.max(
-            wrapperContainer.scrollWidth,
-            documentElement?.scrollWidth ?? 0
-        );
         const newTransformLegnth = getPageTransformOffset(
             wrapperContainer.offsetLeft,
-            contentWidth,
+            this.getDocumentPageContentWidth(doc),
             pageNumber,
             documentViewport.pageMoveLength,
-            isRtlProgression
+            isRtlProgression,
+            documentViewport.pageWidth
         );
         this.applyPageTransform(transformContainer, newTransformLegnth, direction, "x");
         this.setCurrentPageNumber(doc, pageNumber);
     }
 
-    private applyPageTransform(transformContainer: HTMLElement, newTransformLegnth: number, direction?: 'next' | 'previous', axis: 'x' | 'y' = "x") {
+    /** Iframe / document content width, excluding wrapper padding used as page-gap chrome. */
+    private getDocumentPageContentWidth(doc: IHtmlDocument): number {
+        const documentElement = doc.getContentContainer()?.ownerDocument?.documentElement;
+        const iframe = documentElement?.ownerDocument?.defaultView?.frameElement as HTMLElement | undefined;
+        const width = Math.max(
+            iframe?.offsetWidth ?? 0,
+            documentElement?.scrollWidth ?? 0
+        );
+        if (width > 0) {
+            return width;
+        }
+        return doc.getWrapperContainer()?.clientWidth ?? 0;
+    }
+
+    private applyPageTransform(
+        transformContainer: HTMLElement,
+        newTransformLegnth: number,
+        direction?: 'next' | 'previous',
+        axis: 'x' | 'y' = "x",
+        styleTransformedLength?: number
+    ) {
+        const currentStyleLength = styleTransformedLength ?? getTransformLength(transformContainer, axis);
+        const shouldUpdateStyle = Math.abs(newTransformLegnth - currentStyleLength) > 0.5;
+        transformContainer.setAttribute('data-target-transform', `${newTransformLegnth}`);
+        if (!shouldUpdateStyle) {
+            return;
+        }
         if (!transformContainer.style.transition && this.htmlOptions.flipPageStyle == 'slide' && (direction == 'next' || direction == 'previous')) {
             transformContainer.style.transition = 'transform 0.2s ease';
         }
         if (transformContainer.style.transition) {
             transformContainer.addEventListener('transitionend', this.removeElementTransitionEvent);
         }
-        transformContainer.setAttribute('data-target-transform', `${newTransformLegnth}`);
         const length = parseFloat(newTransformLegnth.toFixed(10));
         transformContainer.style.transform = axis == "y"
             ? `translate3d(0,-${length}px,0)`
@@ -551,10 +548,11 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             else {
                 const transform = getPageTransformOffset(
                     wrapperContainer.offsetLeft,
-                    wrapperContainer.scrollWidth,
+                    this.getDocumentPageContentWidth(doc),
                     1,
                     metrics.pageMoveLength,
-                    flow.isRtlProgression
+                    flow.isRtlProgression,
+                    metrics.pageWidth
                 );
                 transformContainer.style.transform = "translateX(" + (-transform) + "px)";
                 transformContainer.setAttribute("data-target-transform", `${transform}`);

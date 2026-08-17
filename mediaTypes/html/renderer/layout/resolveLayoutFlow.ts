@@ -64,11 +64,17 @@ export const getPageTransformOffset = (
     contentWidth: number,
     pageNumber: number,
     pageMoveLength: number,
-    isRtlProgression: boolean
+    isRtlProgression: boolean,
+    pageWidth: number = pageMoveLength
 ) => {
     const page = Math.max(1, pageNumber);
     if (isRtlProgression) {
-        return Math.max(0, offsetLeft + contentWidth - page * pageMoveLength);
+        // LTR page 1 starts at 0 and shows `pageWidth`; the extra `columnGap` sits
+        // past the viewport. RTL page 1 is the mirrored slice at the content end:
+        // contentWidth - pageWidth, then each next page subtracts pageMoveLength.
+        // Using `page * pageMoveLength` would eat the gap and look like a partial page.
+        const visibleWidth = pageWidth > 0 ? pageWidth : pageMoveLength;
+        return Math.max(0, offsetLeft + contentWidth - visibleWidth - (page - 1) * pageMoveLength);
     }
     return Math.max(0, offsetLeft + (page - 1) * pageMoveLength);
 };

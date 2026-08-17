@@ -27,6 +27,8 @@ export class HtmlContainerBuilder {
         rendererCss += `height:calc(100% - var(${Options.HeaderHeight}) - var(${Options.FooterHeight}));`;
         rendererCss += `overflow-y:var(${ViewportCssVariableNames.ScrollElementOverflow});`;
         rendererCss += `overflow-x:var(${ViewportCssVariableNames.ScrollElementOverflowX}, hidden);`;
+        /**always set the direction to ltr for the renderer container */
+        rendererCss += `direction:ltr;`;
         rendererCss += `}`;
 
         const rendererContainer = createElement(document, "div", getRandomId(true), rendererClassName);
@@ -115,8 +117,21 @@ export class HtmlContainerBuilder {
         transformContainerCss += "flex-shrink:0;width:auto;margin-inline-start:var(" + ViewportCssVariableNames.ContentWrapperMarginTop + ");margin-block: 0;";
         transformContainerCss += `height:var(${ViewportCssVariableNames.ContentWrapperHeight});`;
         transformContainerCss += "}";
-        transformContainerCss += `.renderer.${HtmlSettings.WritingVerticalClassName}.${HtmlSettings.FlipScrollClassName} .${HtmlSettings.FileContentContainerClassName}:first-child,`;
-        transformContainerCss += `.renderer.${HtmlSettings.WritingVerticalClassName}.${HtmlSettings.FlipScrollClassName} .${HtmlSettings.FileContentContainerClassName}:last-child`;
+
+        transformContainerCss += `.renderer.${HtmlSettings.WritingVerticalLrClassName}.${HtmlSettings.FlipScrollClassName} .${HtmlSettings.FileContentContainerClassName}:first-child`;
+        transformContainerCss += "{";
+        transformContainerCss += "margin-inline-start: 0px";
+        transformContainerCss += "}";
+        transformContainerCss += `.renderer.${HtmlSettings.WritingVerticalLrClassName}.${HtmlSettings.FlipScrollClassName} .${HtmlSettings.FileContentContainerClassName}:last-child`;
+        transformContainerCss += "{";
+        transformContainerCss += "margin-inline-end: 0px";
+        transformContainerCss += "}";
+
+        transformContainerCss += `.renderer.${HtmlSettings.WritingVerticalRlClassName}.${HtmlSettings.FlipScrollClassName} .${HtmlSettings.FileContentContainerClassName}:first-child`;
+        transformContainerCss += "{";
+        transformContainerCss += "margin-inline-end: 0px";
+        transformContainerCss += "}";
+        transformContainerCss += `.renderer.${HtmlSettings.WritingVerticalRlClassName}.${HtmlSettings.FlipScrollClassName} .${HtmlSettings.FileContentContainerClassName}:last-child`;
         transformContainerCss += "{";
         transformContainerCss += "margin-inline-start: 0px";
         transformContainerCss += "}";

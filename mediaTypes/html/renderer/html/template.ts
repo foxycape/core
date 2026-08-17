@@ -28,7 +28,8 @@ export const createIframe = (ownerDocument: Document, iframeId: string, forceScr
     iframe.setAttribute("height", "100%");
     iframe.setAttribute("style", "display:block");
     if (flow?.iframeGrow == "width") {
-        iframe.style.setProperty("width", "auto");
+        // iframe.style.setProperty("width", "auto");
+        iframe.style.setProperty("width", "var(" + ViewportCssVariableNames.ContentContainerWidth + ")");
         iframe.style.setProperty("height", "var(" + ViewportCssVariableNames.ContentContainerHeight + ")");
     }
     else if (flow?.iframeGrow == "height") {
