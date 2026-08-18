@@ -96,14 +96,6 @@ export class Reader implements LifecycleHooks {
         return this.fileLoader.services.asReaderServices();
     }
 
-    get platform() {
-        return this.fileLoader.platform;
-    }
-
-    get environment() {
-        return this.fileLoader.environment;
-    }
-
     get device() {
         return this.fileLoader.device;
     }

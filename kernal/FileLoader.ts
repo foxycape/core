@@ -21,15 +21,9 @@ import { InputFormatter } from "./pipelines/InputFormatter";
 import { ReaderInfo } from "./ReaderInfo";
 import { CoreServiceMap, ServiceCollection } from "./services/ServiceCollection";
 import { WebBrowser } from "./device/WebBrowser";
-import { IPlatform } from "./device/IPlatform";
-import { IEnvironment } from "./device/IEnvironment";
-import { WebEnvironment } from "./device/WebEnvironment";
-import { WebPlatform } from "./device/WebPlatform";
 import { IStorage } from "./storage/IStorage";
 
 export type CoreServices = {
-    platform?: IPlatform;
-    environment?: IEnvironment;
     device?: IDevice;
     locale?: ILocale;
     storage?: IStorage;
@@ -51,8 +45,6 @@ export class FileLoader {
     readonly mediaTypeRegistry: MediaTypeRegistry;
     readonly locale: ILocale;
     readonly device: IDevice;
-    readonly platform: IPlatform;
-    readonly environment: IEnvironment;
     private readonly logger: ILogger;
     readonly inputFormatter: InputFormatter;
     private readonly pipeline: FileLoadPipeline;
@@ -74,9 +66,7 @@ export class FileLoader {
         this.readerInfo = new ReaderInfo(this.version, options.baseUrl, options.preventCacheHash, options.debug);
         this.events = new EventEmitter();
         this.locale = services?.locale ?? new DefaultLocale();
-        this.platform = services?.platform ?? new WebPlatform();
-        this.environment = services?.environment ?? new WebEnvironment();
-        this.device = services?.device ?? new WebBrowser(this.platform, this.environment);
+        this.device = services?.device ?? new WebBrowser();
         this.loggerFactory = services?.loggerFactory ?? new LoggerFactory(options.debug ? Logger.DEBUG : Logger.INFO);
         this.logger = this.loggerFactory.getLogger(this.constructor.name);
 
