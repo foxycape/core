@@ -451,23 +451,53 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     private transformColumnPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous', isRtlProgression?: boolean) {
         const transformContainer = this.getTransformContainer();
         const documentViewport = this.rendererViewport.getLayoutMetrics();
-        const pageBox = this.getDocumentPageBox(doc);
-        const newTransformLegnth = getPageTransformOffset(
-            pageBox.offsetLeft,
-            pageBox.contentWidth,
-            pageNumber,
-            documentViewport.pageMoveLength,
-            isRtlProgression,
-            documentViewport.pageWidth
-        );
+        let newTransformLegnth: number;
+        if (direction == "next" || direction == "previous") {
+            newTransformLegnth = this.resolveRtlRelativePageTransform(transformContainer, direction, documentViewport.pageMoveLength);
+        }
+        else {
+            const pageBox = this.getDocumentPageBox(doc);
+            newTransformLegnth = getPageTransformOffset(
+                pageBox.offsetLeft,
+                pageBox.contentWidth,
+                pageNumber,
+                documentViewport.pageMoveLength,
+                isRtlProgression,
+                documentViewport.pageWidth
+            );
+        }
         this.applyPageTransform(transformContainer, newTransformLegnth, direction, "x");
         this.setCurrentPageNumber(doc, pageNumber);
+    }
+
+    /**
+     * RTL next decreases translate (content to the left); previous increases it.
+     * Adjacent documents are one pageMoveLength apart, so relative steps must not
+     * re-measure the destination box — getBoundingClientRect is already translated
+     * and often reports offsetLeft≈0 for the previous spine item, which clamps back
+     * onto the last document.
+     */
+    private resolveRtlRelativePageTransform(
+        transformContainer: HTMLElement,
+        direction: "next" | "previous",
+        pageMoveLength: number
+    ) {
+        const targetTransform = transformContainer.getAttribute("data-target-transform");
+        const currentTransformedLength = targetTransform
+            ? parseNumber(targetTransform, 0, "parseFloat")
+            : getTransformLength(transformContainer, "x");
+        const newTransformLength = direction == "next"
+            ? currentTransformedLength - pageMoveLength
+            : currentTransformedLength + pageMoveLength;
+        return Math.max(0, newTransformLength);
     }
 
     /**
      * Page origin is the iframe, not the wrapper. RTL puts the inter-document
      * gap on the wrapper's inline-start, so wrapper.offsetLeft is ~20px left of
      * the columns and every page (including the last) undershoots pageMoveLength.
+     * Use layout offsets (not getBoundingClientRect) so the current page translate
+     * cannot collapse every document's origin to the visible left edge.
      */
     private getDocumentPageBox(doc: IHtmlDocument): { offsetLeft: number, contentWidth: number } {
         const wrapperContainer = doc.getWrapperContainer();
@@ -479,10 +509,23 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         ) || (wrapperContainer?.clientWidth ?? 0);
         const transformContainer = this.getTransformContainer();
         if (iframe && transformContainer) {
-            const offsetLeft = iframe.getBoundingClientRect().left - transformContainer.getBoundingClientRect().left;
-            return { offsetLeft, contentWidth };
+            return { offsetLeft: this.getLayoutOffsetLeft(iframe, transformContainer), contentWidth };
         }
         return { offsetLeft: wrapperContainer?.offsetLeft ?? 0, contentWidth };
+    }
+
+    private getLayoutOffsetLeft(element: HTMLElement, ancestor: HTMLElement): number {
+        let left = 0;
+        let current: HTMLElement | null = element;
+        while (current && current !== ancestor) {
+            left += current.offsetLeft;
+            const offsetParent = current.offsetParent as HTMLElement | null;
+            if (!offsetParent || offsetParent === current) {
+                break;
+            }
+            current = offsetParent;
+        }
+        return left;
     }
 
     private applyPageTransform(
