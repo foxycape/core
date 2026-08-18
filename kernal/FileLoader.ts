@@ -20,11 +20,10 @@ export type { FileLoadPipelineOptions, FileLoadResult } from "./pipelines/FileLo
 import { InputFormatter } from "./pipelines/InputFormatter";
 import { ReaderInfo } from "./ReaderInfo";
 import { CORE_SERVICE_KEYS, CoreServiceMap, ServiceCollection } from "./services/ServiceCollection";
-import { WebBrowser } from "./device/WebBrowser";
 import { IStorage } from "./storage/IStorage";
 
 export type CoreServices = {
-    device?: IDevice;
+    device: IDevice;
     locale?: ILocale;
     storage?: IStorage;
     loggerFactory?: ILoggerFactory;
@@ -60,13 +59,13 @@ export class FileLoader {
     private currentIsCancelled = false;
     private instanceId?: string;
 
-    constructor(options: Options, services?: CoreServices, lifecycle?: LifecycleHooks) {
+    constructor(options: Options, services: CoreServices, lifecycle?: LifecycleHooks) {
         this.options = Object.assign(new Options(), options);
         this.version = options.version || "1.0.0";
         this.readerInfo = new ReaderInfo(this.version, options.baseUrl, options.preventCacheHash, options.debug);
         this.events = new EventEmitter();
-        this.locale = services?.locale ?? new DefaultLocale();
-        this.device = services?.device ?? new WebBrowser();
+        this.locale = services.locale ?? new DefaultLocale();
+        this.device = services.device
         this.loggerFactory = services?.loggerFactory ?? new LoggerFactory(options.debug ? Logger.DEBUG : Logger.INFO);
         this.logger = this.loggerFactory.getLogger(this.constructor.name);
 

@@ -72,7 +72,7 @@ export class Reader implements LifecycleHooks {
     onProgressChangeGuard?: (progress: number) => boolean;
     onBeforeRedirect?: (documentsProvider: IDocumentsProvider) => Promise<void>;
 
-    constructor(options: Options, services?: ReaderServices) {
+    constructor(options: Options, services: ReaderServices) {
         this.fileLoader = new FileLoader(options, services, this);
         if (services) {
             for (const key of UI_SERVICE_KEYS) {

@@ -87,7 +87,7 @@ export class WebCrypto implements ICrypto {
         if (typeof data === 'string') { 
             const encoded = new TextEncoder().encode(data);
             if (hashAlgorithm == "MD5") {
-                return await computeMd5(encoded.buffer);
+                return await computeMd5(encoded.buffer as ArrayBuffer);
             }
            
             return await digestBuffer(encoded, hashAlgorithm);

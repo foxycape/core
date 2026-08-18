@@ -6,6 +6,7 @@ import {
   Reader,
   SpineFile,
   Theme,
+  WebBrowser,
 } from '../../kernal'
 import { HtmlRenderer } from '../../mediaTypes/html/renderer/HtmlRenderer'
 import { ContentCssVariables, registerHtmlMediaType } from './registerHtmlMediaType'
@@ -226,7 +227,7 @@ options.themeName = 'default'
 options.enableFooter = false
 options.enableHeader = false
 
-const reader = new Reader(options)
+const reader = new Reader(options, { device: new WebBrowser() })
 
 PluginRegistry.register('keyboard-page-turning', KeyboardPageTurning)
 PluginRegistry.register('wheel-page-turning', WheelPageTurning)

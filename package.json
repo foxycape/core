@@ -1,6 +1,6 @@
 {
   "name": "@foxycape/core",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "description": "Browser-side multi-format reader kernel with pluggable parsers, renderers, services, and plugins.",
   "license": "MIT",
   "type": "module",

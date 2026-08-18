@@ -6,12 +6,13 @@ import { Reader } from '@/kernal/Reader'
 import { FileLoadPipeline } from '@/kernal/pipelines/FileLoadPipeline'
 import type { IFileParser } from '@/kernal/IFileParser'
 import { Metadata } from '@/kernal/Metadata'
+import { WebBrowser } from '@/kernal/device/WebBrowser'
 
 class TestReader extends Reader {}
 
 describe('Reader / FileLoader split', () => {
   it('requires container on Reader.open', async () => {
-    const reader = new TestReader(new Options())
+    const reader = new TestReader(new Options(), { device: new WebBrowser() })
     await expect(reader.open('book.pdf' as any, undefined as any, undefined as any)).rejects.toThrow(/container is required/)
   })
 
@@ -62,19 +63,19 @@ describe('Reader / FileLoader split', () => {
   })
 
   it('exposes FileLoader composition on Reader', () => {
-    const reader = new TestReader(new Options())
+    const reader = new TestReader(new Options(), { device: new WebBrowser() })
     expect(reader.fileLoader).toBeInstanceOf(FileLoader)
     expect(reader.mediaTypeRegistry).toBe(reader.fileLoader.mediaTypeRegistry)
     expect(reader.services).toBe(reader.fileLoader.services)
   })
 
   it('registers core services on FileLoader and UI services on Reader', () => {
-    const loader = new FileLoader(new Options())
+    const loader = new FileLoader(new Options(), { device: new WebBrowser() })
     expect(loader.services.has('httpClient')).toBe(true)
     expect(loader.services.has('notifier' as any)).toBe(false)
     expect(loader.services.has('loading' as any)).toBe(false)
 
-    const reader = new TestReader(new Options())
+    const reader = new TestReader(new Options(), { device: new WebBrowser() })
     expect(reader.services.has('httpClient')).toBe(true)
     expect(reader.services.has('notifier')).toBe(true)
     expect(reader.services.has('loading')).toBe(true)

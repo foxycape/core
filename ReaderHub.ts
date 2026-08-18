@@ -24,7 +24,7 @@ export class ReaderHub {
         return this.currentFocusReaderId;
     }
 
-    static createReader(options: Options, services?: CoreServices) {
+    static createReader(options: Options, services: CoreServices) {
         const reader = new Reader(options, services);
         this.bindEvents(reader);
         this.addReader(reader);

@@ -3,6 +3,7 @@ import {
   Options,
   type PageChangeOptions,
   Reader,
+  WebBrowser,
 } from '../../kernal'
 import { PdfRenderer } from '../../mediaTypes/pdf/renderer/PdfRenderer'
 import type { PdfScrollMode, PdfSpreadMode } from '../../mediaTypes/pdf/renderer/layout/IPdfRendererLayout'
@@ -67,7 +68,7 @@ options.debug = true
 options.enableFooter=false
 options.enableHeader=false
 
-const reader = new Reader(options)
+const reader = new Reader(options, { device: new WebBrowser() })
 
 const pdfOptions = registerPdfMediaType(reader)
 
