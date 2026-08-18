@@ -10,6 +10,7 @@ import {
     asyncDebounce,
     BrowserCapabilities,
     ElementInitialNumberName,
+    yieldToMain,
     EventNames,
     IDocument,
     IDocumentsProvider,
@@ -243,7 +244,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
                         totalImageCount: images.length,
                         processedImageCount: i,
                     });
-                    await BrowserCapabilities.yieldToMain();
+                    await yieldToMain();
                 }
             } catch (e) {
                 this.logger.error(e);
@@ -480,7 +481,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
                 break;
             }
             this.resetImageWidthHeight(task);
-            await BrowserCapabilities.yieldToMain();
+            await yieldToMain();
         }
     };
 

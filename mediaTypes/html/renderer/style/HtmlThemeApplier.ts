@@ -1,4 +1,4 @@
-import { BrowserCapabilities, IDocumentsProvider, MTTAG, readerPrefixName, Theme } from "../../../../kernal";
+import { IDocumentsProvider, MTTAG, readerPrefixName, supportScheduler, Theme } from "../../../../kernal";
 import { compareTagName } from "../../../../kernal/html/finder";
 import { injectCssContent, removeElement } from "../../../../kernal/html/injector";
 import { HtmlSettings } from "../../HtmlSettings";
@@ -81,7 +81,7 @@ export class HtmlThemeApplier implements IHtmlThemeApplier {
             return;
         }
 
-        const supportScheduler = BrowserCapabilities.supportScheduler();
+        const isSupportScheduler = supportScheduler();
         const elements = contentContainer.getElementsByTagName("*");
         const preElementChildren: Element[] = [];
         for (let i = 0; i < elements.length; i++) {
@@ -101,7 +101,7 @@ export class HtmlThemeApplier implements IHtmlThemeApplier {
                 continue;
             }
             currentElement.classList.add(this.holderClassName, this.specialColorCssName, this.specialBackgroundCssName);
-            if (i % 100 === 0 && supportScheduler) {
+            if (i % 100 === 0 && isSupportScheduler) {
                 await scheduler.yield();
             }
         }

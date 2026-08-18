@@ -1,4 +1,4 @@
-import { BrowserCapabilities } from "../web/BrowserCapabilities";
+import { yieldToMain } from "../web/scheduler";
 
 type ParseDocType = "html" | "xml" | "xhtml";
 
@@ -99,11 +99,11 @@ export const getFormatDocument = (html: string, convertToHtml5?: boolean): Docum
 
 export const getFormatDocumentAsync = async (html: string, convertToHtml5?: boolean) => {
     const { document: parsedDocument, docType } = parseHtml(html);
-    await BrowserCapabilities.yieldToMain();
+    await yieldToMain();
     if (docType === "html" || !convertToHtml5) {
         return parsedDocument;
     }
     const html5Document = convertToHtml5Document(parsedDocument);
-    await BrowserCapabilities.yieldToMain();
+    await yieldToMain();
     return html5Document;
 };

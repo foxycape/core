@@ -1,4 +1,3 @@
-import "scheduler-polyfill";
 import { uaParser } from "./ua";
 
 /**
@@ -224,74 +223,6 @@ export class BrowserCapabilities {
         return this.supportsPassive ?? false;
     }
 
-    /** Whether fullscreen is supported. */
-    static supportFullscreen(): boolean {
-        return document.fullscreenEnabled;
-    }
-
-    /** Enters fullscreen mode for the given element. */
-    static async enterFullScreen(element: Element): Promise<void> {
-        if (!element) {
-            return;
-        }
-        const ownerDocument = element.ownerDocument;
-        const fullscreenEnabled = ownerDocument.fullscreenEnabled;
-        if (fullscreenEnabled) {
-            const enterFullScreenName = this.getSupportPropertyName([
-                'requestFullscreen',
-                'mozRequestFullScreen',
-                'webkitRequestFullscreen',
-                'msRequestFullscreen'
-            ], element)
-            if (enterFullScreenName) {
-                await element[enterFullScreenName]();
-            }
-        }
-    }
-
-    static getSupportPropertyName(names: string[], target: Element | Document) {
-        return names.find(name => name in target)
-    }
-
-    /** Exits fullscreen mode. */
-    static async exitFullScreen(ownerDocument: Document): Promise<void> {
-        if (!ownerDocument) {
-            return;
-        }
-        const fullscreenEnabled = ownerDocument.fullscreenEnabled;
-        if (fullscreenEnabled) {
-            const exitFullScreenName = this.getSupportPropertyName([
-                'exitFullScreen',
-                'mozCancelFullScreen',
-                'webkitExitFullscreen',
-                'msExitFullscreen'
-            ], ownerDocument)
-
-            if (exitFullScreenName) {
-                await ownerDocument[exitFullScreenName]();
-            }
-        }
-    }
-
-    /** Whether the document is currently in fullscreen mode. */
-    static checkIsFullScreen(ownerDocument: Document): boolean {
-        if (!ownerDocument) {
-            return;
-        }
-        const fullscreenEnabled = ownerDocument.fullscreenEnabled;
-        if (fullscreenEnabled) {
-            const fullscreenElementName = this.getSupportPropertyName([
-                'fullscreenElement',
-                'mozFullScreenElement',
-                'msFullScreenElement',
-                'wenkitFullscreenElement'
-            ], ownerDocument)
-            if (fullscreenElementName && ownerDocument[fullscreenElementName])
-                return true;
-        }
-        return false;
-    }
-
     private static isSupportClipboardPng: boolean;
 
     /** Whether copying PNG images to the clipboard is supported. */
@@ -309,24 +240,5 @@ export class BrowserCapabilities {
             this.isSupportClipboardPng = false;
         }
         return this.isSupportClipboardPng;
-    }
-
-    private static currentSupportScheduler: boolean;
-
-    /** Whether the Scheduling API is supported. */
-    static supportScheduler() {
-        if (this.currentSupportScheduler == undefined) {
-            this.currentSupportScheduler = typeof scheduler !== 'undefined' && typeof scheduler.yield === 'function';
-        }
-        return this.currentSupportScheduler
-    }
-
-    static async yieldToMain() {
-        if (this.supportScheduler()) {
-            await scheduler.yield()
-        }
-        else {
-            await new Promise<void>((resolve) => setTimeout(resolve, 0))
-        }
     }
 }

@@ -2,7 +2,7 @@ import { getDocumentBody } from "../../../../kernal/html/finder";
 import { getOrderedElementsIntersectingRect, resolveVisibleViewportInContentWindow } from "../../../../kernal/html/geometry";
 import { emptyElement, setElementHtml } from "../../../../kernal/html/dom";
 import { getUuid } from "../../../../kernal/common/uuid";
-import { EventNames, FlipMode, IFileParser, ILogger, LocationState, TextFormatOptions, SpineFile, BrowserCapabilities, readerPrefixName } from "../../../../kernal";
+import { EventNames, FlipMode, IFileParser, ILogger, LocationState, TextFormatOptions, SpineFile, readerPrefixName, yieldToMain } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
 import { HtmlSettings } from "../../HtmlSettings";
 import { IHtmlDocument } from "../IHtmlDocument";
@@ -74,10 +74,10 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                             this.iframe.setAttribute("scrolling", "no");
                         }
                         const loadingContent = await this.buildLoadingContent();
-                        await BrowserCapabilities.yieldToMain();
+                        await yieldToMain();
                         this.wrapperContainer.appendChild(this.iframe);
 
-                        await BrowserCapabilities.yieldToMain();
+                        await yieldToMain();
                         this.iframe.addEventListener("load", async () => {
                             await this.processAfterLoaded();
                         }, false);
@@ -98,7 +98,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                             iframeDocument.open();
                             iframeDocument.write(loadingContent);
                             iframeDocument.close();
-                            await BrowserCapabilities.yieldToMain();
+                            await yieldToMain();
                         }
                     }
                 }
@@ -106,7 +106,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                     const loadingContent = await this.buildLoadingContent();
                     setElementHtml(this.wrapperContainer, loadingContent);
                     await this.processAfterLoaded();
-                    await BrowserCapabilities.yieldToMain();
+                    await yieldToMain();
                 }
             }
             catch (error) {
@@ -165,7 +165,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         for (const postprocess of postprocesses) {
             try {
                 await postprocess(this);
-                await BrowserCapabilities.yieldToMain();
+                await yieldToMain();
             }
             catch (e) {
                 this.logger.error('postprocess', 'function', postprocess?.name, e);

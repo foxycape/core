@@ -36,6 +36,7 @@ export type UiServiceMap = {
     wallpaperProvider: import("../IWallpaperProvider").IWallpaperProvider;
     loadLayer: import("./docLoadLayer/IHtmlLoadLayer").IHtmlLoadLayer;
     symbolCalclator: import("../ISymbolCalclator").ISymbolCalclator;
+    fullscreen: import("../screen/IFullscreen").IFullscreen;
 };
 
 /** Runtime keys of {@link UiServiceMap}; adding a map field without updating this is a type error. */
@@ -46,6 +47,7 @@ export const UI_SERVICE_KEYS = Object.keys({
     wallpaperProvider: true,
     loadLayer: true,
     symbolCalclator: true,
+    fullscreen: true,
 } satisfies Record<keyof UiServiceMap, true>) as Array<keyof UiServiceMap>;
 
 /** Full service map for the reader host. */

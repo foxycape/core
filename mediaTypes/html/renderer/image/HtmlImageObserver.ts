@@ -1,5 +1,5 @@
 import { compareTagName, getDocumentBody } from "../../../../kernal/html/finder";
-import { BrowserCapabilities, ElementInitialNumberName, EventNames, IDisposable, IDocumentsProvider, IEventEmitter } from "../../../../kernal";
+import { ElementInitialNumberName, EventNames, IDisposable, IDocumentsProvider, IEventEmitter, yieldToMain } from "../../../../kernal";
 import { HtmlOptions } from "../../HtmlOptions";
 import { IHtmlDocument } from "../IHtmlDocument";
 
@@ -202,7 +202,7 @@ export class HtmlImageObserver implements IDisposable {
             }
             if (i % 100 == 0) {
                 // If the scheduler is supported, yield every 100 elements to avoid long time blocking the main thread
-                await BrowserCapabilities.yieldToMain();
+                await yieldToMain();
             }
         }
     }

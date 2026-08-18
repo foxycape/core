@@ -1,7 +1,6 @@
 import { EventNames } from "../../../../kernal/EventNames";
-import { BrowserCapabilities } from "../../../../kernal/web/BrowserCapabilities";
 import { HtmlOptions } from "../../HtmlOptions";
-import { asyncDebounce, IDocument, IDocumentsProvider, IEventEmitter } from "../../../../kernal";
+import { asyncDebounce, IDocument, IDocumentsProvider, IEventEmitter, yieldToMain } from "../../../../kernal";
 import { IHtmlDocumentsPreloader } from "./IHtmlDocumentsPreloader";
 
 /**
@@ -86,7 +85,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
             if (doc && !reservedDocuments.includes(doc)) {
                 reservedDocuments.push(doc);
             }
-            await BrowserCapabilities.yieldToMain();
+            await yieldToMain();
         }
         const rendererContainerClientWidth = this.documentsProvider.getRendererContainer().clientWidth;
         // if the flip mode is page, continue to check the previous screen and the next screen for content
@@ -102,7 +101,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
                 if (previousDocumentsLength >= rendererContainerClientWidth) {
                     break;
                 }
-                await BrowserCapabilities.yieldToMain();
+                await yieldToMain();
             }
             let nextDocumentsLength = 0;
             for (let i = endIndex + 1; i < total - 1; i++) {
@@ -115,7 +114,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
                 if (nextDocumentsLength >= rendererContainerClientWidth) {
                     break;
                 }
-                await BrowserCapabilities.yieldToMain();
+                await yieldToMain();
             }
         }
 
@@ -141,7 +140,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
         for (const doc of loadedDocuments) {
             if (!reservedDocuments.includes(doc)) {
                 await this.disposeDocument(doc);
-                await BrowserCapabilities.yieldToMain();
+                await yieldToMain();
             }
         }
     }

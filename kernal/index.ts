@@ -29,6 +29,7 @@ export * from './services/notifier/INotifier';
 export * from './Theme';
 export * from './device/IDevice';
 export * from './web/BrowserCapabilities';
+export * from './web/scheduler';
 export * from './device/WebBrowser';
 export * from './IDocument';
 export * from './shape/SimpleMatrix';

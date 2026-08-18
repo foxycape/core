@@ -2,7 +2,7 @@ import { containValues } from "../../../../kernal/common/array";
 import { deepClone } from "../../../../kernal/common/object";
 import { isNullOrWhiteSpace } from "../../../../kernal/common/text";
 import { getElementIndex } from "../../../../kernal/html/finder";
-import { INavPointProvider, IFileParser, IDocumentsProvider, NavPoint, Nav, SymbolType, BrowserCapabilities } from "../../../../kernal";
+import { INavPointProvider, IFileParser, IDocumentsProvider, NavPoint, Nav, SymbolType, yieldToMain } from "../../../../kernal";
 import { getElementByProgress } from "../../../../kernal/html/position";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { IHtmlTextDocument } from "../IHtmlTextDocument";
@@ -191,7 +191,7 @@ export class HtmlNavPointProvider implements INavPointProvider {
         if (flattingNavPoints.length == 0)
             return undefined;
         await this.initNavUrlWithAnchors();
-        await BrowserCapabilities.yieldToMain();
+        await yieldToMain();
         const firstVisibleDocument = this.documentsProvider.getFirstVisibleDocument();
         if (!firstVisibleDocument) {
             // No visible document
@@ -251,7 +251,7 @@ export class HtmlNavPointProvider implements INavPointProvider {
             for (let i = 0; i < group.length; i++) {
                 const currentUrls = group[i];
                 const docNavPoint = this.findGroupNavPoint(currentUrls);
-                await BrowserCapabilities.yieldToMain();
+                await yieldToMain();
                 if (docNavPoint) {
                     return this.cloneNavPoint(docNavPoint);
                 }

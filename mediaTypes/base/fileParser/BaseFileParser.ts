@@ -6,7 +6,7 @@ import { isNullOrWhiteSpace } from "../../../kernal/common/text";
 import { checkIsAbsoluteUrl, checkIsBlobUrl, getFullUrl, getUrlFragment } from "../../../kernal/common/url";
 import { toBlob } from "../../../kernal/common/buffer";
 import { ITextDocument } from "../../../kernal/ITextDocument";
-import { IFileParser, Nav, SpineFile, DecryptFile, Metadata, FilePackage, ReturnFileFormatMap, FileLocation, NavPoint, SymbolType, BrowserCapabilities, FileLoadOptions } from "../../../kernal";
+import { IFileParser, Nav, SpineFile, DecryptFile, Metadata, FilePackage, ReturnFileFormatMap, FileLocation, NavPoint, SymbolType, FileLoadOptions, yieldToMain } from "../../../kernal";
 import { FileUrlParserOptions, IFileUrlParser, UrlParseResult } from "../../../kernal/services/fileUrlParser/IFileUrlParser";
 import { IFileDecrypter } from "../../../kernal/services/file/IFileDecrypter";
 import { IFileProvider } from "../../../kernal/services/file/IFileProvider";
@@ -146,7 +146,7 @@ export abstract class BaseFileParser implements IFileParser {
                     spineFile.symbolCount = symbolCount;
                     spineFile["charSymbolCount"] = await this.calculateSymbolCount(spineFile, 'char');
                 }
-                await BrowserCapabilities.yieldToMain();
+                await yieldToMain();
             }
         }
 

@@ -3,6 +3,7 @@ import {
     BrowserCapabilities,
     EventNames,
     Theme,
+    yieldToMain,
 } from "../../../kernal";
 import { getByteLength } from "../../../kernal/common/text";
 import * as pdfjsLib from "../../../pdfjs/legacy/build/pdf.mjs";
@@ -326,7 +327,7 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
                 pageTask.svg.setAttribute("data-state", "loading");
             }
 
-            await BrowserCapabilities.yieldToMain();
+            await yieldToMain();
             if (this.disposed || !this.renderer.owner.context) {
                 return;
             }

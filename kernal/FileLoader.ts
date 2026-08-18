@@ -66,6 +66,9 @@ export class FileLoader {
         this.events = new EventEmitter();
         this.locale = services.locale ?? new DefaultLocale();
         this.device = services.device
+        if (!this.device) {
+            throw new Error("device is required.for web browser, use WebBrowser class.");
+        }
         this.loggerFactory = services?.loggerFactory ?? new LoggerFactory(options.debug ? Logger.DEBUG : Logger.INFO);
         this.logger = this.loggerFactory.getLogger(this.constructor.name);
 
