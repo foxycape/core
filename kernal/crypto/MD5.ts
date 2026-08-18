@@ -1,18 +1,11 @@
-import SparkMD5 from 'spark-md5';
 import { toBlob } from '../common/buffer';
 import { computeUniqueId } from '../common/uuid';
-
-/**
- * Compute MD5 hash of a string (UTF-8).
- */
-export const hashMd5 = (data: string): string => {
-    return SparkMD5.hash(data);
-};
 
 /**
  * Compute MD5 hash of binary data in 2MB chunks.
  */
 export const computeMd5 = async (data: ArrayBuffer): Promise<string> => {
+    const { default: SparkMD5 } = await import('spark-md5');
     const blob = toBlob(data);
     const fileReader = new FileReader();
     const prototype = File.prototype as any;

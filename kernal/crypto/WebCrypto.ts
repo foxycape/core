@@ -1,6 +1,6 @@
 import { convertBase64ToArrayBuffer } from "../common/buffer";
 import { CryptoOptions, HashAlgorithm, ICrypto } from "./ICrypto";
-import { computeMd5, hashMd5 } from "./MD5";
+import { computeMd5 } from "./MD5";
 
 const getCryptoSubtle = () => {
     const crypto = globalThis.crypto || globalThis["msCrypto"];
@@ -84,11 +84,12 @@ export class WebCrypto implements ICrypto {
         if (!hashAlgorithm)
             hashAlgorithm = "SHA-256";
 
-        if (typeof data === 'string') {
-            if (hashAlgorithm == "MD5") {
-                return hashMd5(data);
-            }
+        if (typeof data === 'string') { 
             const encoded = new TextEncoder().encode(data);
+            if (hashAlgorithm == "MD5") {
+                return await computeMd5(encoded.buffer);
+            }
+           
             return await digestBuffer(encoded, hashAlgorithm);
         }
 
