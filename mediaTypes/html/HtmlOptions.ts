@@ -72,7 +72,7 @@ export class HtmlOptions {
     enableContentWrapperBorderRadius: boolean = true;
 
     /** Content margin */
-    contentsShadowMargin: number = 10;
+    contentsShadowMargin: number = 20;
 
     /** Number of files to preload (how many files above and below the current file) */
     preloadFileCount: number = 1;

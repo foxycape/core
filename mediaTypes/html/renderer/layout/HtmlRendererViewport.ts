@@ -150,23 +150,25 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         if (!flow.isVerticalWriting) {
             this.htmlOptions.columns = columns;
         }
-        const factor = this.getContentPaddingFactor();
-        const shadowMargin = this.getContentsShadowMargin() + Math.min(20, contentsContainerWidthNumber * factor)
-
+        // const shadowMargin = this.getContentsShadowMargin() + Math.min(20, contentsContainerWidthNumber * factor)
+        const shadowMargin = this.getContentsShadowMargin(contentsContainerWidthNumber);
         const { columnWidth, remainder } = this.getFinalColumnWidth(contentsContainerWidthNumber - shadowMargin * 2, columns, columnGap)
-        let marginInline = remainder != 0 ? shadowMargin + (remainder / 2) : shadowMargin;
+        // let marginInline = remainder != 0 ? shadowMargin + (remainder / 2) : shadowMargin;
+        let marginInline = shadowMargin;
         let marginBlock = marginInline
-        if (flipMode == "page") {
-            shadowContainer.style.margin = `${marginBlock}px ${marginInline}px`
-        } else {
+        if (flipMode == "scroll") {
             marginInline = 0;
             marginBlock = 0;
-            shadowContainer.style.margin = `${marginBlock}px ${marginInline}px`
+        }       
+        if(flipMode == "scroll") {
+            shadowContainer.style = `margin: ${marginBlock}px ${marginInline}px;`;
+        } else {
+            shadowContainer.style = `margin: ${marginBlock}px ${marginInline}px;height: ${rendererHeight-2*shadowMargin}px;`;
         }
         const shadowWidth = shadowContainer.getBoundingClientRect().width;
         const pageBoxWidth = columns * columnWidth + Math.max(0, columns - 1) * columnGap;
         const { contentWrapperPaddingBottomNumber, contentWrapperPaddingTopNumber, contentWrapperPadding, contentWrapperPaddingTopBottom } = this.getContentWrapperPadding(contentsContainerWidthNumber, columnGap)
-        const pageHeightNumber = rendererHeight - contentWrapperPaddingTopNumber - contentWrapperPaddingBottomNumber - marginBlock * 2;
+        const pageHeightNumber = rendererHeight - contentWrapperPaddingTopNumber - contentWrapperPaddingBottomNumber;
         const pageMoveLength = flow.pageAxis == "y"
             ? pageHeightNumber + columnGap
             : pageBoxWidth + columnGap;
@@ -184,8 +186,8 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         } else if (flipMode == "scroll") {
             vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, (shadowWidth) + 'px');
         } else {
-            vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, (columnWidth + columnGap / 2) + 'px');
-            // vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, pageBoxWidth + 'px');
+            // vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, (columnWidth + columnGap / 2) + 'px');
+            vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, pageBoxWidth + 'px');
         }
         vars.set(ViewportCssVariableNames.ContentWrapperHeight, this.getContentWrapperHeight());
         vars.set(ViewportCssVariableNames.ContentWrapperMinHeight, rendererHeight + "px");
@@ -203,7 +205,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
 
         const contentContainerHeight = flow.pageAxis == "y"
             ? pageHeightNumber + "px"
-            : `calc(var(${ViewportCssVariableNames.ContentWrapperHeight}) - ${contentWrapperPaddingTopBottom} - ${marginBlock * 2}px)`;
+            : `calc(var(${ViewportCssVariableNames.ContentWrapperHeight}) - ${contentWrapperPaddingTopBottom})`;
         vars.set(ViewportCssVariableNames.ContentContainerHeight, contentContainerHeight);
         vars.set(ViewportCssVariableNames.ContentColumnGap, columnGap + 'px');
         return vars;
@@ -251,20 +253,17 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         }
     }
 
-    private getContentsShadowMargin() {
-        const flipMode = this.getFlipMode();
-        if (flipMode == "scroll") {
-            return this.htmlOptions.contentsShadowMargin ?? 10
-        }
-        return 0
+    private getContentsShadowMargin(contentsContainerWidthNumber: number) {
+        const contentsShadowMargin = this.htmlOptions.contentsShadowMargin ?? 20;
+        const factor = this.getContentPaddingFactor();
+        return contentsShadowMargin + Math.min(10, contentsContainerWidthNumber * factor);
     }
 
     private getContentWrapperPadding(contentsContainerWidthNumber: number, columnGap: number) {
         const flipMode = this.getFlipMode();
-        const factor = this.getContentPaddingFactor();
         const defaultContentWrapperPaddingTopNumber = 30;
         let contentWrapperPaddingTopNumber = flipMode == 'scroll' ? defaultContentWrapperPaddingTopNumber : 0;
-        const paddingTopOrBottomNumber = this.getContentsShadowMargin();
+        const paddingTopOrBottomNumber = this.getContentsShadowMargin(contentsContainerWidthNumber);
 
         if (flipMode == "page") {
             contentWrapperPaddingTopNumber += paddingTopOrBottomNumber
@@ -279,14 +278,14 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
             contentWrapperPaddingBottomNumber = this.options.minFooterHeight
         }
 
-        const paddingLeftOrRightNumber = this.getContentsShadowMargin() + Math.min(20, contentsContainerWidthNumber * factor);
+        const paddingLeftOrRightNumber = this.getContentsShadowMargin(contentsContainerWidthNumber);
 
         const contentWrapperPaddingBottom = contentWrapperPaddingBottomNumber + 'px';
         const contentWrapperPaddingLeft = flipMode == 'scroll' ? `${paddingLeftOrRightNumber}px` : '0'
         const contentWrapperPaddingRight = flipMode == 'scroll' ? `${paddingLeftOrRightNumber}px` : '0'
         const contentWrapperPaddingLeftRight = flipMode == 'scroll' ? `${columnGap}px` : '0'
         const contentWrapperPaddingTopBottom = `${contentWrapperPaddingTopNumber + contentWrapperPaddingBottomNumber}px`;
-        const contentWrapperPadding = flipMode == 'scroll' ? `${contentWrapperPaddingTopNumber}px ${paddingLeftOrRightNumber}px ${contentWrapperPaddingBottomNumber}px ${paddingLeftOrRightNumber}px` : `${contentWrapperPaddingTopNumber}px 0 0 0px`;
+        const contentWrapperPadding = flipMode == 'scroll' ? `${contentWrapperPaddingTopNumber}px ${paddingLeftOrRightNumber}px ${contentWrapperPaddingBottomNumber}px ${paddingLeftOrRightNumber}px` : `0px`;
         return {
             contentWrapperPaddingTop,
             contentWrapperPaddingLeft,

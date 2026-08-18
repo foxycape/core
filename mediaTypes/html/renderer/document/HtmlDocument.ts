@@ -173,7 +173,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         }
 
         await this.layoutStatePreserver.waitUntilPageTransformStable();
-        await this.internalResetSizes();
+        this.resetLayoutSizes();
         await this.restoreLayoutState(layoutState);
         this.loadingLayer?.removeLoadingLayer();
         this.loadStatus = "success";
@@ -182,7 +182,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.owner.events.emit(EventNames.DocumentLoad, this);
         this.resizeObserver.observeIframeSize(async () => {
             const resizeState = this.captureLayoutState();
-            await this.internalResetSizes();
+            this.resetLayoutSizes();
             if (this.getFlipMode() == "page") {
                 this.pageCalculator.calcNumberOfPages(true);
             }
@@ -211,7 +211,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         if (!contentRootElement || !this.iframe) {
             return;
         }
-        this.resetIframeMinWidthHeight(contentRootElement);
+        this.resetIframeMinSize(contentRootElement);
     }
     captureLayoutState(): LocationState {
         return this.layoutStatePreserver.capture();
@@ -219,10 +219,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     async restoreLayoutState(locationState: LocationState): Promise<void> {
         await this.layoutStatePreserver.restore(locationState);
     }
-    private internalResetSizes = async () => {
-        this.resetLayoutSizes();
-    };
-    private resetIframeMinWidthHeight(rootContent: HTMLElement) {
+    private resetIframeMinSize(rootContent: HTMLElement) {
         if (!rootContent || !this.iframe) {
             return;
         }

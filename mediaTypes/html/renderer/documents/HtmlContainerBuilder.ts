@@ -101,10 +101,10 @@ export class HtmlContainerBuilder {
         transformContainerCss += `border-right: ${columnRuleWidth}px solid var(${Theme.ColumnRuleColor});transition-property: transform;`;
         transformContainerCss += "}";
         transformContainerCss += "." + HtmlSettings.TransformPagesClassName + " ." + HtmlSettings.FileContentContainerClassName + ":last-child{";
-        transformContainerCss += `border-right:none;`;
+        transformContainerCss += `border:none;`;
         transformContainerCss += "}";
         transformContainerCss += `.renderer.${HtmlSettings.FlipPageClassName}.${HtmlSettings.TransformPagesClassName}.${HtmlSettings.RtlProgressionClassName} .${HtmlSettings.FileContentContainerClassName}{`;
-        transformContainerCss += `padding-inline-end:0;margin-inline-end:0;border-right:none;`;
+        transformContainerCss += `padding-inline-end:0;margin-inline-end:0;border:none;`;
         transformContainerCss += `padding-inline-start:calc(var(${ViewportCssVariableNames.ContentColumnGap}) / 2 - ${columnRuleWidth}px);`;
         transformContainerCss += `margin-inline-start:calc(var(${ViewportCssVariableNames.ContentColumnGap}) / 2);`;
         transformContainerCss += `border-left: ${columnRuleWidth}px solid var(${Theme.ColumnRuleColor});`;
@@ -159,12 +159,17 @@ export class HtmlContainerBuilder {
         transformContainerCss += `.renderer.${HtmlSettings.WritingVerticalClassName}.${HtmlSettings.FlipPageClassName}.${HtmlSettings.TransformPagesClassName} .${HtmlSettings.FileContentContainerClassName}{`;
         transformContainerCss += "flex-shrink:0;height:auto;max-height:none;overflow:visible;";
         transformContainerCss += `width:var(${ViewportCssVariableNames.ContentWrapperWidth});`;
-        transformContainerCss += "padding-inline-end:0;margin-inline-end:0;border-right:none;";
+        transformContainerCss += "padding-inline:0;margin-inline:0;border-right:none;";
         transformContainerCss += `padding-block-end:calc(var(${ViewportCssVariableNames.ContentColumnGap}) / 2);`;
         transformContainerCss += `margin-block-end:calc(var(${ViewportCssVariableNames.ContentColumnGap}) / 2);`;
         transformContainerCss += "}";
         transformContainerCss += `.renderer.${HtmlSettings.WritingVerticalClassName}.${HtmlSettings.FlipPageClassName}.${HtmlSettings.TransformPagesClassName} .${HtmlSettings.FileContentContainerClassName}:last-child{`;
         transformContainerCss += "padding-block-end:0;margin-block-end:0;";
+        transformContainerCss += "}";
+
+        transformContainerCss += `.renderer.${HtmlSettings.WritingVerticalClassName}.${HtmlSettings.WritingVerticalRlClassName}.${HtmlSettings.FlipPageClassName}.${HtmlSettings.TransformPagesClassName} .${HtmlSettings.FileContentContainerClassName}`;
+        transformContainerCss += "{";
+        transformContainerCss += "border:none;";
         transformContainerCss += "}";
 
         return { contentsContainer, transformContainer, contentsContainerCss, transformContainerCss, contentContainerCss };
