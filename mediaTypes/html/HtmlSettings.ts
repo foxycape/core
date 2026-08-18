@@ -20,6 +20,14 @@ export class HtmlSettings {
     /** CSS class name for slide flip pages */
     static readonly TransformPagesClassName = "transform-pages";
 
+    static readonly WritingVerticalClassName = "writing-vertical";
+    static readonly WritingVerticalRlClassName = "writing-vertical-rl";
+    static readonly WritingVerticalLrClassName = "writing-vertical-lr";
+    static readonly FlipScrollClassName = "flip-scroll";
+    static readonly FlipPageClassName = "flip-page";
+    static readonly RtlProgressionClassName = "rtl-progression";
+    static readonly DocumentVerticalPageModeCssName = "document-vertical-page-mode";
+
     /** Attribute name for the original link value */
     static readonly LinkOriginHrefPropertyName = "lhx-origin-data-url";
 

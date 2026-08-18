@@ -7,7 +7,7 @@ import { emptyElement } from "./html/dom";
 import { createElement, injectCssContent } from "./html/injector";
 import { ILoading } from "./services/loading/ILoading";
 import { INotifier } from "./services/notifier/INotifier";
-import { ServiceCollection, ServiceMap } from "./services/ServiceCollection";
+import { ServiceCollection, ServiceMap, UI_SERVICE_KEYS, type UiServiceMap } from "./services/ServiceCollection";
 import { IRenderer } from "./IRenderer";
 import { ILogger } from "./logger/ILogger";
 import { OpenOptions } from "./OpenOptions";
@@ -24,6 +24,9 @@ import type { LifecycleHooks } from "./LifecycleHooks";
 import { IFileParser } from "./IFileParser";
 import { IDocumentsProvider } from "./IDocumentsProvider";
 import { IReadingProgressStore } from "./progress/IReadingProgressStore";
+
+export type ReaderServices = CoreServices & Partial<UiServiceMap>;
+
 export class Reader implements LifecycleHooks {
     readonly version: string;
     readonly fileLoader: FileLoader;
@@ -69,9 +72,17 @@ export class Reader implements LifecycleHooks {
     onProgressChangeGuard?: (progress: number) => boolean;
     onBeforeRedirect?: (documentsProvider: IDocumentsProvider) => Promise<void>;
 
-    constructor(options: Options, services?: CoreServices) {
+    constructor(options: Options, services?: ReaderServices) {
         this.fileLoader = new FileLoader(options, services, this);
-        this.fileLoader.services.asReaderServices().registerUiServices();
+        if (services) {
+            for (const key of UI_SERVICE_KEYS) {
+                const instance = services[key];
+                if (instance !== undefined) {
+                    this.services.add(key, () => instance as ServiceMap[typeof key]);
+                }
+            }
+        }
+        this.services.registerUiServices();
         this.options = this.fileLoader.options;
         this.version = this.fileLoader.version;
         this.logger = this.fileLoader.loggerFactory.getLogger(this.constructor.name);

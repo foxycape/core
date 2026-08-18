@@ -6,13 +6,21 @@ import type { Direction, FlipMode, FlipPageStyle, SymbolType, WritingMode } from
  */
 export class HtmlOptions {
     
-    /** Writing mode */
+    /**
+     * Writing mode.
+     * vertical-rl / vertical-lr: scroll on X; page mode slices along Y.
+     * Left/right progression of vertical writing is decided only by rl vs lr.
+     */
     writingMode: WritingMode="horizontal-tb";
 
-    /** Text direction */
+    /**
+     * Inline text direction.
+     * Affects page progression only for horizontal-tb (rtl = next page to the right).
+     * Ignored for vertical-rl / vertical-lr progression.
+     */
     direction: Direction="ltr";
 
-    /** Flip mode: auto-web prefers scroll, mobile prefers page; scroll - continuous scroll, page - paginated */
+    /** Flip mode: scroll - continuous (vertical writing scrolls horizontally); page - horizontal slices on X, vertical writing slices on Y */
     flipMode: FlipMode = "scroll";
 
     /** Number of layout columns, default: 1 */
@@ -64,7 +72,7 @@ export class HtmlOptions {
     enableContentWrapperBorderRadius: boolean = true;
 
     /** Content margin */
-    contentsShadowMargin: number = 10;
+    contentsShadowMargin: number = 20;
 
     /** Number of files to preload (how many files above and below the current file) */
     preloadFileCount: number = 1;

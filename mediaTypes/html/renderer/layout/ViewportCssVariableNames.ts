@@ -4,11 +4,11 @@
 export class ViewportCssVariableNames {
     /**All content container width*/
     static readonly ContentsContainerWidth = "--contents-container-width";
-    static readonly ContentsContainerOffsetLeft = "--contents-container-offsetleft";
     /**All content container spacing */
     static readonly ContentsContainerPadding = "--contents-container-padding";
 
     static readonly ScrollElementOverflow = "--scroll-element-overflow";
+    static readonly ScrollElementOverflowX = "--scroll-element-overflow-x";
     static readonly ScrollElementVerticalScrollBarWidth = "--scroll-element-vertial-scrollbar-width";
     static readonly ScrollElementHorizontalScrollBarHeight = "--scroll-element-horizontal-scrollbar-height";
 

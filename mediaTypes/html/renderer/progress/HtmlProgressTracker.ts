@@ -9,6 +9,7 @@ import { IHtmlDocumentsProvider } from "../IHtmlDocumentsProvider";
 import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSymbolCalclator } from "../document/HtmlSymbolCalclator";
 import { getAdjacentText } from "./adjacent";
+import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
 
 export class HtmlProgressTracker implements IHtmlProgressTracker {
     private readonly logger: ILogger;
@@ -101,12 +102,18 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
         }
 
         const location = this.createElementLocation(firstVisibleDocument, firstVisibleElement);
-        location.offsetTop = this.calcVisibleElementOffsetTop(firstVisibleElement, firstVisibleDocument, !!fullscreenElement);
+        const flow = resolveLayoutFlow(this.options);
+        if (flow.blockAxis == "x") {
+            location.offsetLeft = this.calcVisibleElementOffsetLeft(firstVisibleElement, firstVisibleDocument, !!fullscreenElement);
+        }
+        else {
+            location.offsetTop = this.calcVisibleElementOffsetTop(firstVisibleElement, firstVisibleDocument, !!fullscreenElement);
+        }
         location.precise = true;
         location.ignoreOverlayHeader = true;
         location.scrollBehavior = "smooth";
         location.text = getAdjacentText(this.documentsProvider, this.options.htmlBlockTags, firstVisibleDocument.extension, firstVisibleElement);
-        if (this.options.flipMode === "page") {
+        if (flow.flipMode === "page") {
             const pageNumber = this.documentsProvider.getCurrentPageNumber(firstVisibleDocument);
             const numberOfPages = await firstVisibleDocument.getNumberOfPages();
             location.unit = "page";
@@ -158,6 +165,26 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
         return offsetTop || undefined;
     }
 
+    private calcVisibleElementOffsetLeft(element: Element, doc: IHtmlDocument, isFullscreen: boolean): number | undefined {
+        if (isFullscreen) {
+            return 50;
+        }
+
+        const elementRect = element.getBoundingClientRect();
+        const iframe = doc.getContentContainer()?.ownerDocument?.defaultView?.frameElement as HTMLElement | null;
+        const iframeRectLeft = iframe?.getBoundingClientRect().left ?? 0;
+        let offsetLeft = resolveLayoutFlow(this.options).flipMode === "scroll"
+            ? elementRect.left + iframeRectLeft
+            : elementRect.left;
+
+        const scrollElement = this.documentsProvider.getScrollElement();
+        if (scrollElement) {
+            offsetLeft -= scrollElement.getBoundingClientRect().left;
+        }
+
+        return offsetLeft || undefined;
+    }
+
     private async getPassedPercentage(url: string, target: Element | number | { tagName: string, tagIndex: number }, shouldCheckFinished?: boolean) {
         const spineFiles = await this.documentsProvider.fileParser.getSpineFiles();
         const index = !isNullOrWhiteSpace(url) && !isNaN(url as any) ? parseInt(url) : spineFiles.findIndex(x => x.url == url);
@@ -192,7 +219,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
             if (target < 1) {
                 return target;
             }
-            if (this.options.flipMode === "scroll") {
+            if (resolveLayoutFlow(this.options).flipMode === "scroll") {
                 return target <= 1 ? target : 0;
             }
             await doc.load();

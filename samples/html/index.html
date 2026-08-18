@@ -110,6 +110,10 @@
         cursor: default;
       }
 
+      #select-writing-mode {
+        min-width: 148px;
+      }
+
       .controls input[type="color"] {
         padding: 2px;
         width: 42px;
@@ -184,6 +188,23 @@
             <button id="btn-layout-scroll" type="button" class="active" data-flip-mode="scroll">Scroll</button>
             <button id="btn-layout-page" type="button" data-flip-mode="page">Paged</button>
           </div>
+        </div>
+
+        <div class="control-group">
+          <label for="select-writing-mode">Writing Mode</label>
+          <select id="select-writing-mode">
+            <option value="horizontal-tb" selected>horizontal-tb</option>
+            <option value="vertical-rl">vertical-rl</option>
+            <option value="vertical-lr">vertical-lr</option>
+          </select>
+        </div>
+
+        <div class="control-group" id="direction-control">
+          <label for="select-direction">Direction</label>
+          <select id="select-direction">
+            <option value="ltr" selected>ltr</option>
+            <option value="rtl">rtl</option>
+          </select>
         </div>
 
         <div class="control-group" id="columns-control" hidden>

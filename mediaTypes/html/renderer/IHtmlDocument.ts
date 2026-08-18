@@ -1,4 +1,4 @@
-import { IDocument } from "../../../kernal";
+import { IDocument, LocationState } from "../../../kernal";
 
 export interface IHtmlDocument extends IDocument {
     /**
@@ -28,4 +28,13 @@ export interface IHtmlDocument extends IDocument {
      * @param fullVisibleInWindow when true, only fully contained elements are returned.
      */
     getVisibleElements(fullVisibleInWindow?: boolean): Element[];
+
+    /** Recalculate iframe min-width / min-height from the current writing flow. */
+    resetLayoutSizes(): void;
+
+    /** Snapshot scroll / transform before this document's wrapper size changes. */
+    captureLayoutState(): LocationState;
+
+    /** Re-apply a captured viewport after this document's wrapper size changed. */
+    restoreLayoutState(locationState: LocationState): Promise<void>;
 }

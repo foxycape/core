@@ -71,7 +71,6 @@ export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
         ) as HTMLElement;
 
         if (page) {
-            let contentContainerWrapperOffsetLeft: string;
             let rendererWidthNumber: number;
 
             if (page.parentElement?.classList.contains("spread")) {
@@ -99,11 +98,8 @@ export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
                 } else {
                     rendererWidthNumber = firstPageWidth;
                 }
-                contentContainerWrapperOffsetLeft =
-                    firstPageOffsetLeft - rendererLeftNumber + "px";
             } else {
                 rendererWidthNumber = page.clientWidth;
-                contentContainerWrapperOffsetLeft = page.offsetLeft - rendererLeftNumber + "px";
             }
 
             const contentContainerWrapperWidth = rendererWidthNumber + "px";
@@ -113,10 +109,6 @@ export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
                 rendererContainer.offsetHeight - rendererContainer.clientHeight;
 
             vars.set(PdfCssVariableNames.ContentsContainerWidth, contentContainerWrapperWidth);
-            vars.set(
-                PdfCssVariableNames.ContentsContainerOffsetLeft,
-                contentContainerWrapperOffsetLeft,
-            );
             vars.set(
                 PdfCssVariableNames.ScrollElementVerticalScrollBarWidth,
                 scrollElementVerticalScrollBarWidth + "px",

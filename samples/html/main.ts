@@ -1,4 +1,4 @@
-import type { ColorMode, FlipMode, IThemeProvider } from '../../kernal'
+import type { ColorMode, Direction, FlipMode, IThemeProvider, WritingMode } from '../../kernal'
 import {
   FilePackage,
   Options,
@@ -22,6 +22,9 @@ const btnReload = document.querySelector<HTMLButtonElement>('#btn-reload')
 const fileInput = document.querySelector<HTMLInputElement>('#file-input')
 const btnLayoutScroll = document.querySelector<HTMLButtonElement>('#btn-layout-scroll')
 const btnLayoutPage = document.querySelector<HTMLButtonElement>('#btn-layout-page')
+const selectWritingMode = document.querySelector<HTMLSelectElement>('#select-writing-mode')
+const directionControl = document.querySelector<HTMLElement>('#direction-control')
+const selectDirection = document.querySelector<HTMLSelectElement>('#select-direction')
 const columnsControl = document.querySelector<HTMLElement>('#columns-control')
 const selectColumns = document.querySelector<HTMLSelectElement>('#select-columns')
 const selectStylePreset = document.querySelector<HTMLSelectElement>('#select-style-preset')
@@ -40,6 +43,9 @@ if (
   !fileInput ||
   !btnLayoutScroll ||
   !btnLayoutPage ||
+  !selectWritingMode ||
+  !directionControl ||
+  !selectDirection ||
   !columnsControl ||
   !selectColumns ||
   !selectStylePreset ||
@@ -266,6 +272,8 @@ const setBusy = (isBusy: boolean) => {
     fileInput,
     btnLayoutScroll,
     btnLayoutPage,
+    selectWritingMode,
+    selectDirection,
     selectColumns,
     selectStylePreset,
     selectLayoutPreset,
@@ -281,11 +289,24 @@ const setBusy = (isBusy: boolean) => {
   btnReload.disabled = isBusy || !lastTarget
 }
 
+const isVerticalWriting = (writingMode: WritingMode) =>
+  writingMode === 'vertical-rl' || writingMode === 'vertical-lr'
+
+const describeLayout = () =>
+  `flipMode=${htmlOptions.flipMode}, writingMode=${htmlOptions.writingMode}, direction=${htmlOptions.direction}, columns=${htmlOptions.autoColumns ? 'auto' : htmlOptions.columns}`
+
 const syncLayoutButtons = () => {
   const flipMode = htmlOptions.flipMode
+  const writingMode = htmlOptions.writingMode ?? 'horizontal-tb'
+  const direction = htmlOptions.direction ?? 'ltr'
   btnLayoutScroll.classList.toggle('active', flipMode === 'scroll')
   btnLayoutPage.classList.toggle('active', flipMode === 'page')
-  columnsControl.hidden = flipMode !== 'page'
+  selectWritingMode.value = writingMode
+  selectDirection.value = direction
+  columnsControl.hidden = flipMode !== 'page' || isVerticalWriting(writingMode)
+  directionControl.title = isVerticalWriting(writingMode)
+    ? 'Vertical writing ignores direction for scroll/page progression'
+    : 'rtl only reverses page progression in horizontal paged mode'
 }
 
 const syncFormFromPreset = (preset: StylePreset) => {
@@ -372,7 +393,7 @@ const openTarget = async (target: OpenTarget) => {
     lastTarget = target
     const documents = reader.getRenderer()?.getDocuments() ?? []
     setStatus(
-      `Loaded: ${target.label} (documents ${documents.length}, flipMode=${htmlOptions.flipMode}, columns=${htmlOptions.autoColumns ? 'auto' : htmlOptions.columns})`,
+      `Loaded: ${target.label} (documents ${documents.length}, ${describeLayout()})`,
       'ok',
     )
     syncLayoutButtons()
@@ -492,12 +513,60 @@ const changeFlipMode = async (flipMode: FlipMode) => {
   }
   setBusy(true)
   try {
-    await renderer.layout.changeFlipMode(flipMode)
+    await renderer.layout.changeLayout({ flipMode })
     syncLayoutButtons()
-    setStatus(`Layout switched to ${flipMode}`, 'ok')
+    setStatus(`Layout switched to ${flipMode} (${describeLayout()})`, 'ok')
   } catch (error) {
     console.error(error)
     setStatus(`Layout switch failed: ${error instanceof Error ? error.message : String(error)}`, 'error')
+  } finally {
+    setBusy(false)
+  }
+}
+
+const changeWritingMode = async (writingMode: WritingMode) => {
+  if (htmlOptions.writingMode === writingMode) {
+    return
+  }
+  const renderer = getHtmlRenderer()
+  if (!renderer) {
+    htmlOptions.writingMode = writingMode
+    syncLayoutButtons()
+    setStatus(`Writing mode set to ${writingMode} (takes effect on next load)`)
+    return
+  }
+  setBusy(true)
+  try {
+    await renderer.layout.changeLayout({ writingMode })
+    syncLayoutButtons()
+    setStatus(`Writing mode switched to ${writingMode} (${describeLayout()})`, 'ok')
+  } catch (error) {
+    console.error(error)
+    setStatus(`Writing mode switch failed: ${error instanceof Error ? error.message : String(error)}`, 'error')
+  } finally {
+    setBusy(false)
+  }
+}
+
+const changeDirection = async (direction: Direction) => {
+  if (htmlOptions.direction === direction) {
+    return
+  }
+  const renderer = getHtmlRenderer()
+  if (!renderer) {
+    htmlOptions.direction = direction
+    syncLayoutButtons()
+    setStatus(`Direction set to ${direction} (takes effect on next load)`)
+    return
+  }
+  setBusy(true)
+  try {
+    await renderer.layout.changeLayout({ direction })
+    syncLayoutButtons()
+    setStatus(`Direction switched to ${direction} (${describeLayout()})`, 'ok')
+  } catch (error) {
+    console.error(error)
+    setStatus(`Direction switch failed: ${error instanceof Error ? error.message : String(error)}`, 'error')
   } finally {
     setBusy(false)
   }
@@ -516,7 +585,7 @@ const changeColumns = async () => {
   }
   setBusy(true)
   try {
-    await renderer.layout.changeColumns({ columns, autoColumns })
+    await renderer.layout.changeLayout({ columns: { columns, autoColumns } })
     setStatus(`Columns switched to ${value}`, 'ok')
   } catch (error) {
     console.error(error)
@@ -554,6 +623,14 @@ btnLayoutScroll.addEventListener('click', () => {
 
 btnLayoutPage.addEventListener('click', () => {
   void changeFlipMode('page')
+})
+
+selectWritingMode.addEventListener('change', () => {
+  void changeWritingMode(selectWritingMode.value as WritingMode)
+})
+
+selectDirection.addEventListener('change', () => {
+  void changeDirection(selectDirection.value as Direction)
 })
 
 selectColumns.addEventListener('change', () => {

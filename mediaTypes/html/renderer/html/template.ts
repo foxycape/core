@@ -2,6 +2,7 @@ import { createElement } from "../../../../kernal/html/injector";
 import { formatFileSize } from "../../../../kernal/common/data";
 import { BrowserCapabilities } from "../../../../kernal/web/BrowserCapabilities";
 import { ViewportCssVariableNames } from "../layout/ViewportCssVariableNames";
+import type { LayoutFlow } from "../layout/resolveLayoutFlow";
 
 export const htmlTemplate = `<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><title></title></head><body>{custom-htmls}</body></html>`;
 export const getHtmlTemplate = (customHtmls: string) => {
@@ -12,7 +13,7 @@ export const getTooBigHtmlTemplate = (contentLength: number) => {
     return htmlTemplate.replace("{custom-htmls}", html);
 }
 
-export const createIframe = (ownerDocument: Document, iframeId: string,forceScroll: boolean): HTMLIFrameElement => {
+export const createIframe = (ownerDocument: Document, iframeId: string, forceScroll: boolean, flow?: LayoutFlow): HTMLIFrameElement => {
     const iframe = createElement(ownerDocument, "iframe", iframeId);
     if (BrowserCapabilities.isFirefox()) {
         iframe.setAttribute("src", "javascript:");
@@ -26,12 +27,22 @@ export const createIframe = (ownerDocument: Document, iframeId: string,forceScro
     iframe.setAttribute("width", "100%");
     iframe.setAttribute("height", "100%");
     iframe.setAttribute("style", "display:block");
-    if (forceScroll) {
+    if (flow?.iframeGrow == "width") {
+        // iframe.style.setProperty("width", "auto");
+        iframe.style.setProperty("width", "var(" + ViewportCssVariableNames.ContentContainerWidth + ")");
+        iframe.style.setProperty("height", "var(" + ViewportCssVariableNames.ContentContainerHeight + ")");
+    }
+    else if (flow?.iframeGrow == "height") {
+        iframe.style.setProperty("width", "var(" + ViewportCssVariableNames.ContentContainerWidth + ")");
+        iframe.style.setProperty("height", "auto");
+    }
+    else if (forceScroll) {
         iframe.style.setProperty("width", "100%");
+        iframe.style.setProperty("height", "var(" + ViewportCssVariableNames.ContentContainerHeight + ")");
     }
     else {
         iframe.style.setProperty("width", "var(" + ViewportCssVariableNames.ContentContainerWidth + ")");
+        iframe.style.setProperty("height", "var(" + ViewportCssVariableNames.ContentContainerHeight + ")");
     }
-    iframe.style.setProperty("height", "var(" + ViewportCssVariableNames.ContentContainerHeight + ")");
     return iframe;
 }
