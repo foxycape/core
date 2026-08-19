@@ -108,7 +108,7 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
         }
     };
 
-    private createLoadingLayer(displayLogo: boolean, totalImageCount?: number, processedImageCount?: number) {
+    protected createLoadingLayer(displayLogo: boolean, totalImageCount?: number, processedImageCount?: number) {
         const doc = this.wrapperContainer.ownerDocument;
         const loadingLayer = doc.createElement("div");
         loadingLayer.setAttribute("data-type", "loading-layer");

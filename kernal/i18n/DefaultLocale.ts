@@ -6,9 +6,6 @@ export class DefaultLocale implements ILocale {
     constructor() {
 
     }
-    async initialize(): Promise<void> {
-        //do nothing
-    }
 
     onLanguageChange(listener: LocaleChangeListener): () => void {
         this.listeners.add(listener);

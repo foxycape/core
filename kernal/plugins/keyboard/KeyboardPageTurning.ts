@@ -1,5 +1,5 @@
 import hotkeys, { HotkeysEvent } from "hotkeys-js";
-import { asyncDebounce } from "../../Debounce";
+import { asyncDebounce } from "../../web/debounce";
 import { EventNames } from "../../EventNames";
 import type { IDocument } from "../../IDocument";
 import { PluginCore } from "../PluginCore";
@@ -57,7 +57,7 @@ export class KeyboardPageTurning extends PluginCore {
     }
 
     get supportedExtensions(): string[] {
-        return [".xml", ".xhtml", ".html",".epub",".mobi",".azw3",".fb2",".txt"];
+        return [".xml", ".xhtml", ".html", ".epub", ".mobi", ".azw3", ".fb2", ".txt", ".md"];
     }
 
     get supportedLanguages(): string[] {

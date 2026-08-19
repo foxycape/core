@@ -1,6 +1,6 @@
 import { convertArrayBufferToString } from "../../../../kernal/common/encoding";
 import { parseNumber } from "../../../../kernal/common/number";
-import { isNullOrWhiteSpace, startsWith } from "../../../../kernal/common/text";
+import { isNullOrWhiteSpace } from "../../../../kernal/common/text";
 import { checkIsAbsoluteUrl, checkIsBlobUrl } from "../../../../kernal/common/url";
 import { compareTagName, getDocumentBody } from "../../../../kernal/html/finder";
 import { getImageSize } from "../../../../kernal/html/image";
@@ -25,40 +25,49 @@ import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { ContentLayoutCssVariableNames } from "../style/ContentLayoutCssVariableNames";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import errorImageUrl from "./error-image.png";
+import placeholderImageUrl from "./placeholder.png";
 import { IHtmlImageLoader } from "./IHtmlImageLoader";
 
 const SVG_STYLE_CLASS = "lhx-svg";
-const IMAGE_SIZES_TABLE_PREFIX = "imageSizes-";
+const IMAGE_SIZES_TABLE_PREFIX = "imagesizes-";
 const PRELOAD_IMAGE_COUNT = 5;
+const SVG_STYLE = `.${SVG_STYLE_CLASS} {width: 100% !important; height: auto !important; }`;
 
 type ImageSizeDescriptor = {
     url: string;
     width: number;
     height: number;
-    checked: boolean;
-};
-
-type ImageSizesSummary = {
-    total: number;
-    checkedCount: number;
-    descriptors: Map<string, ImageSizeDescriptor>;
 };
 
 type ImageElement = HTMLImageElement | SVGImageElement;
 
-type ResetImageSizeTask = {
-    image: ImageElement;
-    columnWidth: number;
-    columnHeight: number;
+const collectImageElements = (root: Document | Element): ImageElement[] => [
+    ...root.getElementsByTagName("img"),
+    ...root.getElementsByTagName("image"),
+] as ImageElement[];
+
+const isSvgImageElement = (element: Element) => compareTagName(element.tagName, "IMAGE");
+
+const applyStyles = (element: Element, styles: Record<string, string>, important = false) => {
+    const style = (element as HTMLElement | SVGElement).style;
+    if (!style) {
+        const cssText = Object.entries(styles)
+            .map(([name, value]) => important ? `${name}:${value} !important` : `${name}:${value}`)
+            .join(";");
+        element.setAttribute("style", cssText);
+        return;
+    }
+    for (const [name, value] of Object.entries(styles)) {
+        style.setProperty(name, value, important ? "important" : "");
+    }
 };
 
 export class HtmlImageLoader implements IHtmlImageLoader {
-    private readonly documentImageSizesSummaries = new Map<Document, ImageSizesSummary>();
+    private readonly documentImageSizeMaps = new Map<IDocument, Map<string, ImageSizeDescriptor>>();
     private readonly blobUrls = new Map<IDocument, string[]>();
     private readonly events: IEventEmitter;
     private readonly logger: ILogger;
     private isDisposed = false;
-    private resetImageSizeTasks: ResetImageSizeTask[] = [];
 
     constructor(
         private readonly documentsProvider: IDocumentsProvider<IHtmlDocument>,
@@ -84,6 +93,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
 
     private onDocumentDisposing = (doc: IDocument) => {
         this.revokeDocumentBlobUrls(doc);
+        this.documentImageSizeMaps.delete(doc);
     };
 
     private addBlobUrl(doc: IDocument, url: string) {
@@ -91,10 +101,12 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             return;
         }
         const list = this.blobUrls.get(doc);
-        if (list) {
-            list.push(url);
-        } else {
+        if (!list) {
             this.blobUrls.set(doc, [url]);
+            return;
+        }
+        if (list.indexOf(url) < 0) {
+            list.push(url);
         }
     }
 
@@ -109,8 +121,27 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         this.blobUrls.delete(doc);
     }
 
+    private removeTrackedBlobUrl(doc: IDocument, url: string) {
+        const list = this.blobUrls.get(doc);
+        if (!list) {
+            return;
+        }
+        const next = list.filter((item) => item != url);
+        if (next.length == 0) {
+            this.blobUrls.delete(doc);
+            return;
+        }
+        this.blobUrls.set(doc, next);
+    }
+
     private onImageElementsVisible = async (map: Map<IHtmlDocument, Element[]>) => {
+        if (this.isDisposed) {
+            return;
+        }
         for (const [doc, elements] of map.entries()) {
+            if (this.isDisposed) {
+                return;
+            }
             await this.loadImages(doc, elements);
         }
     };
@@ -122,7 +153,13 @@ export class HtmlImageLoader implements IHtmlImageLoader {
     };
 
     private resetAllImageSize = async () => {
+        if (this.isDisposed) {
+            return;
+        }
         for (const doc of this.documentsProvider.getLoadedDocuments()) {
+            if (this.isDisposed) {
+                return;
+            }
             await this.resetImageSize(doc);
         }
     };
@@ -140,52 +177,45 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             return;
         }
         await this.prepareImageSize(htmlDocument, ownerDocument);
-        await this.setImagePreviewUrl(ownerDocument);
+        this.setImagePreviewUrl(ownerDocument);
     }
 
-    private async setImagePreviewUrl(virtualDocument: Document): Promise<void> {
-        const { default: placeholderImageUrl } = await import("./placeholder.png");
-        const images = virtualDocument.getElementsByTagName("img");
-        const svgImages = virtualDocument.getElementsByTagName("image");
-
-        for (let i = 0; i < images.length; i++) {
-            this.applyPreviewUrl(images[i], images[i].getAttribute("src"), placeholderImageUrl, false);
-        }
-        for (let i = 0; i < svgImages.length; i++) {
-            const svgImage = svgImages[i];
-            const svgImageUrl = svgImage.getAttribute("xlink:href") ?? svgImage.getAttribute("href");
-            this.applyPreviewUrl(svgImage, svgImageUrl, placeholderImageUrl, true);
+    private setImagePreviewUrl(virtualDocument: Document) {
+        const images = collectImageElements(virtualDocument);
+        for (const image of images) {
+            this.applyPreviewUrl(image, this.getImageUrl(image));
         }
     }
 
-    private applyPreviewUrl(
-        element: ImageElement,
-        imageUrl: string | null,
-        placeholderImageUrl: string,
-        isSvgImage: boolean
-    ) {
-        let currentPreviewUrl = element.getAttribute("data-preview-src");
-        if (isNullOrWhiteSpace(currentPreviewUrl)) {
-            currentPreviewUrl = placeholderImageUrl;
+    private applyPreviewUrl(element: ImageElement, imageUrl: string) {
+        let previewUrl = element.getAttribute("data-preview-src");
+        if (isNullOrWhiteSpace(previewUrl)) {
+            previewUrl = placeholderImageUrl;
             element.setAttribute("data-preview-src", placeholderImageUrl);
         }
 
-        if (imageUrl != placeholderImageUrl) {
+        if (!isNullOrWhiteSpace(imageUrl) && imageUrl != placeholderImageUrl) {
             const currentDataSrc = element.getAttribute("data-src");
             if (currentDataSrc != placeholderImageUrl) {
-                element.setAttribute("data-src", imageUrl ?? "");
+                element.setAttribute("data-src", imageUrl);
             }
-        } else {
-            element.removeAttribute("data-loaded");
         }
 
-        if (isSvgImage) {
-            element.setAttribute("xlink:href", currentPreviewUrl);
-        } else {
-            (element as HTMLImageElement).src = currentPreviewUrl;
-        }
+        this.setImageSource(element, previewUrl);
         element.setAttribute("data-preset-preview-url", "true");
         this.setImageStyle(element);
+    }
+
+    private setImageSource(element: ImageElement, url: string) {
+        if (compareTagName(element.tagName, "IMG")) {
+            (element as HTMLImageElement).src = url;
+            return;
+        }
+        if (BrowserCapabilities.isSafari()) {
+            (element as SVGImageElement).href.baseVal = url;
+            return;
+        }
+        element.setAttribute("xlink:href", url);
     }
 
     private setImageStyle(element: ImageElement) {
@@ -199,24 +229,18 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         }
     }
 
-    private prepareImageSize = async (doc: IHtmlDocument, virtualDocument: Document): Promise<void> => {
-        const css = `.${SVG_STYLE_CLASS} {width: 100% !important; height: auto !important; }`;
-        injectCssContent(virtualDocument, css, false, "lhx-svg-style");
+    private async prepareImageSize(doc: IHtmlDocument, virtualDocument: Document): Promise<void> {
+        injectCssContent(virtualDocument, SVG_STYLE, false, "lhx-svg-style");
 
-        const images: ImageElement[] = [
-            ...virtualDocument.getElementsByTagName("img"),
-            ...virtualDocument.getElementsByTagName("image"),
-        ] as ImageElement[];
-        const imageSizesSummary = this.getImageSizesSummary(virtualDocument);
-        imageSizesSummary.total = images.length;
-
-        const documents = this.documentsProvider.getDocuments();
-        const docIndex = documents.indexOf(doc);
-        const resourceId = this.getResourceId();
-        const storage = await this.getStorage();
-        let imageSizes: ImageSizeDescriptor[] | null = null;
-        if (docIndex >= 0 && storage && resourceId) {
-            imageSizes = await storage.get(IMAGE_SIZES_TABLE_PREFIX + resourceId, docIndex.toString());
+        const images = collectImageElements(virtualDocument);
+        const sizeMap = this.getImageSizeMap(doc);
+        const cachedSizes = await this.loadCachedImageSizes(doc);
+        if (cachedSizes) {
+            for (const item of cachedSizes) {
+                if (!isNullOrWhiteSpace(item.url) && item.width > 0) {
+                    sizeMap.set(item.url, item);
+                }
+            }
         }
 
         const requireEmitProgress = images.length > 100;
@@ -230,9 +254,9 @@ export class HtmlImageLoader implements IHtmlImageLoader {
                     image.parentElement.classList.add(SVG_STYLE_CLASS);
                 }
                 const imageUrl = this.getImageUrl(image);
-                let imageSize = imageSizes?.find((x) => x.url == imageUrl);
+                let imageSize = imageUrl ? sizeMap.get(imageUrl) : undefined;
                 if (!imageSize) {
-                    imageSize = await this.prefetchImageSize(doc, image, true);
+                    imageSize = await this.prefetchImageSize(doc, image);
                 }
                 if (imageSize) {
                     this.resetImageStyles(image, imageSize.width, imageSize.height);
@@ -251,20 +275,32 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             }
         }
 
-        if (docIndex >= 0 && storage && resourceId) {
-            await this.persistImageSizes(storage, resourceId, docIndex.toString(), imageSizes, imageSizesSummary);
+        await this.persistImageSizes(doc, cachedSizes, sizeMap);
+    }
+
+    private async loadCachedImageSizes(doc: IHtmlDocument): Promise<ImageSizeDescriptor[] | null> {
+        const docKey = this.getStorageDocKey(doc);
+        const storage = await this.getStorage();
+        const resourceId = this.getResourceId();
+        if (!docKey || !storage || !resourceId) {
+            return null;
         }
-    };
+        return await storage.get(IMAGE_SIZES_TABLE_PREFIX + resourceId, docKey);
+    }
 
     private async persistImageSizes(
-        storage: IStorage,
-        resourceId: string,
-        docKey: string,
+        doc: IHtmlDocument,
         existing: ImageSizeDescriptor[] | null,
-        summary: ImageSizesSummary
+        sizeMap: Map<string, ImageSizeDescriptor>
     ) {
-        const newImageSizes = Array.from(summary.descriptors.values()).filter((x) => x.width > 0);
+        const newImageSizes = Array.from(sizeMap.values()).filter((x) => x.width > 0 && !isNullOrWhiteSpace(x.url));
         if (newImageSizes.length == 0) {
+            return;
+        }
+        const docKey = this.getStorageDocKey(doc);
+        const storage = await this.getStorage();
+        const resourceId = this.getResourceId();
+        if (!docKey || !storage || !resourceId) {
             return;
         }
         const tableName = IMAGE_SIZES_TABLE_PREFIX + resourceId;
@@ -272,12 +308,16 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             const urls = new Set(existing.map((x) => x.url));
             const diff = newImageSizes.filter((x) => !urls.has(x.url));
             if (diff.length > 0) {
-                existing.push(...diff);
-                await storage.set(tableName, docKey, existing);
+                await storage.set(tableName, docKey, existing.concat(diff));
             }
-        } else {
-            await storage.set(tableName, docKey, newImageSizes);
+            return;
         }
+        await storage.set(tableName, docKey, newImageSizes);
+    }
+
+    private getStorageDocKey(doc: IHtmlDocument): string | undefined {
+        const docIndex = this.documentsProvider.getDocuments().indexOf(doc);
+        return docIndex >= 0 ? docIndex.toString() : undefined;
     }
 
     private getResourceId(): string {
@@ -289,45 +329,46 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         return await this.documentsProvider.owner.services.get("storage");
     }
 
-    private getImageSizesSummary(ownerDocument: Document): ImageSizesSummary {
-        let summary = this.documentImageSizesSummaries.get(ownerDocument);
-        if (!summary) {
-            summary = { total: 0, checkedCount: 0, descriptors: new Map() };
-            this.documentImageSizesSummaries.set(ownerDocument, summary);
+    private getImageSizeMap(doc: IDocument): Map<string, ImageSizeDescriptor> {
+        let sizeMap = this.documentImageSizeMaps.get(doc);
+        if (!sizeMap) {
+            sizeMap = new Map();
+            this.documentImageSizeMaps.set(doc, sizeMap);
         }
-        return summary;
+        return sizeMap;
     }
 
-    private getImageUrl = (image: ImageElement) => {
-        const presetPreviewUrl = image.getAttribute("data-preset-preview-url") == "true";
-        if (compareTagName(image.tagName, "IMAGE")) {
-            if (presetPreviewUrl) {
+    private getImageUrl(image: ImageElement): string {
+        const useDataSrc = image.getAttribute("data-preset-preview-url") == "true";
+        if (isSvgImageElement(image)) {
+            if (useDataSrc) {
                 return image.getAttribute("data-src")
                     ?? image.getAttribute("xlink:href")
-                    ?? image.getAttribute("href");
+                    ?? image.getAttribute("href")
+                    ?? "";
             }
-            return image.getAttribute("xlink:href") ?? image.getAttribute("href");
+            return image.getAttribute("xlink:href") ?? image.getAttribute("href") ?? "";
         }
-        if (presetPreviewUrl) {
-            return image.getAttribute("data-src");
+        if (useDataSrc) {
+            return image.getAttribute("data-src") ?? "";
         }
-        return image.getAttribute("src");
-    };
+        return image.getAttribute("src") ?? "";
+    }
 
-    private async prefetchImageSize(doc: IHtmlDocument, image: ImageElement, required: boolean) {
+    private async prefetchImageSize(doc: IHtmlDocument, image: ImageElement) {
         const imageUrl = this.getImageUrl(image);
+        if (isNullOrWhiteSpace(imageUrl)) {
+            return undefined;
+        }
+
         const imageWidth = image.getAttribute("data-width");
-        if (imageWidth != undefined) {
-            const imageHeight = parseNumber(image.getAttribute("data-height"), 0);
-            return this.addImageDescriptor(image, imageUrl, parseNumber(imageWidth, 0), imageHeight, true);
+        if (imageWidth != null) {
+            const width = parseNumber(imageWidth, 0);
+            const height = parseNumber(image.getAttribute("data-height"), 0);
+            return this.addImageDescriptor(doc, imageUrl, width, height);
         }
 
-        if (!required) {
-            return this.addImageDescriptor(image, imageUrl, 0, 0, false);
-        }
-
-        const imageSizesSummary = this.getImageSizesSummary(image.ownerDocument);
-        const cached = imageSizesSummary.descriptors.get(imageUrl);
+        const cached = this.getImageSizeMap(doc).get(imageUrl);
         if (cached) {
             return cached;
         }
@@ -354,11 +395,11 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             this.logger.error(e);
         }
 
-        return this.addImageDescriptor(image, imageUrl, width, height, width <= 0);
+        return this.addImageDescriptor(doc, imageUrl, width, height);
     }
 
-    private revokeObjectURL(imageUrl: string) {
-        if (!imageUrl || !startsWith(imageUrl, "blob:", true)) {
+    private revokeObjectURL(imageUrl: string, doc?: IDocument) {
+        if (!checkIsBlobUrl(imageUrl)) {
             return;
         }
         try {
@@ -366,32 +407,18 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         } catch {
             // ignore
         }
+        if (doc) {
+            this.removeTrackedBlobUrl(doc, imageUrl);
+        }
     }
 
-    private addImageDescriptor(
-        image: ImageElement,
-        imageUrl: string,
-        width: number,
-        height: number,
-        checked: boolean
-    ): ImageSizeDescriptor {
-        const imageSizesSummary = this.getImageSizesSummary(image.ownerDocument);
-        let descriptor = imageSizesSummary.descriptors.get(imageUrl);
-        if (!descriptor) {
-            descriptor = { url: imageUrl, width, height, checked };
-            if (checked) {
-                imageSizesSummary.checkedCount += 1;
-            }
-            imageSizesSummary.descriptors.set(imageUrl, descriptor);
-            return descriptor;
-        }
-        if (!descriptor.checked && checked) {
-            imageSizesSummary.checkedCount += 1;
-        }
+    private addImageDescriptor(doc: IDocument, imageUrl: string, width: number, height: number): ImageSizeDescriptor {
+        const sizeMap = this.getImageSizeMap(doc);
+        const descriptor = sizeMap.get(imageUrl) ?? { url: imageUrl, width, height };
+        descriptor.url = imageUrl;
         descriptor.width = width;
         descriptor.height = height;
-        descriptor.url = imageUrl;
-        descriptor.checked = checked;
+        sizeMap.set(imageUrl, descriptor);
         return descriptor;
     }
 
@@ -413,88 +440,47 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         };
     }
 
-    private resetImageStyles = (
-        image: ImageElement,
-        width: number,
-        height: number
-    ) => {
+    private resetImageStyles(image: ImageElement, width: number, height: number) {
         if (width <= 0 || height <= 0 || !BrowserCapabilities.supportCssAspectRatio()) {
             return;
         }
         this.setWidthAndHeight(image, width, height);
-        let targetElement: HTMLElement = image as HTMLElement;
-        if (compareTagName(image.tagName, "IMAGE")) {
-            targetElement = image.parentElement;
-        }
+        const targetElement: HTMLElement | null = isSvgImageElement(image)
+            ? image.parentElement
+            : image as HTMLElement;
         if (!targetElement) {
             return;
         }
         targetElement.setAttribute("width", `${width}`);
         targetElement.setAttribute("height", `${height}`);
         const aspectRatio = width / height;
-        const { columnWidth, columnHeight } = this.getColumnMetrics();
-        let maxHeight = height;
-        if (columnWidth > 0 && width > columnWidth) {
-            maxHeight = (columnWidth / width) * height;
-        }
-        const maxHeightValue = columnHeight > 0
-            ? `min(${maxHeight}px,${columnHeight}px)`
-            : `${maxHeight}px`;
         const widthValue = `calc(100% * var(${ContentLayoutCssVariableNames.MaxImageWidthRatio}))`;
-        if (targetElement.getAttribute("style")) {
-            targetElement.style.width = widthValue;
-            targetElement.style.height = "auto";
-            targetElement.style.maxWidth = widthValue;
-            targetElement.style.maxHeight = maxHeightValue;
-            targetElement.style.aspectRatio = `${aspectRatio}`;
-        } else {
-            targetElement.setAttribute(
-                "style",
-                `max-width:${widthValue};height:auto;max-height:${maxHeightValue};aspect-ratio:${aspectRatio};width:${widthValue}`
-            );
-        }
-    };
+        const maxHeightValue = `min(${height}px,var(${ContentLayoutCssVariableNames.ColumnHeight}),calc(var(${ContentLayoutCssVariableNames.ColumnWidth}) / ${width} * ${height}))`;
+        applyStyles(targetElement, {
+            width: widthValue,
+            height: "auto",
+            "max-width": widthValue,
+            "max-height": maxHeightValue,
+            "aspect-ratio": `${aspectRatio}`,
+        });
+    }
 
-    private resetImageWidthHeight = (task: ResetImageSizeTask) => {
-        if (task.image.style) {
-            task.image.style.setProperty("width", "auto", "important");
-            task.image.style.setProperty("max-width", "100%", "important");
-            task.image.style.setProperty("max-height", "100%", "important");
-        } else {
-            task.image.setAttribute("style", "width:auto !important;max-width:100% !important;max-height:100% !important");
-        }
-        this.resetImageHeight(task.image, task.columnWidth, task.columnHeight, this.htmlOptions.maxImageHeightRatio);
-    };
+    private resetImageWidthHeight(image: ImageElement, columnWidth: number, columnHeight: number) {
+        applyStyles(image, {
+            width: "auto",
+            "max-width": "100%",
+            "max-height": "100%",
+        }, true);
+        this.resetImageHeight(image, columnWidth, columnHeight, this.htmlOptions.maxImageHeightRatio);
+    }
 
-    private flushResetImageSizeTasks = async () => {
-        if (BrowserCapabilities.supportCssAspectRatio()) {
-            this.resetImageSizeTasks = [];
-            return;
-        }
-        while (this.resetImageSizeTasks.length > 0) {
-            if (this.isDisposed) {
-                this.resetImageSizeTasks = [];
-                return;
-            }
-            const task = this.resetImageSizeTasks.shift();
-            if (!task) {
-                break;
-            }
-            this.resetImageWidthHeight(task);
-            await yieldToMain();
-        }
-    };
-
-    resetImageSize = async (doc: IDocument) => {
+    private async resetImageSize(doc: IDocument) {
         const ownerDocument = doc.getContentContainer()?.ownerDocument;
         if (!ownerDocument || !getDocumentBody(ownerDocument)) {
             return;
         }
         const { columnWidth, columnHeight } = this.getColumnMetrics();
-        const images = [
-            ...ownerDocument.getElementsByTagName("img"),
-            ...ownerDocument.getElementsByTagName("image"),
-        ] as ImageElement[];
+        const images = collectImageElements(ownerDocument);
 
         if (this.checkIsOnlyOneImageInDocument(ownerDocument)) {
             const element = images[0];
@@ -503,15 +489,23 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             return;
         }
 
-        for (const image of images) {
-            this.resetImageSizeTasks.push({ image, columnWidth, columnHeight });
+        if (!BrowserCapabilities.supportCssAspectRatio()) {
+            for (const image of images) {
+                if (this.isDisposed) {
+                    return;
+                }
+                this.resetImageWidthHeight(image, columnWidth, columnHeight);
+                await yieldToMain();
+            }
         }
-        await this.flushResetImageSizeTasks();
 
         for (let i = 0; i < Math.min(PRELOAD_IMAGE_COUNT, images.length); i++) {
+            if (this.isDisposed) {
+                return;
+            }
             await this.loadSingleImage(doc as IHtmlDocument, images[i]);
         }
-    };
+    }
 
     private resetInlineImageSize(element: ImageElement) {
         const width = parseNumber(element.getAttribute("data-width"), 0);
@@ -520,38 +514,32 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             return;
         }
 
-        let foundInlineImage = false;
-        if (height <= 200) {
-            foundInlineImage = this.checkIsInlineImage(element, width, height).foundInlineImage;
-        } else {
+        if (height > 200) {
             const hasAdjacentText =
-                (element.previousSibling?.nodeType == Node.TEXT_NODE && element.previousSibling.textContent?.trim()?.length > 0)
-                || (element.nextSibling?.nodeType == Node.TEXT_NODE && element.nextSibling.textContent?.trim()?.length > 0);
-            if (hasAdjacentText) {
-                foundInlineImage = this.checkIsInlineImage(element, width, height).foundInlineImage;
+                (element.previousSibling?.nodeType == Node.TEXT_NODE && (element.previousSibling.textContent?.trim()?.length ?? 0) > 0)
+                || (element.nextSibling?.nodeType == Node.TEXT_NODE && (element.nextSibling.textContent?.trim()?.length ?? 0) > 0);
+            if (!hasAdjacentText) {
+                return;
             }
+        }
+        if (!this.isInlineImage(element)) {
+            return;
         }
 
         const targetElement = compareTagName(element.tagName, "IMG")
             ? (element as HTMLImageElement)
             : element.parentElement;
-        if (!foundInlineImage || !targetElement) {
+        if (!targetElement) {
             return;
         }
 
-        const actualHeight = "1em";
-        if (element.getAttribute("style")) {
-            element.style.setProperty("width", "auto", "important");
-            element.style.setProperty("max-width", "100%", "important");
-            element.style.setProperty("height", actualHeight, "important");
-            element.style.setProperty("margin-block-start", "0", "important");
-            element.style.setProperty("margin-block-end", "0", "important");
-        } else {
-            element.setAttribute(
-                "style",
-                `width:auto !important;max-width:100% !important;height:${actualHeight} !important;margin-block-start:0 !important;margin-block-end:0 !important;`
-            );
-        }
+        applyStyles(element, {
+            width: "auto",
+            "max-width": "100%",
+            height: "1em",
+            "margin-block-start": "0",
+            "margin-block-end": "0",
+        }, true);
         targetElement.style.setProperty("vertical-align", "-0.2em", "important");
         targetElement.setAttribute("data-inline-image", "true");
     }
@@ -567,22 +555,28 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             return;
         }
         body.setAttribute("data-handled-one-image", "true");
-        body.style.setProperty("display", "flex", "important");
-        body.style.setProperty("height", "100%", "important");
-        body.style.setProperty("justify-content", "center", "important");
-        body.style.setProperty("align-items", "center", "important");
+        applyStyles(body, {
+            display: "flex",
+            height: "100%",
+            "justify-content": "center",
+            "align-items": "center",
+        }, true);
 
         let targetElement: HTMLElement = element as HTMLImageElement;
         if (compareTagName(element.parentElement?.tagName, "SVG")) {
             targetElement = element.parentElement;
-            element.style.setProperty("width", "auto", "important");
-            element.style.setProperty("max-width", "100%", "important");
-            element.style.setProperty("max-height", columnHeight + "px", "important");
-            element.style.setProperty("display", "block", "important");
+            applyStyles(element, {
+                width: "auto",
+                "max-width": "100%",
+                "max-height": columnHeight + "px",
+                display: "block",
+            }, true);
         }
-        targetElement.style.setProperty("width", "auto", "important");
-        targetElement.style.setProperty("max-width", "100%", "important");
-        targetElement.style.setProperty("display", "block", "important");
+        applyStyles(targetElement, {
+            width: "auto",
+            "max-width": "100%",
+            display: "block",
+        }, true);
         if (targetElement.parentElement) {
             targetElement.parentElement.style.textAlign = "center";
         }
@@ -596,7 +590,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         maxImageHeightRatio: number,
         preferRatioNumber?: boolean
     ) {
-        const targetElement: HTMLElement | SVGElement | null = compareTagName(element.tagName, "IMAGE")
+        const targetElement: HTMLElement | SVGElement | null = isSvgImageElement(element)
             ? element.parentElement
             : element;
         if (!targetElement) {
@@ -620,17 +614,15 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         preferRatioNumber?: boolean
     ) {
         if (BrowserCapabilities.supportCssMinMaxFunction()) {
-            let styleValue: string;
-            if (maxImageHeightRatio && preferRatioNumber) {
-                styleValue = `min(calc(${height}px * ${maxImageHeightRatio}),calc(var(${ContentLayoutCssVariableNames.ColumnHeight}) * ${maxImageHeightRatio}),calc(var(${ContentLayoutCssVariableNames.ColumnWidth}) / ${width} * ${height} * ${maxImageHeightRatio}))`;
-            } else {
-                styleValue = `min(calc(${height}px * var(${ContentLayoutCssVariableNames.MaxImageHeightRatio})),calc(var(${ContentLayoutCssVariableNames.ColumnHeight}) * var(${ContentLayoutCssVariableNames.MaxImageHeightRatio})),calc(var(${ContentLayoutCssVariableNames.ColumnWidth}) / ${width} * ${height} * var(${ContentLayoutCssVariableNames.MaxImageHeightRatio})))`;
-            }
+            const ratio = preferRatioNumber && maxImageHeightRatio
+                ? `${maxImageHeightRatio}`
+                : `var(${ContentLayoutCssVariableNames.MaxImageHeightRatio})`;
+            const styleValue = `min(calc(${height}px * ${ratio}),calc(var(${ContentLayoutCssVariableNames.ColumnHeight}) * ${ratio}),calc(var(${ContentLayoutCssVariableNames.ColumnWidth}) / ${width} * ${height} * ${ratio}))`;
             element.style.setProperty("height", styleValue, "important");
-        } else {
-            const actualHeight = this.calcImageHeight(columnWidth, columnHeight, width, height) * maxImageHeightRatio;
-            element.style.setProperty("height", actualHeight + "px", "important");
+            return;
         }
+        const actualHeight = this.calcImageHeight(columnWidth, columnHeight, width, height) * maxImageHeightRatio;
+        element.style.setProperty("height", actualHeight + "px", "important");
     }
 
     private calcImageHeight(columnWidth: number, columnHeight: number, width: number, height: number) {
@@ -650,7 +642,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         if (!body || body.textContent.trim()) {
             return false;
         }
-        return body.getElementsByTagName("img").length == 1 || body.getElementsByTagName("image").length == 1;
+        return collectImageElements(body).length == 1;
     }
 
     private checkIsInlineTag(node: Node) {
@@ -661,26 +653,20 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         return this.htmlOptions.htmlInlineTags.indexOf(nodeName.toLowerCase()) >= 0;
     }
 
-    private checkIsInlineImage(
-        element: ImageElement,
-        _originWidth?: number,
-        originHeight?: number
-    ): { foundInlineImage: boolean; imageHeight: number } {
-        let { foundInlineImage, imageHeight } = this.getInlineImageProperties(element, originHeight);
-        if (foundInlineImage) {
-            return { foundInlineImage, imageHeight };
+    private isInlineImage(element: ImageElement): boolean {
+        if (this.hasInlineSiblings(element)) {
+            return true;
         }
-
         let parentElement = element.parentElement;
         let lastElement: Element = element;
         while (parentElement && !compareTagName(parentElement.tagName, "BODY")) {
             if (parentElement.children.length > 1 || (parentElement.children.length == 1 && parentElement.textContent.trim().length > 0)) {
-                return this.getInlineImageProperties(lastElement, originHeight);
+                return this.hasInlineSiblings(lastElement);
             }
             lastElement = parentElement;
             parentElement = parentElement.parentElement;
         }
-        return { foundInlineImage, imageHeight };
+        return false;
     }
 
     private findSiblingNodes(element: Element) {
@@ -707,76 +693,19 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         return { previousSiblingNode, nextSiblingNode };
     }
 
-    private getInlineImageProperties(element: Element, originHeight?: number) {
+    private hasInlineSiblings(element: Element) {
         const { previousSiblingNode, nextSiblingNode } = this.findSiblingNodes(element);
-        let foundInlineImage = false;
-        let imageHeight: number;
         if (!previousSiblingNode && !nextSiblingNode) {
-            return { foundInlineImage, imageHeight };
+            return false;
         }
-
-        const iframeWindow = previousSiblingNode?.ownerDocument?.defaultView
-            ?? nextSiblingNode?.ownerDocument?.defaultView;
-        let baselineElement: Element;
         if (previousSiblingNode?.nodeType == Node.TEXT_NODE && !isNullOrWhiteSpace(previousSiblingNode.nodeValue)) {
-            baselineElement = previousSiblingNode.parentElement;
-        } else if (nextSiblingNode?.nodeType == Node.TEXT_NODE && !isNullOrWhiteSpace(nextSiblingNode.nodeValue)) {
-            baselineElement = nextSiblingNode.parentElement;
-        } else if (previousSiblingNode && this.checkIsInlineTag(previousSiblingNode)) {
-            baselineElement = previousSiblingNode as Element;
-        } else if (nextSiblingNode && this.checkIsInlineTag(nextSiblingNode)) {
-            baselineElement = nextSiblingNode as Element;
-        }
-
-        if (!baselineElement) {
-            return { foundInlineImage, imageHeight };
-        }
-
-        const coefficient = 1.25;
-        const css = iframeWindow?.getComputedStyle(baselineElement);
-        let fontSize: number;
-        let lineHeight: number;
-        let currentHeight: number;
-        if (css) {
-            fontSize = parseFloat(css.fontSize);
-            lineHeight = parseFloat(css.lineHeight);
-            currentHeight = parseFloat(css.height);
-        } else {
-            fontSize = 20;
-            lineHeight = fontSize * coefficient;
-            currentHeight = lineHeight;
-        }
-
-        const maxLineHeight = lineHeight > fontSize * coefficient ? fontSize * coefficient : lineHeight;
-        if (this.checkElementIsFootnote(element)
-            || (compareTagName(element.parentElement?.tagName, "A")
-                && (compareTagName(element.parentElement?.parentElement?.tagName, "SUB")
-                    || compareTagName(element.parentElement?.parentElement?.tagName, "SUP")))) {
-            imageHeight = fontSize;
-        } else if (currentHeight && currentHeight <= maxLineHeight) {
-            imageHeight = currentHeight;
-        } else {
-            imageHeight = maxLineHeight;
-        }
-
-        if (originHeight && originHeight < imageHeight) {
-            imageHeight = originHeight;
-        }
-        foundInlineImage = true;
-        return { foundInlineImage, imageHeight };
-    }
-
-    private checkElementIsFootnote(element: Element): boolean {
-        if (element.getAttribute("class")?.indexOf("footnote") >= 0
-            || element.getAttribute("epub:type") == "noteref"
-            || compareTagName(element.tagName, "SUB")
-            || compareTagName(element.tagName, "SUP")) {
             return true;
         }
-        if (element.children.length > 0) {
-            return this.checkElementIsFootnote(element.children[0]);
+        if (nextSiblingNode?.nodeType == Node.TEXT_NODE && !isNullOrWhiteSpace(nextSiblingNode.nodeValue)) {
+            return true;
         }
-        return false;
+        return (previousSiblingNode && this.checkIsInlineTag(previousSiblingNode))
+            || (nextSiblingNode && this.checkIsInlineTag(nextSiblingNode));
     }
 
     async loadImages(doc: IDocument, visibleElements: Element[]): Promise<void> {
@@ -793,38 +722,46 @@ export class HtmlImageLoader implements IHtmlImageLoader {
                 continue;
             }
             if (element instanceof currentWindow.HTMLImageElement || element instanceof currentWindow.SVGImageElement) {
-                const initialNumber = element.getAttribute(ElementInitialNumberName);
-                const originElement = element.ownerDocument.querySelector(
-                    `[${ElementInitialNumberName}='${initialNumber}']`
-                ) as ImageElement | null;
+                const originElement = this.queryOriginElement(element.ownerDocument, element);
                 if (originElement) {
                     await this.loadSingleImage(htmlDocument, originElement);
                 }
-            } else {
-                const imgs = element.getElementsByTagName("img");
-                for (let i = 0; i < imgs.length; i++) {
-                    await this.loadSingleImage(htmlDocument, imgs[i]);
-                }
-                const initialNumber = element.getAttribute(ElementInitialNumberName);
-                const currentElement = doc.getContentContainer()?.querySelector(
-                    `[${ElementInitialNumberName}='${initialNumber}']`
-                );
-                const svgImages = (currentElement && currentElement != element
-                    ? currentElement.getElementsByTagName("image")
-                    : element.getElementsByTagName("image")) as HTMLCollectionOf<SVGImageElement>;
-                for (let i = 0; i < svgImages.length; i++) {
-                    await this.loadSingleImage(htmlDocument, svgImages[i]);
-                }
+                continue;
+            }
+            const imgs = element.getElementsByTagName("img");
+            for (let i = 0; i < imgs.length; i++) {
+                await this.loadSingleImage(htmlDocument, imgs[i]);
+            }
+            const svgHost = this.queryOriginElement(doc.getContentContainer(), element) ?? element;
+            const svgImages = (svgHost != element
+                ? svgHost.getElementsByTagName("image")
+                : element.getElementsByTagName("image")) as HTMLCollectionOf<SVGImageElement>;
+            for (let i = 0; i < svgImages.length; i++) {
+                await this.loadSingleImage(htmlDocument, svgImages[i]);
             }
         }
-    };
+    }
+
+    private queryOriginElement(root: ParentNode | null | undefined, element: Element): ImageElement | null {
+        const initialNumber = element.getAttribute(ElementInitialNumberName);
+        if (!root || isNullOrWhiteSpace(initialNumber)) {
+            return element as ImageElement;
+        }
+        return (root.querySelector(`[${ElementInitialNumberName}='${initialNumber}']`) as ImageElement | null)
+            ?? (element as ImageElement);
+    }
 
     private async loadSingleImage(doc: IHtmlDocument, element: ImageElement): Promise<void> {
-        if (!element || !doc) {
+        if (!element || !doc || this.isDisposed) {
             return;
         }
         const loadState = element.getAttribute("data-load-state");
         if (loadState == "loaded" || loadState == "loading" || loadState == "fail") {
+            return;
+        }
+        const originUrl = this.getImageUrl(element);
+        if (isNullOrWhiteSpace(originUrl)) {
+            element.setAttribute("data-load-state", "fail");
             return;
         }
         element.setAttribute("data-load-state", "loading");
@@ -835,50 +772,10 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             element.setAttribute("data-load-state", "fail");
         };
 
-        let originUrl = element.getAttribute("src") ?? "";
-        const dataSrc = element.getAttribute("data-src") ?? "";
-        if (!isNullOrWhiteSpace(dataSrc)) {
-            originUrl = dataSrc;
-        }
-        let imageUrl = originUrl;
-
-        if (!checkIsAbsoluteUrl(imageUrl)) {
-            const blob = await doc.fileParser.getFile(imageUrl, doc.url, "blob");
-            if (blob && blob.size > 0) {
-                if (blob.type?.toLowerCase() == "image/svg+xml") {
-                    const svgXml = convertArrayBufferToString(await blob.arrayBuffer());
-                    const svgDoc = getFormatDocument(svgXml);
-                    const svgImage = svgDoc.querySelector("image");
-                    if (svgImage) {
-                        imageUrl = svgImage.getAttribute("xlink:href") ?? svgImage.getAttribute("href");
-                        try {
-                            const imageSizeResult = await getImageSize(imageUrl);
-                            const width = imageSizeResult.width;
-                            const height = imageSizeResult.height;
-                            element.setAttribute("data-width", width.toString());
-                            element.setAttribute("data-height", height.toString());
-                            const { columnWidth, columnHeight } = this.getColumnMetrics();
-                            this.forceSetImageHeight(
-                                element as HTMLElement,
-                                columnWidth,
-                                columnHeight,
-                                width,
-                                height,
-                                this.htmlOptions.maxImageHeightRatio
-                            );
-                        } catch (e) {
-                            this.logger.error(e);
-                        }
-                    } else {
-                        imageUrl = "data:image/svg+xml," + encodeURIComponent(svgXml);
-                    }
-                } else {
-                    imageUrl = URL.createObjectURL(blob);
-                    this.addBlobUrl(doc, imageUrl);
-                }
-            } else {
-                imageUrl = errorImageUrl;
-            }
+        const imageUrl = await this.resolveLoadUrl(doc, originUrl, element);
+        if (this.isDisposed) {
+            this.revokeObjectURL(imageUrl, doc);
+            return;
         }
 
         if (compareTagName(element.tagName, "IMG")) {
@@ -889,36 +786,107 @@ export class HtmlImageLoader implements IHtmlImageLoader {
                     await imgElement.decode();
                 } catch (e) {
                     this.logger.error("image decode failed", "imageUrl", imageUrl, e);
-                    this.revokeObjectURL(imageUrl);
-                    setTimeout(async () => {
-                        try {
-                            const blob2 = await doc.fileParser.getFile(originUrl, doc.url, "blob");
-                            if (blob2 && blob2.size > 0) {
-                                const imageUrl2 = URL.createObjectURL(blob2);
-                                this.addBlobUrl(doc, imageUrl2);
-                                imgElement.src = imageUrl2;
-                            } else {
-                                imgElement.src = errorImageUrl;
-                            }
-                        } catch (retryError) {
-                            this.logger.error(retryError);
-                            imgElement.src = errorImageUrl;
-                        }
-                    }, 500);
+                    this.revokeObjectURL(imageUrl, doc);
+                    this.retryLoadAfterDecodeFailure(doc, imgElement, originUrl);
                 }
             }
-        } else if (BrowserCapabilities.isSafari()) {
-            (element as SVGImageElement).href.baseVal = imageUrl;
-        } else {
-            element.setAttribute("xlink:href", imageUrl);
+            return;
         }
+        this.setImageSource(element, imageUrl);
+    }
+
+    private retryLoadAfterDecodeFailure(doc: IHtmlDocument, imgElement: HTMLImageElement, originUrl: string) {
+        setTimeout(async () => {
+            if (this.isDisposed) {
+                return;
+            }
+            try {
+                const blob = await doc.fileParser.getFile(originUrl, doc.url, "blob");
+                if (this.isDisposed) {
+                    return;
+                }
+                if (blob && blob.size > 0) {
+                    const retryUrl = URL.createObjectURL(blob);
+                    this.addBlobUrl(doc, retryUrl);
+                    imgElement.src = retryUrl;
+                } else {
+                    imgElement.src = errorImageUrl;
+                }
+            } catch (retryError) {
+                this.logger.error(retryError);
+                if (!this.isDisposed) {
+                    imgElement.src = errorImageUrl;
+                }
+            }
+        }, 500);
+    }
+
+    private async resolveLoadUrl(doc: IHtmlDocument, originUrl: string, element: ImageElement): Promise<string> {
+        if (checkIsAbsoluteUrl(originUrl)) {
+            return originUrl;
+        }
+        const blob = await doc.fileParser.getFile(originUrl, doc.url, "blob");
+        if (!blob || blob.size <= 0) {
+            return errorImageUrl;
+        }
+        if (blob.type?.toLowerCase() == "image/svg+xml") {
+            return await this.resolveSvgBlobUrl(doc, blob, element);
+        }
+        const blobUrl = URL.createObjectURL(blob);
+        this.addBlobUrl(doc, blobUrl);
+        return blobUrl;
+    }
+
+    private async resolveSvgBlobUrl(doc: IHtmlDocument, blob: Blob, element: ImageElement): Promise<string> {
+        const svgXml = convertArrayBufferToString(await blob.arrayBuffer());
+        const svgDoc = getFormatDocument(svgXml);
+        const svgImage = svgDoc.querySelector("image");
+        if (!svgImage) {
+            return "data:image/svg+xml," + encodeURIComponent(svgXml);
+        }
+        const nestedUrl = svgImage.getAttribute("xlink:href") ?? svgImage.getAttribute("href") ?? "";
+        if (isNullOrWhiteSpace(nestedUrl)) {
+            return "data:image/svg+xml," + encodeURIComponent(svgXml);
+        }
+
+        let sizeSource: ImageBitmapSource | string = nestedUrl;
+        let resolvedUrl = nestedUrl;
+        if (!checkIsAbsoluteUrl(nestedUrl)) {
+            const nestedBlob = await doc.fileParser.getFile(nestedUrl, doc.url, "blob");
+            if (!nestedBlob || nestedBlob.size <= 0) {
+                return errorImageUrl;
+            }
+            resolvedUrl = URL.createObjectURL(nestedBlob);
+            this.addBlobUrl(doc, resolvedUrl);
+            sizeSource = nestedBlob;
+        }
+
+        try {
+            const imageSize = await getImageSize(sizeSource);
+            element.setAttribute("data-width", imageSize.width.toString());
+            element.setAttribute("data-height", imageSize.height.toString());
+            const { columnWidth, columnHeight } = this.getColumnMetrics();
+            this.forceSetImageHeight(
+                element as HTMLElement,
+                columnWidth,
+                columnHeight,
+                imageSize.width,
+                imageSize.height,
+                this.htmlOptions.maxImageHeightRatio
+            );
+        } catch (e) {
+            this.logger.error(e);
+        }
+
+        return resolvedUrl;
     }
 
     async dispose(): Promise<void> {
         this.isDisposed = true;
+        this.delayLoadOnImageElementsVisible.cancel();
+        this.delayResetAllImageSize.cancel();
         this.unbindEvents();
-        this.documentImageSizesSummaries.clear();
-        this.resetImageSizeTasks = [];
+        this.documentImageSizeMaps.clear();
         for (const doc of [...this.blobUrls.keys()]) {
             this.revokeDocumentBlobUrls(doc);
         }

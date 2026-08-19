@@ -53,7 +53,7 @@ export class WheelPageTurning extends PluginCore {
     }
 
     get supportedExtensions(): string[] {
-        return [".xml", ".xhtml", ".html",".epub",".mobi",".azw3",".fb2",".txt"];
+        return [".xml", ".xhtml", ".html", ".epub", ".mobi", ".azw3", ".fb2", ".txt", ".md"];
     }
 
     get supportedLanguages(): string[] {

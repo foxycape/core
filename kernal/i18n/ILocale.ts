@@ -3,10 +3,6 @@ import { IDisposable } from "../IDisposable";
 export interface ILocale extends IDisposable {
 
     /**
-     * Initialize
-     */
-    initialize(): Promise<void>;
-    /**
      * Add a listener for language change
      * @param listener Listener function
      * @returns Function to remove the listener

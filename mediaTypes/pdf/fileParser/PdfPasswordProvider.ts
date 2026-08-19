@@ -76,7 +76,7 @@ export class PdfPasswordProvider {
         if (!simpleId || !this.storage) {
             return undefined;
         }
-        const password = await this.storage.getString(PdfPasswordProvider.PASSWORD_TABLE, simpleId);
+        const password = await this.storage.get<string>(PdfPasswordProvider.PASSWORD_TABLE, simpleId);
         if (password) {
             this.sessionPassword = password;
         }

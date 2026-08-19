@@ -48,7 +48,7 @@ export * from './IDocumentsProvider';
 export * from './progress/IProgressTracker';
 export * from './LocationState';
 export * from './IWallpaperProvider';
-export * from './Debounce';
+export * from './web/debounce';
 export * from './ISymbolCalclator';
 export * from './services/internalUrlBuilder/IInternalUrlBuilder'
 export * from './storage/IStorage'
