@@ -142,6 +142,32 @@ const COLLAPSE_END_START = /(<\/[^>]*>)\s+(<[^\/>]*>)/g;
 const COLLAPSE_START_START = /(<[^\/>]*>)\s+(<[^\/>]*>)/g;
 const COLLAPSE_END_END = /(<\/[^>]*>)\s+(<\/[^>]*>)/g;
 
+/** Preformatted blocks whose inner newlines/tabs must survive HTML whitespace stripping. */
+const PREFORMATTED_BLOCK_PATTERN = /<(pre|textarea)\b[^>]*>[\s\S]*?<\/\1>/gi;
+
+/**
+ * Run a transform on HTML while keeping `<pre>` / `<textarea>` inner whitespace intact.
+ */
+export const transformHtmlPreservingPreformattedBlocks = (
+    html: string,
+    transform: (html: string) => string,
+): string => {
+    if (!html) {
+        return html;
+    }
+    const saved: string[] = [];
+    const withPlaceholders = html.replace(PREFORMATTED_BLOCK_PATTERN, (block) => {
+        const token = `<!--lhx-pre-${saved.length}-->`;
+        saved.push(block);
+        return token;
+    });
+    const transformed = transform(withPlaceholders);
+    if (saved.length === 0) {
+        return transformed;
+    }
+    return transformed.replace(/<!--lhx-pre-(\d+)-->/g, (_match, index: string) => saved[Number(index)] ?? "");
+};
+
 /**
  * Remove whitespace between HTML tags.
  * Note: this removes all inter-tag whitespace, including spaces.

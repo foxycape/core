@@ -5,7 +5,7 @@ import { wrapFloatingTextNodes } from "../../../kernal/html/manipulator";
 import { getFormatDocumentAsync } from "../../../kernal/html/parser";
 import { TextFormatOptions, SpineFile, ElementInitialNumberName } from "../../../kernal";
 import { IHtmlTextDocument } from "../renderer/IHtmlTextDocument";
-import { getPureTextContent, removeWhiteSpaceBetweenTags } from "../../../kernal/html/text";
+import { getPureTextContent, removeWhiteSpaceBetweenTags, transformHtmlPreservingPreformattedBlocks } from "../../../kernal/html/text";
 import { computeUniqueId } from "../../../kernal/common/uuid";
 import { IHtmlFileParser } from "./IHtmlFileParser";
 
@@ -61,10 +61,17 @@ export class HtmlTextDocument implements IHtmlTextDocument {
             // 不能替换全角空格，因为存在某些资源是以全角空格来隔开文字的情况
             // content = content.replaceAll(String.fromCharCode(12288), '');
             //替换除空格外的所有不可见字符(不能替换空格，因为空格在行内标签与行内标签之间属于合法字符)
-            content = content.replace(this.fileParser.options.whitespaceRegex, '');
-            if (this.fileParser.options.forceRemoveHtmlChar32BetweenTags) {
-                content = removeWhiteSpaceBetweenTags(content, this.fileParser.options.removeHtmlWhitespace)
-            }
+            // Keep <pre>/<textarea> intact — code blocks rely on LF/TAB.
+            const whitespaceRegex = this.fileParser.options.whitespaceRegex;
+            const shouldRemoveBetweenTags = this.fileParser.options.forceRemoveHtmlChar32BetweenTags;
+            const removeHtmlWhitespace = this.fileParser.options.removeHtmlWhitespace;
+            content = transformHtmlPreservingPreformattedBlocks(content, (html) => {
+                let next = html.replace(whitespaceRegex, "");
+                if (shouldRemoveBetweenTags) {
+                    next = removeWhiteSpaceBetweenTags(next, removeHtmlWhitespace);
+                }
+                return next;
+            });
         }
         content = removeBomHeader(content ?? "");
         this.docContent = content;

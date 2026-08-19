@@ -7,7 +7,6 @@ import { IHtmlProgressTracker } from "./IHtmlIProgressTracker";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { IHtmlDocumentsProvider } from "../IHtmlDocumentsProvider";
 import { HtmlOptions } from "../../HtmlOptions";
-import { HtmlSymbolCalclator } from "../document/HtmlSymbolCalclator";
 import { getAdjacentText } from "./adjacent";
 import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
 
@@ -231,13 +230,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
             return page / numberOfPages;
         }
 
-        const symbolCalclator = new HtmlSymbolCalclator(doc, this.options);
-        try {
-            return await symbolCalclator.getProgressByElement(target, this.options.symbolType);
-        }
-        finally {
-            await symbolCalclator.dispose();
-        }
+        return await doc.symbolCalclator.getProgressByElement(target, this.options.symbolType);
     }
 
     async getPercentage(url: string, target: Element | number | { tagName: string, tagIndex: number }): Promise<number> {

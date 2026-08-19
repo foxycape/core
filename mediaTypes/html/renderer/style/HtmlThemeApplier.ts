@@ -1,4 +1,4 @@
-import { IDocumentsProvider, MTTAG, readerPrefixName, supportScheduler, Theme } from "../../../../kernal";
+import { IDocumentsProvider, MTTAG, Options, readerPrefixName, supportScheduler, Theme } from "../../../../kernal";
 import { compareTagName } from "../../../../kernal/html/finder";
 import { injectCssContent, removeElement } from "../../../../kernal/html/injector";
 import { HtmlSettings } from "../../HtmlSettings";
@@ -27,7 +27,10 @@ export class HtmlThemeApplier implements IHtmlThemeApplier {
     private readonly specialBackgroundCssId = readerPrefixName + "reader-special-variables-background-css";
     private readonly preBackgroundCssId = readerPrefixName + "reader-pre-variables-background-css";
     private readonly themeDynamicCssId = readerPrefixName + "html-theme-dynamic-css";
+    private readonly scrollbarCssId = readerPrefixName + "reader-scrollbar-css";
     private readonly holdersMarkedAttr = readerPrefixName + "theme-holders";
+    /** overflow surfaces inside the iframe (host `.custom-scroller` is styled by Reader.applyGlobalTheme) */
+    private readonly iframeScrollbarSelectors = ["pre", "code"];
 
     constructor(private readonly documentsProvider: IDocumentsProvider<IHtmlDocument>) {
     }
@@ -65,6 +68,14 @@ export class HtmlThemeApplier implements IHtmlThemeApplier {
         documentElement.style.setProperty(Theme.SelectionBackground, theme.selectionBackground);
         documentElement.style.setProperty(Theme.SelectionColor, theme.selectionColor);
         documentElement.style.setProperty(Theme.ColumnRuleColor, theme.columnRuleColor);
+        documentElement.style.setProperty(Theme.ScrollbarThumbColor, theme.scrollbarThumbColor);
+        documentElement.style.setProperty(Theme.ScrollbarThumbHoverColor, theme.scrollbarThumbHoverColor);
+        documentElement.style.setProperty(Theme.ScrollbarTrackColor, theme.scrollbarTrackColor);
+
+        const options = this.documentsProvider.owner.options;
+        documentElement.style.setProperty(Options.ScrollbarSize, options.scrollbarSize);
+        documentElement.style.setProperty(Options.ScrollbarRadius, options.scrollbarRadius);
+        documentElement.style.setProperty(Options.ScrollbarBorder, options.scrollbarBorder);
 
         if (theme.vars) {
             for (const [name, value] of Object.entries(theme.vars)) {
@@ -160,5 +171,8 @@ export class HtmlThemeApplier implements IHtmlThemeApplier {
         dynamicCss += "}";
 
         injectCssContent(documentElement, dynamicCss, true, this.themeDynamicCssId);
+
+        const scrollbarCss = Theme.getScrollStyles(this.iframeScrollbarSelectors);
+        injectCssContent(documentElement, scrollbarCss, true, this.scrollbarCssId);
     }
 }

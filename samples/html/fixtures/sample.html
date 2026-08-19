@@ -7,7 +7,7 @@
       body {
         margin: 0;
         padding: 24px 28px 48px;
-        font-family: "Georgia", "Songti SC", "SimSun", serif;
+        /* font-family: "Georgia", "Songti SC", "SimSun", serif; */
         line-height: 1.75;
         color: #222;
         background: #fff;
@@ -15,7 +15,7 @@
 
       h1,
       h2 {
-        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        /* font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; */
         line-height: 1.35;
       }
 
@@ -48,6 +48,24 @@
         background: #f4f1ea;
         padding: 0.1em 0.35em;
         border-radius: 4px;
+      }
+
+      pre {
+        overflow: auto;
+        margin: 0 0 1em;
+        padding: 12px 14px;
+        border-radius: 6px;
+        background: #f4f1ea;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 0.92em;
+        line-height: 1.5;
+      }
+
+      pre code {
+        display: block;
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
       }
 
       blockquote {
@@ -97,6 +115,7 @@
       <li>Choosing a local HTML file opens it again successfully</li>
       <li>Images show placeholder first, then load when near the viewport</li>
       <li>Inline images keep text line height; block images respect max width/height ratio</li>
+      <li>Code blocks are syntax-highlighted; Night preset uses github-dark</li>
     </ul>
 
     <h2>竖排测试 / Vertical Writing</h2>
@@ -132,6 +151,31 @@
       If loading succeeds, the toolbar status should show “Loaded”, and readable body text should
       appear here.
     </blockquote>
+
+    <h2>Code Blocks</h2>
+    <p>
+      The blocks below exercise <code>&lt;pre&gt;&lt;code&gt;</code>. LanguageHighlighter runs
+      highlight.js; HtmlThemeApplier paints <code>pre</code> with
+      <code>codeblockBackgroundColor</code>. Switch Default / Night / Sepia to confirm contrast.
+    </p>
+    <pre><code class="language-typescript">function greet(name: string): string {
+  return `Hello, ${name}!`
+}
+
+const reader = {
+  flipMode: "scroll",
+  writingMode: "horizontal-tb",
+}
+
+console.log(greet("Foxycape"), reader)
+</code></pre>
+    <p>
+      A wider snippet should keep <code>overflow: auto</code> and scroll horizontally instead of
+      stretching the page.
+    </p>
+    <pre><code class="language-javascript">const theme = { name: "night", colorMode: "dark", contentBackground: "#1b1f27", codeblockBackgroundColor: "#11151c" }
+console.log("theme.css --codeblock-background-color =", theme.codeblockBackgroundColor)
+</code></pre>
 
     <h2>Images (lazy load)</h2>
     <p>

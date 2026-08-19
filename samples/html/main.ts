@@ -98,8 +98,7 @@ type ThemeDefinition = {
 /** Default typography CSS variables (injected before opening a document) */
 const injectedDefaultCssVariables: Record<string, string> = {
   [ContentCssVariables.FontSize]: '18px',
-  [ContentCssVariables.FontFamily]:
-    "'Georgia','Songti SC','SimSun','Segoe UI','PingFang SC','Microsoft YaHei',serif",
+  [ContentCssVariables.FontFamily]: "'Georgia','Songti SC','SimSun','Segoe UI','PingFang SC','Microsoft YaHei',serif",
   [ContentCssVariables.TextLineHeight]: '1.65em',
   [ContentCssVariables.ParagraphMarginTop]: '0.5em',
   [ContentCssVariables.ParagraphMarginBottom]: '0.5em',
@@ -125,7 +124,7 @@ const themeDefinitions: Record<string, ThemeDefinition> = {
     title: 'Night',
     colorMode: 'dark',
     readerBackground: '#12151a',
-    contentBackground: '#1b1f27',
+    contentBackground: '#020202',
     contentTextColor: '#d7dde8',
     codeblockBackgroundColor: '#11151c',
     scrollbarTrackColor: '#2e2e2e',

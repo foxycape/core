@@ -33,8 +33,10 @@ const isPdfjsId = (id: string) => {
   )
 }
 
+const isCssId = (id: string) => /\.css(?:\?|$)/.test(id.replace(/\\/g, '/'))
+
 const isExternal = (id: string) =>
-  dependencyNames.some((name) => id === name || id.startsWith(`${name}/`)) ||
+  (!isCssId(id) && dependencyNames.some((name) => id === name || id.startsWith(`${name}/`))) ||
   isPdfjsId(id)
 
 /** Keep vendored pdfjs next to compiled modules so relative imports resolve from dist/. */

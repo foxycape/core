@@ -5,20 +5,20 @@ import type { Direction, FlipMode, FlipPageStyle, SymbolType, WritingMode } from
  * Configuration dedicated to HTML / reflowable document media types
  */
 export class HtmlOptions {
-    
+
     /**
      * Writing mode.
      * vertical-rl / vertical-lr: scroll on X; page mode slices along Y.
      * Left/right progression of vertical writing is decided only by rl vs lr.
      */
-    writingMode: WritingMode="horizontal-tb";
+    writingMode: WritingMode = "horizontal-tb";
 
     /**
      * Inline text direction.
      * Affects page progression only for horizontal-tb (rtl = next page to the right).
      * Ignored for vertical-rl / vertical-lr progression.
      */
-    direction: Direction="ltr";
+    direction: Direction = "ltr";
 
     /** Flip mode: scroll - continuous (vertical writing scrolls horizontally); page - horizontal slices on X, vertical writing slices on Y */
     flipMode: FlipMode = "scroll";
@@ -30,16 +30,16 @@ export class HtmlOptions {
     autoColumns: boolean = true;
 
     /** Whether to force HTML documents to display in scroll mode */
-    forceScroll: boolean=false;
+    forceScroll: boolean = false;
 
     /** Flip page style: none - no style, slide - sliding */
     flipPageStyle: FlipPageStyle = "none";
 
     /** Whether to prevent the parent element from scrolling */
-    preventParentElementScroll: boolean=false;
+    preventParentElementScroll: boolean = false;
 
     /** Maximum number of columns */
-    maxColumns: number=10;
+    maxColumns: number = 10;
 
     /** Column gap in px */
     columnGap: number = 40;
@@ -85,20 +85,11 @@ export class HtmlOptions {
     /** Maximum image height ratio (relative to the current visible area height) */
     maxImageHeightRatio: number = 0.7;
 
-    /** Default font family */
-    fontFamily: string = "'Roboto','Helvetica Neue', 'Helvetica', 'Arial','Microsoft YaHei','PingFang SC', 'sans-serif'";
-
-    /** Default font weight */
-    fontWeight: string = "normal";
-
-    /** Lighter font weight */
-    lighterFontWeight: string = "300";
-
-    /** Default font size */
-    fontSize: string = "18px";
-
     /** Whether to prefer the srcdoc attribute */
     preferSrcdoc: boolean = false;
+
+    /** Whether to highlight fenced code blocks with highlight.js */
+    enableFormatCodeBlock: boolean = true;
 
     /** Set of non-plain-text visible element tag names */
     nonWhiteSpaceSymbolTagNames = ["object", "svg", "embed", "audio", "video", "canvas", "img"];

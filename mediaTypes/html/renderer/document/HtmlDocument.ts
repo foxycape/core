@@ -15,6 +15,7 @@ import { IHtmlLoadLayer } from "../../../../kernal/services/docLoadLayer/IHtmlLo
 import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { createIframe, getTooBigHtmlTemplate } from "../html/template";
 import { HtmlPageCalculator } from "./HtmlPageCalculator";
+import { HtmlSymbolCalclator } from "./HtmlSymbolCalclator";
 import { HtmlDocumentResizeObserver } from "./HtmlDocumentResizeObserver";
 import { collectContentUnitElements } from "../visibilityCandidates";
 import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
@@ -27,6 +28,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     private iframe: HTMLIFrameElement;
     private loadingLayer: IHtmlLoadLayer;
     private readonly pageCalculator: HtmlPageCalculator;
+    readonly symbolCalclator: HtmlSymbolCalclator;
     private readonly eventKeyMap = getEventKeyMap();
     private readonly resizeObserver: HtmlDocumentResizeObserver;
     private readonly layoutStatePreserver: HtmlLayoutStatePreserver;
@@ -35,6 +37,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         super(owner, fileParser, wrapperContainer, spineFile);
 
         this.pageCalculator = new HtmlPageCalculator(this, viewport, options);
+        this.symbolCalclator = new HtmlSymbolCalclator(this, options);
         this.layoutStatePreserver = new HtmlLayoutStatePreserver(this, viewport, options);
         this.logger = this.owner.loggerFactory.getLogger(this.constructor.name);
         this.resizeObserver = new HtmlDocumentResizeObserver(this, this.owner.events);
@@ -471,6 +474,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         emptyElement(this.wrapperContainer);
         this.iframe = undefined;
         this.formattedVirtualDocument = null;
+        await this.symbolCalclator.dispose();
         await this.restoreLayoutState(layoutState);
         await super.dispose();
     }

@@ -1,13 +1,11 @@
-import XXH from 'xxhashjs';
-
-const xxhash = XXH.h64(20220919101915);
+import { hash64Hex } from './xxh64';
 
 /**
  * Compute a unique id of the given string.
  * @param content The string to hash
  */
 export const computeUniqueId = (content: string): string => {
-    return xxhash.update(content).digest().toString(16);
+    return hash64Hex(content);
 };
 
 const getFastUniqueId = (): string => {

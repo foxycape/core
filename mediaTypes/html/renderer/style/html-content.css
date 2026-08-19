@@ -7,6 +7,7 @@ html {
     font-size: var(--font-size) !important;
     color: var(--content-text-color);
     font-weight: var(--font-weight) !important;
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
 }
 
 body {
@@ -15,6 +16,7 @@ body {
     height: auto !important;
     font-size: 1rem;
     line-height: var(--text-line-height);
+    font-family: var(--font-family);
 }
 
 div,
@@ -258,6 +260,7 @@ img {
 pre {
     overflow: auto;
     text-indent: 0;
+    white-space: pre;
     padding-left: 1em;
     padding-right: 1em;
     padding-top: 0.5em;

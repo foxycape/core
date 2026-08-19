@@ -76,7 +76,7 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
         this.wrapperContainer.appendChild(root);
     };
 
-    private onProcessedImageCount({ processedImageCount, totalImageCount }: { processedImageCount: number; totalImageCount: number }) {
+    private onProcessedImageCount = ({ processedImageCount, totalImageCount }: { processedImageCount: number; totalImageCount: number }) => {
         this.totalImageCount = totalImageCount;
         this.processedImageCount = processedImageCount;
         this.renderLoadingLayer();
@@ -138,7 +138,7 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
         const text = doc.createElement("div");
         text.style.cssText = "font-size: 14px;";
         text.textContent = processedImageCount
-            ? "Processing images" + processedImageCount + "/" + totalImageCount
+            ? "Processing images " + processedImageCount + "/" + totalImageCount
             : "Loading...";
         content.appendChild(text);
         loadingLayer.appendChild(content);

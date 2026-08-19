@@ -21,6 +21,7 @@ import { HtmlDocumentsResizeObserver } from "./documents/HtmlDocumentsResizeObse
 import { HtmlContentProcessor } from "./html/HtmlContentProcessor";
 import { IHtmlContentProcessor } from "./html/IHtmlContentProcessor";
 import { IHtmlThemeApplier } from "./style/IHtmlThemeApplier";
+import { ILanguageHighlighter } from "./style/ILanguageHighlighter";
 import { HtmlImageLoader } from "./image/HtmlImageLoader";
 import { HtmlImageObserver } from "./image/HtmlImageObserver";
 import { IHtmlImageLoader } from "./image/IHtmlImageLoader";
@@ -36,7 +37,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     private readonly rendererLayout: IHtmlRendererLayout;
     private currentInstanceId: string;
     private readonly themeApplier: IHtmlThemeApplier;
-    private readonly documentsResizeObserver: HtmlDocumentsResizeObserver;  
+    private readonly documentsResizeObserver: HtmlDocumentsResizeObserver;
     private readonly contentProcessor: IHtmlContentProcessor;
     private readonly imageLoader: IHtmlImageLoader;
     private readonly imageObserver: HtmlImageObserver;
@@ -77,12 +78,28 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
         await this.contentProcessor.preprocess(doc);
         await this.styleProvider.injectStyles(doc);
         const theme = await this.resolveCurrentTheme();
-        if(theme){
+        if (theme) {
             await this.themeApplier.applyToDocument(doc, theme);
         }
         await this.rendererLayout.applyDocStyles(doc);
         await this.imageLoader.preprocessImages(doc);
+        const languageHighlighter = await this.getHighlighter();
+        if (languageHighlighter) {
+            await languageHighlighter.highlight(doc);
+        }
     };
+
+    private languageHighlighter?: ILanguageHighlighter;
+    private async getHighlighter(): Promise<ILanguageHighlighter> {
+        if (this.htmlOptions.enableFormatCodeBlock) {
+            if (!this.languageHighlighter) {
+                const { LanguageHighlighter } = await import("./style/LanguageHighlighter");
+                this.languageHighlighter = new LanguageHighlighter(this);
+            }
+            return this.languageHighlighter;
+        }
+        return undefined;
+    }
 
     protected bindEvents() {
         this.owner.events.on(EventNames.OptionsChange, this.onOptionsChange);
@@ -186,6 +203,10 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
 
     async applyTheme(theme: Theme): Promise<void> {
         await this.themeApplier.applyTheme(theme);
+        const languageHighlighter = await this.getHighlighter();
+        if (languageHighlighter) {
+            await languageHighlighter.applyTheme(theme);
+        }
     }
 
     override async dispose(): Promise<void> {
@@ -200,6 +221,8 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
         await this.imageLoader.dispose();
         await super.dispose();
         await this.styleProvider?.dispose();
+        await this.languageHighlighter?.dispose();
+        this.languageHighlighter = undefined;
         await this.navPointProvider?.dispose()
         await this.pagingNavigator?.dispose()
         await this.documentsResizeObserver.dispose();
