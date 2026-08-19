@@ -3,9 +3,20 @@ import { CoreServices } from "./kernal/FileLoader";
 import { Options } from "./kernal/Options";
 import { Reader } from "./kernal/Reader";
 
+type ReaderPointerPayload = {
+    reader: Reader;
+};
+
+type ReaderEventHandlers = {
+    onClick: (payload: ReaderPointerPayload) => void;
+    onMouseEnter: (payload: ReaderPointerPayload) => void;
+};
+
 export class ReaderHub {
 
     private static allReaders: Reader[] = [];
+    private static eventHandlers = new WeakMap<Reader, ReaderEventHandlers>();
+
     static get readers() {
         return this.allReaders;
     }
@@ -32,24 +43,28 @@ export class ReaderHub {
     }
 
     private static bindEvents(reader: Reader) {
-        reader.events.on(EventNames.ReaderClick, (reader) => {
-            this.currentReaderId = reader.id;
-            this.currentFocusReaderId = reader.id;
-        });
-        reader.events.on(EventNames.ReaderMouseEnter, (reader) => {
-            this.currentFocusReaderId = reader.id;
-        });
+        const onClick = (payload: ReaderPointerPayload) => {
+            this.currentReaderId = payload.reader.id;
+            this.currentFocusReaderId = payload.reader.id;
+        };
+        const onMouseEnter = (payload: ReaderPointerPayload) => {
+            this.currentFocusReaderId = payload.reader.id;
+        };
+        reader.events.on(EventNames.ReaderClick, onClick);
+        reader.events.on(EventNames.ReaderMouseEnter, onMouseEnter);
+        this.eventHandlers.set(reader, { onClick, onMouseEnter });
     }
 
     private static unbindEvents(reader: Reader) {
-        reader.events.off(EventNames.ReaderClick, (reader) => {
-            this.currentReaderId = reader.id;
-            this.currentFocusReaderId = reader.id;
-        });
-        reader.events.off(EventNames.ReaderMouseEnter, (reader) => {
-            this.currentFocusReaderId = reader.id;
-        });
+        const handlers = this.eventHandlers.get(reader);
+        if (!handlers) {
+            return;
+        }
+        reader.events.off(EventNames.ReaderClick, handlers.onClick);
+        reader.events.off(EventNames.ReaderMouseEnter, handlers.onMouseEnter);
+        this.eventHandlers.delete(reader);
     }
+
     static getActiveReader() {
         const readerId = this.readerId;
         if (readerId) {
@@ -96,8 +111,8 @@ export class ReaderHub {
 
     /**
      * get reader
-     * @param id 
-     * @returns 
+     * @param id
+     * @returns
      */
     static getReader(id: string) {
         return this.allReaders.find(x => x.id == id);

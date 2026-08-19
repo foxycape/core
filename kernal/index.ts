@@ -55,3 +55,4 @@ export * from './storage/IStorage'
 export * from './JsonConvert'
 export * from './ContentRange'
 export * from './mark'
+export { ReaderHub } from '../ReaderHub';
