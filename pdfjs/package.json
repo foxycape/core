@@ -18,6 +18,7 @@
   },
   "browser": {
     "canvas": false,
+    "path2d": false,
     "fs": false,
     "http": false,
     "https": false,

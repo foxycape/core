@@ -1,7 +1,4 @@
 import * as pdfjsLib from '../../pdfjs/legacy/build/pdf.mjs'
-import pdfWorkerSource from '../../pdfjs/legacy/build/pdf.worker.min.mjs?raw'
-
-let blobWorkerSrc: string | null = null
 
 /**
  * True when `src` can be passed to `new Worker(src, { type: 'module' })`.
@@ -25,32 +22,14 @@ export const isUsablePdfWorkerSrc = (src: string | undefined | null): src is str
   return src.startsWith('/') || src.startsWith('./') || src.startsWith('../')
 }
 
-const createBlobWorkerSrc = () => {
-  if (blobWorkerSrc) {
-    return blobWorkerSrc
-  }
-  // Real Web Worker: worker code runs on a background thread.
-  // Using a Blob URL avoids app:// / cross-origin module-worker restrictions.
-  // Default path: source inlined via ?raw (browser samples).
-  // Obsidian builds stub ?raw to "" and pass a Blob URL from an external worker file.
-  if (!pdfWorkerSource) {
-    throw new Error(
-      'PDF worker source is not bundled. Pass a usable preferredWorkerSrc (e.g. Blob URL from an external pdf.worker.min.mjs).',
-    )
-  }
-  const blob = new Blob([pdfWorkerSource], { type: 'text/javascript' })
-  blobWorkerSrc = URL.createObjectURL(blob)
-  return blobWorkerSrc
-}
-
 /**
  * Ensure `GlobalWorkerOptions.workerSrc` points at a real module Worker script.
  *
  * Preference order:
  * 1. Already-configured usable workerSrc
- * 2. Host-provided preferred URL (Vite `?url`, or Obsidian Blob URL from external worker file)
- * 3. Blob URL built from bundled worker source (`?raw`, when available)
+ * 2. Host-provided preferred URL (Vite `?url`, copied `pdf.worker.min.mjs`, or Obsidian Blob URL)
  *
+ * Worker source is not inlined (`?raw`) so hosts must pass a usable URL.
  * This is NOT pdf.js "fake worker" (main-thread simulation).
  */
 export const ensurePdfWebWorker = (preferredWorkerSrc?: string): string => {
@@ -65,7 +44,7 @@ export const ensurePdfWebWorker = (preferredWorkerSrc?: string): string => {
     return preferredWorkerSrc
   }
 
-  const src = createBlobWorkerSrc()
-  GlobalWorkerOptions.workerSrc = src
-  return src
+  throw new Error(
+    'PDF worker source is not configured. Pass a usable preferredWorkerSrc (Vite ?url, copied pdf.worker.min.mjs, or Blob URL).',
+  )
 }
