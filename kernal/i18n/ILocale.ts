@@ -17,7 +17,7 @@ export interface ILocale extends IDisposable {
     getText(key: string, defaultText: string, named?: Object): string;
 
     /** Change language */
-    changeLanguage(language: string): void
+    changeLanguage(language: string): Promise<void>;
 
     /**
      * Get the language currently used by the system

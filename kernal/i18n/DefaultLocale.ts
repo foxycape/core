@@ -33,7 +33,7 @@ export class DefaultLocale implements ILocale {
     }
 
     private currentLanguage: string;
-    changeLanguage(language: string) {
+    async changeLanguage(language: string): Promise<void> {
         this.currentLanguage = language;
         this.listeners.forEach(listener => listener(language));
     }
