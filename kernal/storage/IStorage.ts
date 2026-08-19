@@ -4,8 +4,6 @@ export interface IStorage extends IDisposable {
     get dbName(): string;
     get<T>(tableName: string, key: string): Promise<T>;
 
-    getString(tableName: string, key: string): Promise<string>;
-
     find<T>(tableName: string, predicate: (value: T, key: string, index: number) => boolean): Promise<T>;
 
     filter<T>(tableName: string, predicate: (value: T, key: string, index: number) => boolean): Promise<T[]>;
@@ -14,7 +12,7 @@ export interface IStorage extends IDisposable {
 
     set<T>(tableName: string, key: string, content: T,from?:'local'|'server'): Promise<void>;
 
-    getKeyCount(tableName: string): Promise<number>
+    count(tableName: string): Promise<number>
 
     delete(tableName: string, key: string,from?:'local'|'server'): Promise<void>
 
