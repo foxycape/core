@@ -75,7 +75,11 @@ export class ReaderHub {
         }
     }
 
-    static removeReader(reader: Reader, unbindEvents: boolean = true) {
+    /**
+     * Dispose a reader. This method will unbind all events and dispose the reader.
+     * @param reader Reader to dispose
+     */
+    static async disposeReader(reader: Reader) {
         const readerIndex = this.allReaders.indexOf(reader);
         if (readerIndex >= 0) {
             this.allReaders.splice(readerIndex, 1);
@@ -86,9 +90,8 @@ export class ReaderHub {
         else {
             this.currentReaderId = ""
         }
-        if (unbindEvents) {
-            this.unbindEvents(reader);
-        }
+        this.unbindEvents(reader);
+        await reader.dispose();
     }
 
     /**
