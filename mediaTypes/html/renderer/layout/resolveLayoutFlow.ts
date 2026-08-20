@@ -17,7 +17,11 @@ export type LayoutFlow = {
     blockAxis: LayoutAxis;
     blockSign: LayoutSign;
     pageAxis: LayoutAxis;
-    /** +1 next increases translate offset (LTR); -1 next decreases it (RTL). */
+    /**
+     * CSS translate sign along pageAxis.
+     * +1 → translateX(-length) (LTR, start on the left);
+     * -1 → translateX(+length) (RTL whole-area, start on the right).
+     */
     pageSign: LayoutSign;
     iframeGrow: IframeGrow;
     overflowX: OverflowMode;
@@ -59,22 +63,45 @@ export const resolveLayoutFlow = (
     };
 };
 
+/**
+ * Distance from the flex row's inline-start to this document's inline-start.
+ * Whole-area RTL anchors the row on the right, so start is
+ * `containerWidth - offsetLeft - contentWidth`, not `offsetLeft`.
+ */
+export const getPageStartOffset = (
+    offsetLeft: number,
+    contentWidth: number,
+    isRtlProgression: boolean,
+    containerWidth: number = 0
+) => {
+    if (!isRtlProgression) {
+        return Math.max(0, offsetLeft);
+    }
+    const totalWidth = containerWidth > 0 ? containerWidth : offsetLeft + contentWidth;
+    return Math.max(0, totalWidth - offsetLeft - contentWidth);
+};
+
 export const getPageTransformOffset = (
     offsetLeft: number,
     contentWidth: number,
     pageNumber: number,
     pageMoveLength: number,
     isRtlProgression: boolean,
-    pageWidth: number = pageMoveLength
+    containerWidth: number = 0
 ) => {
     const page = Math.max(1, pageNumber);
-    if (isRtlProgression) {
-        // LTR page 1 starts at 0 and shows `pageWidth`; the extra `columnGap` sits
-        // past the viewport. RTL page 1 is the mirrored slice at the content end:
-        // contentWidth - pageWidth, then each next page subtracts pageMoveLength.
-        // Using `page * pageMoveLength` would eat the gap and look like a partial page.
-        const visibleWidth = pageWidth > 0 ? pageWidth : pageMoveLength;
-        return Math.max(0, offsetLeft + contentWidth - visibleWidth - (page - 1) * pageMoveLength);
+    const startOffset = getPageStartOffset(offsetLeft, contentWidth, isRtlProgression, containerWidth);
+    return Math.max(0, startOffset + (page - 1) * pageMoveLength);
+};
+
+export const getPageTranslateCss = (
+    length: number,
+    axis: LayoutAxis,
+    pageSign: LayoutSign = 1
+) => {
+    const value = parseFloat(length.toFixed(10));
+    if (axis == "y") {
+        return `translate3d(0,-${value}px,0)`;
     }
-    return Math.max(0, offsetLeft + (page - 1) * pageMoveLength);
+    return `translate3d(${-pageSign * value}px,0,0)`;
 };

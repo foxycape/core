@@ -7,7 +7,7 @@ import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSettings } from "../../HtmlSettings";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
-import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
+import { getPageTranslateCss, resolveLayoutFlow } from "../layout/resolveLayoutFlow";
 
 /**
  * Capture / restore viewport scroll and page-transform when a document's
@@ -118,6 +118,7 @@ export class HtmlLayoutStatePreserver {
         }
 
         const wrapper = this.doc.getWrapperContainer();
+        const flow = resolveLayoutFlow(this.options);
         const sizeDelta = pageAxis == "y"
             ? (wrapper?.scrollHeight ?? 0) - locationState.height
             : (wrapper?.scrollWidth ?? 0) - locationState.width;
@@ -129,7 +130,9 @@ export class HtmlLayoutStatePreserver {
                 const offsetDelta = pageAxis == "y"
                     ? anchor.offsetTop - locationState.offsetTop
                     : anchor.offsetLeft - locationState.offsetLeft;
-                newTransform = currentTransform + offsetDelta;
+                newTransform = pageAxis == "x" && flow.isRtlProgression
+                    ? currentTransform - offsetDelta
+                    : currentTransform + offsetDelta;
             }
         }
 
@@ -140,9 +143,7 @@ export class HtmlLayoutStatePreserver {
         transformContainer.style.removeProperty("transition");
         transformContainer.setAttribute("data-target-transform", `${newTransform}`);
         const length = parseFloat(newTransform.toFixed(10));
-        transformContainer.style.transform = pageAxis == "y"
-            ? `translate3d(0,-${length}px,0)`
-            : `translate3d(-${length}px,0,0)`;
+        transformContainer.style.transform = getPageTranslateCss(length, pageAxis, flow.pageSign);
     }
 
     private restoreScroll(locationState: LocationState, isFirstVisible: boolean, blockAxis: "x" | "y") {

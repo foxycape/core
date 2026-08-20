@@ -20,7 +20,7 @@ import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { HtmlRendererViewport } from "../layout/HtmlRendererViewport";
 import { IHtmlDocumentsPreloader } from "./IHtmlDocumentsPreloader";
 import { IHtmlElementLocator } from "../location/IHtmlElementLocator";
-import { getPageTransformOffset, resolveLayoutFlow } from "../layout/resolveLayoutFlow";
+import { getPageStartOffset, getPageTranslateCss, getPageTransformOffset, resolveLayoutFlow } from "../layout/resolveLayoutFlow";
 
 /**
  * HTML documents provider.
@@ -342,10 +342,6 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             this.transformVerticalPage(doc, pageNumber, direction);
             return;
         }
-        if (flow.isRtlProgression) {
-            this.transformColumnPage(doc, pageNumber, direction, true);
-            return;
-        }
         this.transformHorizontalPage(doc, pageNumber, direction);
     }
 
@@ -393,8 +389,8 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             currentTransformedLength = styleTransformedLength;
         }
         const documentViewport = this.rendererViewport.getLayoutMetrics();
-        const wrapperContainer = doc.getWrapperContainer();
-        const offset = axis == "y" ? wrapperContainer.offsetTop : wrapperContainer.offsetLeft;
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        const offset = this.getDocumentPageStartOffset(doc, axis);
         const columnTransformLength = axis == "y"
             ? documentViewport.pageMoveLength
             : documentViewport.columnWidth + documentViewport.columnGap;
@@ -432,7 +428,9 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             const lastWrapper = lastDocument.getWrapperContainer();
             const lastExtent = axis == "y"
                 ? lastWrapper.offsetTop + lastWrapper.scrollHeight
-                : lastWrapper.offsetLeft + lastWrapper.scrollWidth;
+                : (flow.isRtlProgression
+                    ? (transformContainer.offsetWidth || 0)
+                    : lastWrapper.offsetLeft + lastWrapper.scrollWidth);
             if (lastExtent - newTransformLength <= 0) {
                 return null;
             }
@@ -448,58 +446,31 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         return { transformContainer, newTransformLength, styleTransformedLength };
     }
 
-    private transformColumnPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous', isRtlProgression?: boolean) {
-        const transformContainer = this.getTransformContainer();
-        const documentViewport = this.rendererViewport.getLayoutMetrics();
-        let newTransformLegnth: number;
-        if (direction == "next" || direction == "previous") {
-            newTransformLegnth = this.resolveRtlRelativePageTransform(transformContainer, direction, documentViewport.pageMoveLength);
+    /**
+     * Distance from the transform row's inline-start to this page's start.
+     * Whole-area RTL places the first document on the right; offsetLeft is still
+     * physical-left, so the start offset is measured from the container's right.
+     */
+    private getDocumentPageStartOffset(doc: IHtmlDocument, axis: 'x' | 'y'): number {
+        const wrapperContainer = doc.getWrapperContainer();
+        if (axis == "y") {
+            return wrapperContainer?.offsetTop ?? 0;
         }
-        else {
-            const pageBox = this.getDocumentPageBox(doc);
-            newTransformLegnth = getPageTransformOffset(
-                pageBox.offsetLeft,
-                pageBox.contentWidth,
-                pageNumber,
-                documentViewport.pageMoveLength,
-                isRtlProgression,
-                documentViewport.pageWidth
-            );
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        if (!flow.isRtlProgression) {
+            return wrapperContainer?.offsetLeft ?? 0;
         }
-        this.applyPageTransform(transformContainer, newTransformLegnth, direction, "x");
-        this.setCurrentPageNumber(doc, pageNumber);
+        const pageBox = this.getDocumentPageBox(doc);
+        return pageBox.startOffset;
     }
 
     /**
-     * RTL next decreases translate (content to the left); previous increases it.
-     * Adjacent documents are one pageMoveLength apart, so relative steps must not
-     * re-measure the destination box — getBoundingClientRect is already translated
-     * and often reports offsetLeft≈0 for the previous spine item, which clamps back
-     * onto the last document.
+     * Page origin is the iframe, not the wrapper. Inter-document gap lives on
+     * the wrapper's inline-end, so iframe left/right match the column box.
+     * Use layout offsets (not getBoundingClientRect) so a live translate cannot
+     * collapse every document's origin to the visible edge.
      */
-    private resolveRtlRelativePageTransform(
-        transformContainer: HTMLElement,
-        direction: "next" | "previous",
-        pageMoveLength: number
-    ) {
-        const targetTransform = transformContainer.getAttribute("data-target-transform");
-        const currentTransformedLength = targetTransform
-            ? parseNumber(targetTransform, 0, "parseFloat")
-            : getTransformLength(transformContainer, "x");
-        const newTransformLength = direction == "next"
-            ? currentTransformedLength - pageMoveLength
-            : currentTransformedLength + pageMoveLength;
-        return Math.max(0, newTransformLength);
-    }
-
-    /**
-     * Page origin is the iframe, not the wrapper. RTL puts the inter-document
-     * gap on the wrapper's inline-start, so wrapper.offsetLeft is ~20px left of
-     * the columns and every page (including the last) undershoots pageMoveLength.
-     * Use layout offsets (not getBoundingClientRect) so the current page translate
-     * cannot collapse every document's origin to the visible left edge.
-     */
-    private getDocumentPageBox(doc: IHtmlDocument): { offsetLeft: number, contentWidth: number } {
+    private getDocumentPageBox(doc: IHtmlDocument): { offsetLeft: number, contentWidth: number, startOffset: number, containerWidth: number } {
         const wrapperContainer = doc.getWrapperContainer();
         const documentElement = doc.getContentContainer()?.ownerDocument?.documentElement;
         const iframe = documentElement?.ownerDocument?.defaultView?.frameElement as HTMLElement | undefined;
@@ -508,10 +479,18 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             documentElement?.scrollWidth ?? 0
         ) || (wrapperContainer?.clientWidth ?? 0);
         const transformContainer = this.getTransformContainer();
-        if (iframe && transformContainer) {
-            return { offsetLeft: this.getLayoutOffsetLeft(iframe, transformContainer), contentWidth };
-        }
-        return { offsetLeft: wrapperContainer?.offsetLeft ?? 0, contentWidth };
+        const offsetLeft = iframe && transformContainer
+            ? this.getLayoutOffsetLeft(iframe, transformContainer)
+            : (wrapperContainer?.offsetLeft ?? 0);
+        const containerWidth = transformContainer?.offsetWidth ?? 0;
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        const startOffset = getPageStartOffset(
+            offsetLeft,
+            contentWidth,
+            flow.isRtlProgression,
+            containerWidth
+        );
+        return { offsetLeft, contentWidth, startOffset, containerWidth };
     }
 
     private getLayoutOffsetLeft(element: HTMLElement, ancestor: HTMLElement): number {
@@ -548,9 +527,8 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             transformContainer.addEventListener('transitionend', this.removeElementTransitionEvent);
         }
         const length = parseFloat(newTransformLegnth.toFixed(10));
-        transformContainer.style.transform = axis == "y"
-            ? `translate3d(0,-${length}px,0)`
-            : `translate3d(-${length}px,0,0)`;
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        transformContainer.style.transform = getPageTranslateCss(length, axis, flow.pageSign);
     }
 
     private resetTransformContainer = () => {
@@ -592,7 +570,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             const transformContainer = this.getTransformContainer();
             if (flow.pageAxis == "y") {
                 const transform = Math.max(0, wrapperContainer.offsetTop);
-                transformContainer.style.transform = `translate3d(0,-${transform}px,0)`;
+                transformContainer.style.transform = getPageTranslateCss(transform, "y");
                 transformContainer.setAttribute("data-target-transform", `${transform}`);
             }
             else {
@@ -603,9 +581,9 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                     1,
                     metrics.pageMoveLength,
                     flow.isRtlProgression,
-                    metrics.pageWidth
+                    pageBox.containerWidth
                 );
-                transformContainer.style.transform = "translateX(" + (-transform) + "px)";
+                transformContainer.style.transform = getPageTranslateCss(transform, "x", flow.pageSign);
                 transformContainer.setAttribute("data-target-transform", `${transform}`);
             }
         }
