@@ -30,6 +30,12 @@ export class HtmlContainerBuilder {
         /**always set the direction to ltr for the renderer container */
         rendererCss += `direction:ltr;`;
         rendererCss += `}`;
+        rendererCss += `.${rendererClassName}[data-viewport-mode="window"].${HtmlSettings.FlipScrollClassName}{`;
+        rendererCss += `height:auto;overflow:visible;overflow-x:visible;overflow-y:visible;`;
+        rendererCss += `}`;
+        rendererCss += `.${rendererClassName}[data-viewport-mode="window"].${HtmlSettings.FlipPageClassName}{`;
+        rendererCss += `height:var(${ViewportCssVariableNames.ReaderViewportHeight});`;
+        rendererCss += `}`;
 
         const rendererContainer = createElement(document, "div", getRandomId(true), rendererClassName);
         rendererContainer.classList.add(Theme.customScrollerClassName);

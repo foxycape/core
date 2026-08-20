@@ -26,6 +26,7 @@ export class HtmlSettings {
     static readonly FlipScrollClassName = "flip-scroll";
     static readonly FlipPageClassName = "flip-page";
     static readonly RtlProgressionClassName = "rtl-progression";
+    static readonly HostViewportModeAttribute = "data-viewport-mode";
     static readonly DocumentVerticalPageModeCssName = "document-vertical-page-mode";
 
     /** Attribute name for the original link value */

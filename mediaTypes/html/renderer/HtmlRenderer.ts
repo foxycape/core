@@ -41,6 +41,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     private readonly contentProcessor: IHtmlContentProcessor;
     private readonly imageLoader: IHtmlImageLoader;
     private readonly imageObserver: HtmlImageObserver;
+    private scrollWatchTarget?: Document | Element;
     private scrollWatchState?: { _eventHandler: (e: Event) => void };
 
     constructor(owner: Reader, fileParser: IFileParser, readerContainer: HTMLElement, htmlOptions: HtmlOptions) {
@@ -112,12 +113,15 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     }
 
     private bindScrollWatch() {
-        const scrollElement = this.getScrollElement();
-        if (!scrollElement) {
+        const hostViewport = this.owner.getHostViewport();
+        this.scrollWatchTarget = hostViewport.mode == "window"
+            ? hostViewport.scrollWatchTarget
+            : this.getScrollElement();
+        if (!this.scrollWatchTarget) {
             return;
         }
         this.scrollWatchState = watchScroll(
-            scrollElement,
+            this.scrollWatchTarget,
             this.owner.options.calcScrollDirection,
             async (state, e) => {
                 this.owner.events.emit(EventNames.ReaderDebounceScroll, state, e);
@@ -211,10 +215,11 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
 
     override async dispose(): Promise<void> {
         this.unbindEvents();
-        const scrollElement = this.getScrollElement();
-        if (scrollElement && this.scrollWatchState?._eventHandler) {
-            scrollElement.removeEventListener("scroll", this.scrollWatchState._eventHandler, true);
+        const scrollTarget = this.scrollWatchTarget ?? this.getScrollElement();
+        if (scrollTarget && this.scrollWatchState?._eventHandler) {
+            scrollTarget.removeEventListener("scroll", this.scrollWatchState._eventHandler, true);
             this.scrollWatchState = undefined;
+            this.scrollWatchTarget = undefined;
         }
         await this.progressTracker.dispose();
         await this.imageObserver.dispose();

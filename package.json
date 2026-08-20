@@ -26,6 +26,11 @@
       "import": "./dist/kernal/index.mjs",
       "require": "./dist/kernal/index.cjs"
     },
+    "./ReaderHub": {
+      "types": "./dist/ReaderHub.d.ts",
+      "import": "./dist/ReaderHub.mjs",
+      "require": "./dist/ReaderHub.cjs"
+    },
     "./kernal/*": {
       "types": "./dist/kernal/*.d.ts",
       "import": "./dist/kernal/*.mjs",

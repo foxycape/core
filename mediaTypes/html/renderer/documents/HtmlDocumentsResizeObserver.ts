@@ -9,6 +9,7 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
     private readonly rendererContainer: HTMLElement;
     private readonly context: Context;
     private readonly events: IEventEmitter;
+    private visualViewport: VisualViewport | null = null;
     constructor(
         private readonly documentsProvider: IDocumentsProvider,
         private readonly rendererViewport: IRendererViewport<HtmlLayoutMetrics>,
@@ -29,8 +30,14 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
             const originHeight = parseFloat(target.getAttribute("data-client-height"));
             const currentWidth = entry.contentRect?.width ?? entry.borderBoxSize[0].inlineSize ?? 0;
             const currentHeight = entry.contentRect?.height ?? entry.borderBoxSize[0].blockSize ?? 0;
-            if (originWidth == currentWidth && originHeight == currentHeight) {
-                // this.logger.debug("rendererContainerResizeObserver...", 'size not change');
+            const hostViewport = this.documentsProvider.owner.getHostViewport();
+            if (hostViewport.mode == "window") {
+                if (originWidth == currentWidth) {
+                    this.rendererContainer.setAttribute("data-client-height", `${currentHeight}`);
+                    return;
+                }
+            }
+            else if (originWidth == currentWidth && originHeight == currentHeight) {
                 return;
             }
             this.rendererContainer.setAttribute("data-client-width", `${currentWidth}`)
@@ -48,16 +55,38 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
         });
 
         this.rendererContainerResizeObserver.observe(this.rendererContainer);
+        const view = this.rendererContainer.ownerDocument.defaultView;
+        this.visualViewport = view?.visualViewport ?? null;
+        this.visualViewport?.addEventListener("resize", this.onVisualViewportResize);
     }
+
+    private onVisualViewportResize = () => {
+        const owner = this.documentsProvider.owner;
+        if (owner.getHostViewport().mode != "window") {
+            return;
+        }
+        const viewport = owner.refreshHostViewport();
+        const readerContainer = owner.getReaderContainer();
+        if (readerContainer) {
+            readerContainer.style.minHeight = viewport.height + "px";
+        }
+        void this.delayResizeRendererContainer();
+    };
 
     protected resizeRendererContainer = async () => {
         if (!this.context) {
             return;
         }
         // The container is hidden, for example, using display:none 
-        if (this.rendererContainer.clientWidth == 0 || this.rendererContainer.clientHeight == 0) {
+        if (this.rendererContainer.clientWidth == 0) {
             if (this.rendererContainer["lhx_pdf_hidden"]) {
-                // The label changed when it was hidden
+                this.rendererContainer["lhx_pdf_require_resize"] = 'true'
+            }
+            this.rendererContainer["lhx_pdf_hidden"] = 'true'
+            return;
+        }
+        if (this.documentsProvider.owner.getHostViewport().mode != "window" && this.rendererContainer.clientHeight == 0) {
+            if (this.rendererContainer["lhx_pdf_hidden"]) {
                 this.rendererContainer["lhx_pdf_require_resize"] = 'true'
             }
             this.rendererContainer["lhx_pdf_hidden"] = 'true'
@@ -88,6 +117,8 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
     protected delayResizeRendererContainer = asyncDebounce(this.resizeRendererContainer, 100)
 
     async dispose(): Promise<void> {
+        this.visualViewport?.removeEventListener("resize", this.onVisualViewportResize);
+        this.visualViewport = null;
         this.rendererContainerResizeObserver?.disconnect();
     }
 }   

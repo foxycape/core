@@ -33,6 +33,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         this.rendererContainer = rendererContainer;
         this.scrollElement = this.rendererContainer;
         this.contentsShadowContainer = this.rendererContainer.querySelector('.' + HtmlSettings.ContentsShadowContainerCssName) as HTMLElement;
+        this.rendererContainer.setAttribute(HtmlSettings.HostViewportModeAttribute, this.owner.getHostViewport().mode);
     }
 
     getRendererContainer(): HTMLElement {
@@ -40,6 +41,10 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
     }
 
     getScrollElement(): HTMLElement {
+        const viewport = this.owner.getHostViewport();
+        if (viewport.mode == "window") {
+            return viewport.scrollElement;
+        }
         return this.rendererContainer;
     }
 
@@ -57,6 +62,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
     }
 
     private internlApplyCssVariables(): void {
+        this.owner.refreshHostViewport();
         const rendererCssVariables = this.prepareRendererCssVariables();
         const otherCssVariables = this.prepareOtherCssVariables();
         const vars = new Map<string, string>();
@@ -76,14 +82,17 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         const flow = resolveLayoutFlow(this.htmlOptions);
         const flipMode = flow.flipMode;
         this.applyFlowClasses(flow);
+        this.rendererContainer.setAttribute(HtmlSettings.HostViewportModeAttribute, this.owner.getHostViewport().mode);
         const vars = new Map<string, string>();
         const contentWrapperMarginBottom = flipMode == 'page' ? 0 : (this.htmlOptions.contentWrapperMarginBottom ?? 10)
         const contentWrapperMarginTop = flipMode == 'page' ? 0 : (this.htmlOptions.contentWrapperMarginTop ?? 10)
         vars.set(ViewportCssVariableNames.ContentWrapperMarginTop, contentWrapperMarginTop + 'px');
         vars.set(ViewportCssVariableNames.ContentWrapperMarginBottom, contentWrapperMarginBottom + 'px');
         vars.set(ViewportCssVariableNames.ContentWrapperBorderRadius, (this.htmlOptions.contentWrapperBorderRadius ?? 0) + 'px');
-        vars.set(ViewportCssVariableNames.ScrollElementOverflow, flow.overflowY);
-        vars.set(ViewportCssVariableNames.ScrollElementOverflowX, flow.overflowX);
+        const hostViewport = this.owner.getHostViewport();
+        const isWindowScroll = hostViewport.mode == "window" && flow.flipMode == "scroll";
+        vars.set(ViewportCssVariableNames.ScrollElementOverflow, isWindowScroll ? "visible" : flow.overflowY);
+        vars.set(ViewportCssVariableNames.ScrollElementOverflowX, isWindowScroll ? "visible" : flow.overflowX);
         return vars;
     }
 
@@ -107,8 +116,8 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
 
         const columnGap = (this.htmlOptions.columnGap ?? 40);
         const shadowContainer = this.contentsShadowContainer;
-        const rendererWidth = this.rendererContainer.clientWidth;
-        const rendererHeight = this.rendererContainer.clientHeight;
+        const rendererWidth = this.rendererContainer.clientWidth || this.owner.getHostViewport().width;
+        const rendererHeight = this.getViewportHeight();
 
         this.rendererContainer.setAttribute("data-client-width", `${rendererWidth}`)
         this.rendererContainer.setAttribute("data-client-height", `${rendererHeight}`)
@@ -123,6 +132,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         const vars = new Map<string, string>();
         vars.set(ViewportCssVariableNames.ScrollElementVerticalScrollBarWidth, scrollElementVerticalScrollBarWidth + "px");
         vars.set(ViewportCssVariableNames.ScrollElementHorizontalScrollBarHeight, scrollElementHorizontalScrollBarHeight + "px");
+        vars.set(ViewportCssVariableNames.ReaderViewportHeight, rendererHeight + "px");
 
         rootContainer.style.setProperty(ViewportCssVariableNames.ContentsContainerWidth, contentsContainerWidth)
         vars.set(ViewportCssVariableNames.ContentsContainerWidth, contentsContainerWidth);
@@ -215,18 +225,17 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         const flipMode = this.getFlipMode();
         const layoutMetrics = new HtmlLayoutMetrics();
         const rendererContainer = this.rendererContainer;
-        const { clientWidth, clientHeight } = rendererContainer;
+        const { clientWidth } = rendererContainer;
         const moveLength = parseFloat(rendererContainer.getAttribute("data-transform-length"))
-        layoutMetrics.clientWidth = clientWidth;
+        layoutMetrics.clientWidth = clientWidth || this.owner.getHostViewport().width;
         let pageHeight: number;
         if (flipMode == "scroll") {
-            const innerHeight = this.rendererContainer.ownerDocument.defaultView.innerHeight;
-            pageHeight = innerHeight - this.optionsProvider.getHeaderHeight() - this.optionsProvider.getFooterHeight();
+            pageHeight = this.getViewportHeight();
         }
         else {
             pageHeight = parseFloat(rendererContainer.getAttribute("data-page-height"))
         }
-        layoutMetrics.clientHeight = clientHeight;
+        layoutMetrics.clientHeight = this.getViewportHeight();
         layoutMetrics.pageHeight = pageHeight;
         layoutMetrics.columnHeight = pageHeight;
         layoutMetrics.columnGap = parseFloat(rendererContainer.getAttribute("data-column-gap"))
@@ -243,7 +252,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
             return "auto";
         }
         if (flow.flipMode == "page" || flow.isVerticalWriting) {
-            return `${this.rendererContainer.clientHeight}px`;
+            return `${this.getViewportHeight()}px`;
         }
         if (this.owner.inIframe) {
             return "100%";
@@ -396,6 +405,17 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         if (factor > 1)
             factor = 1;
         return factor;
+    }
+
+    private getViewportHeight() {
+        const hostViewport = this.owner.getHostViewport();
+        if (hostViewport.mode == "host") {
+            const rendererHeight = this.rendererContainer.clientHeight;
+            if (rendererHeight >= 80 && rendererHeight < 33554400) {
+                return Math.round(rendererHeight);
+            }
+        }
+        return hostViewport.height;
     }
 
     private getFlipMode(): FlipMode {

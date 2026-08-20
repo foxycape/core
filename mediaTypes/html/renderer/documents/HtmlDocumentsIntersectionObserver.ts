@@ -15,8 +15,10 @@ export class HtmlDocumentsIntersectionObserver implements IDisposable {
     }
 
     register() {
-        const root = this.documentsProvider.getScrollElement()
-            ?? this.documentsProvider.getRendererContainer();
+        const hostViewport = this.documentsProvider.owner.getHostViewport();
+        const root = hostViewport.mode == "host"
+            ? this.documentsProvider.getRendererContainer()
+            : hostViewport.observerRoot;
         this.contentContainerIntersectionObserver = new IntersectionObserver(entries => {
             for (let i = 0; i < entries.length; i++) {
                 const entry = entries[i];
@@ -27,7 +29,7 @@ export class HtmlDocumentsIntersectionObserver implements IDisposable {
                     this.events.emit(EventNames.DocumentVisibleChange, doc, isVisible);
                 }
             }
-        }, { rootMargin: "-2px" });
+        }, { root, rootMargin: "-2px" });
 
         this.observeContainers();
     }

@@ -54,7 +54,7 @@ const copyPdfjsToDistPlugin = (): Plugin => ({
 })
 
 // const input = await glob(['./kernal/**/*.{ts,js}', './mediaTypes/**/*.{ts,js}'], {
-const input = await glob(['./kernal/**/*.ts', './mediaTypes/**/*.ts'], {
+const input = await glob(['./kernal/**/*.ts', './mediaTypes/**/*.ts', './ReaderHub.ts'], {
   cwd: rootDir,
   absolute: true
 })
@@ -108,7 +108,7 @@ export default defineConfig({
     dts({
       entryRoot: path.resolve(rootDir, '.'),
       outDirs: ['dist'],
-      include: ['kernal/**/*.ts', 'mediaTypes/**/*.ts', 'types.d.ts', 'global.d.ts'],
+      include: ['kernal/**/*.ts', 'mediaTypes/**/*.ts', 'ReaderHub.ts', 'types.d.ts', 'global.d.ts'],
       exclude: ['**/*.test.ts', '**/*.spec.ts', 'samples/**', 'tests/**'],
       staticImport: true,
     }),

@@ -50,9 +50,9 @@ export * from './LocationState';
 export * from './IWallpaperProvider';
 export * from './web/debounce';
 export * from './ISymbolCalclator';
+export * from './hostViewport';
 export * from './services/internalUrlBuilder/IInternalUrlBuilder'
 export * from './storage/IStorage'
 export * from './JsonConvert'
 export * from './ContentRange'
 export * from './mark'
-export { ReaderHub } from '../ReaderHub';

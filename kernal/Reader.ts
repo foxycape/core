@@ -4,6 +4,7 @@ import { BrowserCapabilities } from "./web/BrowserCapabilities";
 import { EventNames } from "./EventNames";
 import { CoreServices, FileLoader } from "./FileLoader";
 import { emptyElement } from "./html/dom";
+import { resolveHostViewport, refreshHostViewportSize, type HostViewport } from "./hostViewport";
 import { createElement, injectCssContent } from "./html/injector";
 import { ILoading } from "./services/loading/ILoading";
 import { INotifier } from "./services/notifier/INotifier";
@@ -57,6 +58,7 @@ export class Reader implements LifecycleHooks {
     private abortController: AbortController;
     private rootContainer: HTMLElement;
     private isInIframe: boolean = false;
+    private hostViewport: HostViewport;
     readonly optionsProvider: OptionsProvider;
     private readingProgressStore: IReadingProgressStore;
 
@@ -211,6 +213,12 @@ export class Reader implements LifecycleHooks {
         this.currentNotifier = await this.services.get("notifier", false);
         this.currentLoading = await this.services.get("loading", false);
         emptyElement(this.readerWrapper);
+        this.hostViewport = resolveHostViewport(this.readerWrapper);
+        this.readerWrapper.setAttribute("data-viewport-mode", this.hostViewport.mode);
+        if (this.hostViewport.mode == "window" && !this.readerWrapper.style.minHeight) {
+            this.readerWrapper.style.minHeight = this.hostViewport.height + "px";
+            this.readerWrapper.setAttribute("data-fc-auto-min-height", "true");
+        }
         await this.loading?.initialize(this.readerWrapper,{
             backgroundColor: `var(${Theme.ReaderBackground})`,
             textColor: `var(${Theme.TextMutedColor})`,
@@ -268,7 +276,7 @@ export class Reader implements LifecycleHooks {
         let readerDocument: Document;
 
         if (!requireInIframeExtensions.includes(extension) || this.readerWrapper instanceof this.readerWrapper.ownerDocument.defaultView.window.HTMLBodyElement) {
-            this.readerContainer = createElement(this.readerWrapper.ownerDocument, "div", getRandomId(true), { "style": "width:100%;height:100%;overflow: hidden;position:relative;background:var(" + Theme.ReaderBackground + ")" });
+            this.readerContainer = createElement(this.readerWrapper.ownerDocument, "div", getRandomId(true), { "style": this.getReaderContainerBoxStyle(extension) });
             this.readerWrapper.appendChild(this.readerContainer);
             readerDocument = this.readerContainer.ownerDocument;
         }
@@ -281,7 +289,7 @@ export class Reader implements LifecycleHooks {
                 iframe.contentDocument.close();
             }
             const iframeDocument = iframe.contentDocument!;
-            this.readerContainer = createElement(iframeDocument, "div", getRandomId(true), { "style": "width:100%;height:100%;overflow: hidden;position:relative;background:var(" + Theme.ReaderBackground + ")" });
+            this.readerContainer = createElement(iframeDocument, "div", getRandomId(true), { "style": this.getReaderContainerBoxStyle(extension) });
             iframeDocument.body.appendChild(this.readerContainer);
             readerDocument = iframeDocument;
             iframe.contentWindow.addEventListener("click", (e) => {
@@ -298,6 +306,7 @@ export class Reader implements LifecycleHooks {
             this.events.emit(EventNames.ReaderMouseEnter, { e, reader: this });
         }, true);
         this.readerContainer.setAttribute("data-role", "readerContainer");
+        this.readerContainer.setAttribute("data-viewport-mode", this.getHostViewport().mode);
 
         await this.onContainerCreated?.();
 
@@ -491,6 +500,51 @@ export class Reader implements LifecycleHooks {
         return this.rootContainer;
     }
 
+    getHostViewport(): HostViewport {
+        if (this.hostViewport) {
+            return this.hostViewport;
+        }
+        const host = this.readerWrapper ?? this.rootContainer;
+        if (host) {
+            this.hostViewport = resolveHostViewport(host);
+            return this.hostViewport;
+        }
+        return {
+            mode: "window",
+            height: 600,
+            width: 800,
+            observerRoot: null,
+            scrollElement: document.scrollingElement as HTMLElement ?? document.documentElement,
+            scrollWatchTarget: document,
+        };
+    }
+
+    refreshHostViewport(): HostViewport {
+        const host = this.readerWrapper ?? this.rootContainer;
+        if (!host) {
+            return this.getHostViewport();
+        }
+        if (!this.hostViewport) {
+            this.hostViewport = resolveHostViewport(host);
+            return this.hostViewport;
+        }
+        this.hostViewport = refreshHostViewportSize(host, this.hostViewport);
+        return this.hostViewport;
+    }
+
+    private getReaderContainerBoxStyle(extension: string) {
+        const viewport = this.getHostViewport();
+        const background = `background:var(${Theme.ReaderBackground})`;
+        if (viewport.mode == "host") {
+            return `width:100%;height:100%;overflow:hidden;position:relative;${background}`;
+        }
+        const isPdf = (extension ?? "").toLowerCase().replace(/^\./, "") == "pdf";
+        if (isPdf) {
+            return `width:100%;height:${viewport.height}px;overflow:hidden;position:relative;${background}`;
+        }
+        return `width:100%;height:auto;min-height:${viewport.height}px;overflow:visible;position:relative;${background}`;
+    }
+
     async dispose(): Promise<void> {
         await this.onDisposing?.();
         await this.clear();
@@ -533,6 +587,11 @@ export class Reader implements LifecycleHooks {
 
         if (this.readerWrapper) {
             emptyElement(this.readerWrapper);
+            if (this.readerWrapper.getAttribute("data-fc-auto-min-height") == "true") {
+                this.readerWrapper.style.removeProperty("min-height");
+                this.readerWrapper.removeAttribute("data-fc-auto-min-height");
+            }
+            this.readerWrapper.removeAttribute("data-viewport-mode");
         }
         this.startLoadTime = null;
         this.currentIsLoaded = false;
