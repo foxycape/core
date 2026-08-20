@@ -139,7 +139,7 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         const contentContainer = getDocumentBody(doc);
         const lastElementChild = contentContainer.lastElementChild;
         if (lastElementChild) {
-            css += "." + HtmlSettings.WithoutMarginBottomCssName + "{margin-block-end:0 !important;}";
+            css += "." + this.DocumentPageModeCssName + " ." + HtmlSettings.WithoutMarginBottomCssName + "{margin-block-end:0 !important;}";
             lastElementChild.classList.add(HtmlSettings.WithoutMarginBottomCssName);
         }
         return css;
