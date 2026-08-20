@@ -1,4 +1,8 @@
-import type { ContentRange, FixedContentRange } from "../ContentRange";
+import type {
+    ContentRange,
+    FixedContentRange,
+    ReflowableContentRange,
+} from "../ContentRange";
 import type { MarkStyleName, MarkType } from "./types";
 
 /**
@@ -16,6 +20,8 @@ export type Mark = {
     contentRange: ContentRange;
     /** Convenience page for fixed-layout marks; omit for reflowable / media */
     pageNumber?: number;
+    /** Convenience spine/document URL for reflowable marks; omit for fixed / media */
+    url?: string;
     createTime: string;
     updateTime: string;
 };
@@ -28,6 +34,7 @@ export const createMark = (
     contentRange: ContentRange,
     markId: string,
     customColor?: string,
+    url?: string,
 ): Mark => {
     const now = new Date().toISOString();
     const pageNumber =
@@ -43,6 +50,7 @@ export const createMark = (
         customColor,
         contentRange,
         pageNumber,
+        url,
         createTime: now,
         updateTime: now,
     };
@@ -50,3 +58,8 @@ export const createMark = (
 
 export const getFixedContentRange = (mark: Mark): FixedContentRange | undefined =>
     mark.contentRange.kind === "fixed" ? mark.contentRange : undefined;
+
+export const getReflowableContentRange = (
+    mark: Mark,
+): ReflowableContentRange | undefined =>
+    mark.contentRange.kind === "reflowable" ? mark.contentRange : undefined;

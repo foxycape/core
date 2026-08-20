@@ -11,6 +11,8 @@ export type MarkStyleName =
 /** Query options for listing marks */
 export type QueryMarkOptions = {
     pageNumber?: number;
+    /** Spine/document URL for reflowable marks */
+    url?: string;
     types?: MarkType[];
     keyword?: string;
 };
