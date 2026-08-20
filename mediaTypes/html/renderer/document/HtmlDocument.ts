@@ -210,11 +210,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     };
 
     resetLayoutSizes(): void {
-        const contentRootElement = this.getContentRootElement();
-        if (!contentRootElement || !this.iframe) {
-            return;
-        }
-        this.resetIframeMinSize(contentRootElement);
+        this.resetIframeMinSize();
     }
     captureLayoutState(): LocationState {
         return this.layoutStatePreserver.capture();
@@ -222,16 +218,18 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     async restoreLayoutState(locationState: LocationState): Promise<void> {
         await this.layoutStatePreserver.restore(locationState);
     }
-    private resetIframeMinSize(rootContent: HTMLElement) {
-        if (!rootContent || !this.iframe) {
+    private resetIframeMinSize() {
+        const contentRootElement = this.getContentRootElement();
+        if (!contentRootElement || !this.iframe) {
             return;
         }
+
         const flow = resolveLayoutFlow(this.options);
-        const body = getDocumentBody(rootContent.ownerDocument);
+        const body = getDocumentBody(contentRootElement.ownerDocument);
         this.iframe.style.removeProperty("transform");
         this.iframe.style.removeProperty("will-change");
         if (flow.useColumnLayout) {
-            this.growIframeToColumnOverflow(rootContent, body, flow.pageAxis);
+            this.growIframeToColumnOverflow(contentRootElement, body, flow.pageAxis);
             this.pageCalculator.calcNumberOfPages(true);
             return;
         }
@@ -244,18 +242,18 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                 : `var(${ViewportCssVariableNames.ContentContainerHeight})`;
             this.iframe.style.width = "auto";
             if (lockedHeight) {
-                rootContent.style.height = lockedHeight + "px";
-                rootContent.style.maxHeight = lockedHeight + "px";
+                contentRootElement.style.height = lockedHeight + "px";
+                contentRootElement.style.maxHeight = lockedHeight + "px";
                 if (body) {
                     body.style.height = lockedHeight + "px";
                     body.style.maxHeight = lockedHeight + "px";
                 }
             }
             void this.iframe.offsetWidth;
-            this.iframe.style.minWidth = Math.max(1, rootContent.scrollWidth) + "px";
+            this.iframe.style.minWidth = Math.max(1, contentRootElement.scrollWidth) + "px";
             return;
         }
-        this.clearInlineContentBox(rootContent, body);
+        this.clearInlineContentBox(contentRootElement, body);
         this.iframe.style.removeProperty("min-width");
         this.iframe.style.setProperty(
             "width",
@@ -264,7 +262,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                 : `var(${ViewportCssVariableNames.ContentContainerWidth})`
         );
         this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
-        const iframeMinHeight = rootContent.getBoundingClientRect().height;
+        const iframeMinHeight = contentRootElement.getBoundingClientRect().height;
         this.iframe.style.minHeight = Math.round(iframeMinHeight) + "px";
     }
 
@@ -292,8 +290,12 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             }
             void this.iframe.offsetWidth;
             void rootContent.offsetWidth;
-            const grownWidth = Math.max(1, rootContent.scrollWidth, body?.scrollWidth ?? 0);
-            this.iframe.style.width = "auto";
+            // const grownWidth = Math.max(1, rootContent.scrollWidth, body?.scrollWidth ?? 0);
+            const iframeMinWidth = rootContent.scrollWidth
+            const bodyWidth = getDocumentBody(rootContent.ownerDocument).getBoundingClientRect().width;
+            const grownWidth = Math.min(iframeMinWidth, bodyWidth);
+            // this.iframe.style.width = "auto";
+            this.iframe.style.setProperty("width", `var(${ViewportCssVariableNames.ContentContainerWidth})`);
             this.iframe.style.minWidth = grownWidth + "px";
         }
         finally {

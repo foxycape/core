@@ -73,6 +73,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
             vars.set(k, v);
         })
         const rootContainer = this.owner.getRootContainer();
+        rootContainer.style.setProperty('direction', `var(${ViewportCssVariableNames.ReaderViewportDirection})`);
         vars.forEach((v, k) => {
             rootContainer.style.setProperty(k, v);
         })
@@ -93,6 +94,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         const isWindowScroll = hostViewport.mode == "window" && flow.flipMode == "scroll";
         vars.set(ViewportCssVariableNames.ScrollElementOverflow, isWindowScroll ? "visible" : flow.overflowY);
         vars.set(ViewportCssVariableNames.ScrollElementOverflowX, isWindowScroll ? "visible" : flow.overflowX);
+        vars.set(ViewportCssVariableNames.ReaderViewportDirection, flow.direction);
         return vars;
     }
 
@@ -169,11 +171,11 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         if (flipMode == "scroll") {
             marginInline = 0;
             marginBlock = 0;
-        }       
-        if(flipMode == "scroll") {
+        }
+        if (flipMode == "scroll") {
             shadowContainer.style = `margin: ${marginBlock}px ${marginInline}px;`;
         } else {
-            shadowContainer.style = `margin: ${marginBlock}px ${marginInline}px;height: ${rendererHeight-2*shadowMargin}px;`;
+            shadowContainer.style = `margin: ${marginBlock}px ${marginInline}px;height: ${rendererHeight - 2 * shadowMargin}px;`;
         }
         const shadowWidth = shadowContainer.getBoundingClientRect().width;
         const pageBoxWidth = columns * columnWidth + Math.max(0, columns - 1) * columnGap;
@@ -196,8 +198,8 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         } else if (flipMode == "scroll") {
             vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, (shadowWidth) + 'px');
         } else {
-            // vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, (columnWidth + columnGap / 2) + 'px');
-            vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, pageBoxWidth + 'px');
+            vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, (columnWidth + columnGap / 2) + 'px');
+            // vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, pageBoxWidth + 'px');
         }
         vars.set(ViewportCssVariableNames.ContentWrapperHeight, this.getContentWrapperHeight());
         vars.set(ViewportCssVariableNames.ContentWrapperMinHeight, rendererHeight + "px");

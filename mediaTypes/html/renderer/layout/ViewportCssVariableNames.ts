@@ -13,6 +13,8 @@ export class ViewportCssVariableNames {
     static readonly ScrollElementHorizontalScrollBarHeight = "--scroll-element-horizontal-scrollbar-height";
     /** Resolved reading viewport height (host box or visual viewport) */
     static readonly ReaderViewportHeight = "--reader-viewport-height";
+    /** Resolved reading viewport direction */
+    static readonly ReaderViewportDirection = "--reader-viewport-direction"; 
 
     /**Each content wrapper container width*/
     static readonly ContentWrapperWidth = "--content-wrapper-width";
