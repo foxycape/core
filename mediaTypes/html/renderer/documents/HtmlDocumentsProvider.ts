@@ -348,6 +348,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     private transformHorizontalPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous') {
         const resolved = this.resolveRelativePageTransform(doc, pageNumber, direction, "x");
         if (!resolved) {
+            this.syncPageNumberWhenTransformBlocked(doc, direction);
             return;
         }
         this.applyPageTransform(resolved.transformContainer, resolved.newTransformLength, direction, "x", resolved.styleTransformedLength);
@@ -357,6 +358,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     private transformVerticalPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous') {
         const resolved = this.resolveRelativePageTransform(doc, pageNumber, direction, "y");
         if (!resolved) {
+            this.syncPageNumberWhenTransformBlocked(doc, direction);
             return;
         }
         this.applyPageTransform(resolved.transformContainer, resolved.newTransformLength, direction, "y", resolved.styleTransformedLength);
@@ -389,7 +391,6 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             currentTransformedLength = styleTransformedLength;
         }
         const documentViewport = this.rendererViewport.getLayoutMetrics();
-        const flow = resolveLayoutFlow(this.htmlOptions);
         const offset = this.getDocumentPageStartOffset(doc, axis);
         const columnTransformLength = axis == "y"
             ? documentViewport.pageMoveLength
@@ -423,15 +424,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         }
         else if (direction == 'next') {
             newTransformLength = fixedCurrentTransformedLength + documentViewport.pageMoveLength;
-            const documents = this.getDocuments();
-            const lastDocument = documents[documents.length - 1];
-            const lastWrapper = lastDocument.getWrapperContainer();
-            const lastExtent = axis == "y"
-                ? lastWrapper.offsetTop + lastWrapper.scrollHeight
-                : (flow.isRtlProgression
-                    ? (transformContainer.offsetWidth || 0)
-                    : lastWrapper.offsetLeft + lastWrapper.scrollWidth);
-            if (lastExtent - newTransformLength <= 0) {
+            if (this.wouldExceedLastContent(newTransformLength, axis, transformContainer)) {
                 return null;
             }
         }
@@ -444,6 +437,49 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         }
 
         return { transformContainer, newTransformLength, styleTransformedLength };
+    }
+
+    canAdvancePageTransform(doc: IHtmlDocument): boolean {
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        const nextPageNumber = this.getCurrentPageNumber(doc) + 1;
+        return this.resolveRelativePageTransform(doc, nextPageNumber, "next", flow.pageAxis) != null;
+    }
+
+    /**
+     * Last document may end mid-page (leftover columns). A further next step
+     * has nowhere to move, even when counted pageNumber is still within numberOfPages.
+     */
+    private wouldExceedLastContent(newTransformLength: number, axis: 'x' | 'y', transformContainer: HTMLElement): boolean {
+        return this.getLastContentExtent(axis, transformContainer) - newTransformLength <= 0;
+    }
+
+    private getLastContentExtent(axis: 'x' | 'y', transformContainer: HTMLElement): number {
+        const documents = this.getDocuments();
+        const lastWrapper = documents[documents.length - 1]?.getWrapperContainer();
+        if (!lastWrapper) {
+            return 0;
+        }
+        if (axis == "y") {
+            return lastWrapper.offsetTop + lastWrapper.scrollHeight;
+        }
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        if (flow.isRtlProgression) {
+            return transformContainer.offsetWidth || 0;
+        }
+        return lastWrapper.offsetLeft + lastWrapper.scrollWidth;
+    }
+
+    private syncPageNumberWhenTransformBlocked(doc: IHtmlDocument, direction?: 'next' | 'previous') {
+        if (direction != "next") {
+            return;
+        }
+        const contentRootElement = doc.getContentContainer()?.ownerDocument?.documentElement;
+        const numberOfPages = parseNumber(
+            contentRootElement?.getAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName),
+            this.getCurrentPageNumber(doc),
+            "parseInt"
+        );
+        this.setCurrentPageNumber(doc, numberOfPages);
     }
 
     /**

@@ -57,7 +57,8 @@ export class HtmlPagingNavigator implements IPagingNavigator {
         // this.logger.debug("url:", firstVisibleDocument.url, "gotoPage firstVisibleDocument");
         // await doc.load();
 
-        if (pageNumber > numberOfPages) {
+        const isPastLastContent = direction == "next" && !this.documentsProvider.canAdvancePageTransform(doc);
+        if (pageNumber > numberOfPages || isPastLastContent) {
             const docs = this.documentsProvider.getDocuments();
             const index = docs.indexOf(doc);
             if (index == docs.length - 1) {
