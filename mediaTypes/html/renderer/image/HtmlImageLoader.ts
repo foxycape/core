@@ -32,6 +32,7 @@ const SVG_STYLE_CLASS = "lhx-svg";
 const IMAGE_SIZES_TABLE_PREFIX = "imagesizes-";
 const PRELOAD_IMAGE_COUNT = 5;
 const SVG_STYLE = `.${SVG_STYLE_CLASS} {width: 100% !important; height: auto !important; }`;
+const ONLY_ONE_IMAGE_STYLE = "*,p,div{text-align:center;margin-block:0 !important;margin-inline:auto !important;text-indent:0 !important;padding:0 !important;line-height:0 !important}";
 
 type ImageSizeDescriptor = {
     url: string;
@@ -231,6 +232,9 @@ export class HtmlImageLoader implements IHtmlImageLoader {
 
     private async prepareImageSize(doc: IHtmlDocument, virtualDocument: Document): Promise<void> {
         injectCssContent(virtualDocument, SVG_STYLE, false, "lhx-svg-style");
+        if (this.checkIsOnlyOneImageInDocument(virtualDocument)) {
+            injectCssContent(virtualDocument, ONLY_ONE_IMAGE_STYLE, false, "only-one-image");
+        }
 
         const images = collectImageElements(virtualDocument);
         const sizeMap = this.getImageSizeMap(doc);

@@ -1,5 +1,4 @@
 import { EventNames, IDisposable, IDocument, IDocumentsProvider, IEventEmitter } from "../../../../kernal";
-import { HtmlSettings } from "../../HtmlSettings";
 
 /**
  * HTML intersection observer。
@@ -16,9 +15,8 @@ export class HtmlDocumentsIntersectionObserver implements IDisposable {
     }
 
     register() {
-        const renderer = this.documentsProvider.getRendererContainer();
-        const root = renderer?.querySelector("." + HtmlSettings.ContentsContainerCssName) as HTMLElement
-            ?? renderer;
+        const root = this.documentsProvider.getScrollElement()
+            ?? this.documentsProvider.getRendererContainer();
         this.contentContainerIntersectionObserver = new IntersectionObserver(entries => {
             for (let i = 0; i < entries.length; i++) {
                 const entry = entries[i];
@@ -29,7 +27,7 @@ export class HtmlDocumentsIntersectionObserver implements IDisposable {
                     this.events.emit(EventNames.DocumentVisibleChange, doc, isVisible);
                 }
             }
-        }, { root, rootMargin: "-2px" });
+        }, { rootMargin: "-2px" });
 
         this.observeContainers();
     }
