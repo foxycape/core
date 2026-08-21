@@ -318,7 +318,7 @@ export class Reader implements LifecycleHooks {
         wallpaperProvider?.changeWallpaper(this.options.wallpaperName);
 
         if (this.options.enableInjectResetCss) {
-            injectCssContent(readerDocument, "html{touch-action:none;touch-action:pan-y;}body *{box-sizing:border-box}html,body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td{padding:0;margin:0;}ul,ol,li{list-style:none;}i,em{font-style:normal}img{border:0;}table{border-collapse:collapse;border-spacing:0;}table td{padding:0;margin:0;}table th.wztop{vertical-align:top;}.fl{float:left;}.fr{float:right;}section,article,aside,header,footer,nav,dialog,figure{display:block;padding:0;margin:0;}html{text-size-adjust: 100%;}", false, "reader_global_style");
+            injectCssContent(readerDocument, "html{touch-action:none;touch-action:pan-y;}body *{box-sizing:border-box}html,body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td{padding:0;margin:0;}ul,ol,li{list-style:none;}i,em{font-style:normal}img{border:0;}table{border-collapse:collapse;border-spacing:0;}table td{padding:0;margin:0;}table th.wztop{vertical-align:top;}.fl{float:left;}.fr{float:right;}section,article,aside,header,footer,nav,dialog,figure{padding:0;margin:0;}html{text-size-adjust: 100%;}", false, "reader_global_style");
         }
 
         await this.notifier.initialize(this.readerContainer);

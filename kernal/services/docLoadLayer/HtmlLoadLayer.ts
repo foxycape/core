@@ -138,7 +138,7 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
         const text = doc.createElement("div");
         text.style.cssText = "font-size: 14px;";
         text.textContent = processedImageCount
-            ? "Processing images " + processedImageCount + "/" + totalImageCount
+            ? "Calculating image size... " + processedImageCount + "/" + totalImageCount
             : "Loading...";
         content.appendChild(text);
         loadingLayer.appendChild(content);
