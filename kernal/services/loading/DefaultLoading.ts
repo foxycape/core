@@ -58,7 +58,7 @@ export class DefaultLoading implements ILoading {
 
             const textLayer = this.container.ownerDocument.createElement("div");
             textLayer.className = "loading-holder";
-            textLayer.style.cssText = `font-size: 16px;color: ${textColor};margin-block-start: ${this.loadingTextMarginTop}px;`;
+            textLayer.style.cssText = `font-size: 14px;color: ${textColor};margin-block-start: ${this.loadingTextMarginTop}px;`;
             textLayer.textContent = loadingText;
 
             loadingContainer.append(pulse, textLayer);
