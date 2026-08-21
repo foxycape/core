@@ -1,5 +1,5 @@
 ﻿import { getRandomId } from "../../../kernal/common/uuid";
-import { EventNames, FileLocation, ICoreNavigator, IFileParser, isOptionKey, IPagingNavigator, WritingMode, IStyleProvider, INavPointNavigator, INavPointProvider, Theme, Direction } from "../../../kernal";
+import { EventNames, FileLocation, ICoreNavigator, IFileParser, isOptionKey, IPagingNavigator, WritingMode, IStyleProvider, INavPointNavigator, INavPointProvider, Theme, Direction, yieldToMain } from "../../../kernal";
 import type { Reader } from "../../../kernal/Reader";
 import { watchScroll } from "../../../kernal/html/events";
 import { isHtmlOptionKey } from "../HtmlOptions";
@@ -166,6 +166,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
                 this.owner.context.setUserChangedProgress(false)
             }
             this.rendererViewport.applyCssVariables();
+            await yieldToMain();
             if (requireReload) {
                 if (!this.owner.context.userChangedProgress) {
                     await this.reload();

@@ -1,4 +1,4 @@
-import { asyncDebounce, Context, EventNames, IDisposable, IDocumentsProvider, IEventEmitter, IProgressTracker } from "../../../../kernal";
+import { asyncDebounce, Context, EventNames, IDisposable, IDocumentsProvider, IEventEmitter, IProgressTracker, yieldToMain } from "../../../../kernal";
 import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { IHtmlRendererLayout } from "../layout/IHtmlRendererLayout";
@@ -105,6 +105,7 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
         }
         this.rendererViewport.applyCssVariables();
         await this.rendererLayout.applyStyles();
+        await yieldToMain();
         // Column metrics changed: drop cached page counts so reload remaps against the new layout.
         for (const doc of this.documentsProvider.getLoadedDocuments()) {
             doc.getContentContainer()?.ownerDocument?.documentElement

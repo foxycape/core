@@ -1,6 +1,6 @@
 import { HtmlLayoutMetrics } from "./HtmlLayoutMetrics";
 import { HtmlOptions } from "../../HtmlOptions";
-import { Direction, EventNames, IDocumentsProvider, IProgressTracker, Reader, Theme, WritingMode } from "../../../../kernal";
+import { Direction, EventNames, IDocumentsProvider, IProgressTracker, Reader, Theme, WritingMode, yieldToMain } from "../../../../kernal";
 import { HtmlChangeLayoutOptions, IHtmlRendererLayout } from "./IHtmlRendererLayout";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { IHtmlDocument } from "../IHtmlDocument";
@@ -58,6 +58,7 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         this.toggleColumnLayout(documentElement, flow);
         documentElement.removeAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName);
         doc.resetLayoutSizes();
+        await yieldToMain();
     }
 
     private async getCssVariables(theme: Theme, metrics: HtmlLayoutMetrics, flow: ReturnType<typeof resolveLayoutFlow>) {

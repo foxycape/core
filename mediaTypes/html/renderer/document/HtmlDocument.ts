@@ -186,6 +186,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.resizeObserver.observeIframeSize(async () => {
             const resizeState = this.captureLayoutState();
             this.resetLayoutSizes();
+            await yieldToMain();
             if (this.getFlipMode() == "page") {
                 this.pageCalculator.calcNumberOfPages(true);
             }

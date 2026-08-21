@@ -94,7 +94,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         const isWindowScroll = hostViewport.mode == "window" && flow.flipMode == "scroll";
         vars.set(ViewportCssVariableNames.ScrollElementOverflow, isWindowScroll ? "visible" : flow.overflowY);
         vars.set(ViewportCssVariableNames.ScrollElementOverflowX, isWindowScroll ? "visible" : flow.overflowX);
-        vars.set(ViewportCssVariableNames.ReaderViewportDirection, flow.direction);
+        vars.set(ViewportCssVariableNames.ReaderViewportDirection, flow.direction == 'ltr' ? 'unset' : flow.direction);
         return vars;
     }
 
