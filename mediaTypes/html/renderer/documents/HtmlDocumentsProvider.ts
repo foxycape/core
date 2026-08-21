@@ -40,7 +40,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         owner: Reader,
         fileParser: IFileParser,
         protected readonly readerContainer: HTMLElement,
-        protected readonly htmlOptions: HtmlOptions
+        public readonly htmlOptions: HtmlOptions
     ) {
         super(owner, fileParser);
         this.logger = this.owner.loggerFactory.getLogger(this.constructor.name);
