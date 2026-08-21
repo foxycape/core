@@ -68,6 +68,7 @@ export class HtmlOptions {
     /** Content container bottom margin in px */
     contentWrapperMarginBottom: number = 10;
     contentWrapperMarginTop: number = 10;
+    contentWrapperGap: number = 10;
     contentWrapperBorderRadius: number = 3;
     enableContentWrapperBorderRadius: boolean = true;
 

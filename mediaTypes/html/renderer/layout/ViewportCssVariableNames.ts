@@ -33,6 +33,8 @@ export class ViewportCssVariableNames {
     static readonly ContentWrapperMarginTop = "--content-wrapper-margin-top";
     /**Each content wrapper container bottom spacing */
     static readonly ContentWrapperMarginBottom = "--content-wrapper-margin-bottom";
+    /**Each content wrapper container gap */
+    static readonly ContentWrapperGap = "--content-wrapper-gap";
     /**Each content wrapper container corner radius */
     static readonly ContentWrapperBorderRadius = "--content-wrapper-border-radius";
 

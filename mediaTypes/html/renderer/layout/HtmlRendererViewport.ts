@@ -93,10 +93,12 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         this.applyFlowClasses(flow);
         this.rendererContainer.setAttribute(HtmlSettings.HostViewportModeAttribute, this.owner.getHostViewport().mode);
         const vars = new Map<string, string>();
-        const contentWrapperMarginBottom = flipMode == 'page' ? 0 : (this.htmlOptions.contentWrapperMarginBottom ?? 10)
-        const contentWrapperMarginTop = flipMode == 'page' ? 0 : (this.htmlOptions.contentWrapperMarginTop ?? 10)
+        const contentWrapperMarginBottom = flipMode == 'page' || flow.isVerticalWriting ? 0 : (this.htmlOptions.contentWrapperMarginBottom ?? 10)
+        const contentWrapperMarginTop = flipMode == 'page' || flow.isVerticalWriting ? 0 : (this.htmlOptions.contentWrapperMarginTop ?? 10)
+        const contentWrapperGap = flipMode == 'page' || flow.isVerticalWriting ? 0 : (this.htmlOptions.contentWrapperGap ?? 10)
         vars.set(ViewportCssVariableNames.ContentWrapperMarginTop, contentWrapperMarginTop + 'px');
         vars.set(ViewportCssVariableNames.ContentWrapperMarginBottom, contentWrapperMarginBottom + 'px');
+        vars.set(ViewportCssVariableNames.ContentWrapperGap, contentWrapperGap + 'px');
         vars.set(ViewportCssVariableNames.ContentWrapperBorderRadius, (this.htmlOptions.contentWrapperBorderRadius ?? 0) + 'px');
         const hostViewport = this.owner.getHostViewport();
         const isWindowScroll = hostViewport.mode == "window" && flow.flipMode == "scroll";

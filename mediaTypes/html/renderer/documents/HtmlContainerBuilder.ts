@@ -23,6 +23,8 @@ export class HtmlContainerBuilder {
         const rendererClassName = "renderer";
         let rendererCss = `.${rendererClassName}{margin-block-start:var(${Options.HeaderHeight});`
         rendererCss += `margin-block-end:var(${Options.FooterHeight});`
+        rendererCss += `padding-block-start:var(${ViewportCssVariableNames.ContentWrapperMarginTop});`
+        rendererCss += `padding-block-end:var(${ViewportCssVariableNames.ContentWrapperMarginBottom});`
         rendererCss += `overflow:auto;outline:none;width:100%;`
         rendererCss += `height:calc(100% - var(${Options.HeaderHeight}) - var(${Options.FooterHeight}));`;
         rendererCss += `overflow-y:var(${ViewportCssVariableNames.ScrollElementOverflow});`;
@@ -88,7 +90,7 @@ export class HtmlContainerBuilder {
         let transformContainerCss = "";
         transformContainerCss += "." + HtmlSettings.TransformContainerCssName + "{";
         transformContainerCss += `display:flex;flex-wrap:nowrap;position: relative;flex-direction:column;`
-        transformContainerCss += `gap:var(${ViewportCssVariableNames.ContentWrapperMarginBottom});`;
+        transformContainerCss += `gap:var(${ViewportCssVariableNames.ContentWrapperGap});`;
         transformContainerCss += "}";
 
         transformContainerCss += "." + HtmlSettings.TransformPagesClassName + " ." + HtmlSettings.ContentsContainerCssName + "{";
