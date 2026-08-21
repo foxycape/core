@@ -208,7 +208,7 @@ export class Reader implements LifecycleHooks {
             this.rootContainer = this.readerWrapper;
         }
         this.optionsProvider.applyCssVariables(this.rootContainer);
-        const theme=await this.getTheme(this.options.themeName);
+        const theme = await this.getTheme(this.options.themeName);
         await this.applyGlobalTheme(theme);
         this.currentNotifier = await this.services.get("notifier", false);
         this.currentLoading = await this.services.get("loading", false);
@@ -219,7 +219,7 @@ export class Reader implements LifecycleHooks {
             this.readerWrapper.style.minHeight = this.hostViewport.height + "px";
             this.readerWrapper.setAttribute("data-fc-auto-min-height", "true");
         }
-        await this.loading?.initialize(this.readerWrapper,{
+        await this.loading?.initialize(this.readerWrapper, {
             backgroundColor: `var(${Theme.ReaderBackground})`,
             textColor: `var(${Theme.TextMutedColor})`,
             iconColor: `var(${Theme.TextAccentColor})`,
@@ -318,7 +318,9 @@ export class Reader implements LifecycleHooks {
         wallpaperProvider?.changeWallpaper(this.options.wallpaperName);
 
         if (this.options.enableInjectResetCss) {
-            injectCssContent(readerDocument, "html{touch-action:none;touch-action:pan-y;}body *{box-sizing:border-box}html,body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td{padding:0;margin:0;}ul,ol,li{list-style:none;}i,em{font-style:normal}img{border:0;}table{border-collapse:collapse;border-spacing:0;}table td{padding:0;margin:0;}table th.wztop{vertical-align:top;}.fl{float:left;}.fr{float:right;}section,article,aside,header,footer,nav,dialog,figure{padding:0;margin:0;}html{text-size-adjust: 100%;}", false, "reader_global_style");
+            injectCssContent(readerDocument, "html{touch-action:none;touch-action:pan-y;}body *{box-sizing:border-box}html,body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td{padding:0;margin:0;}ul,ol,li{list-style:none;}i,em{font-style:normal}img{border:0;}table{border-collapse:collapse;border-spacing:0;}table td{padding:0;margin:0;}section,article,aside,header,footer,nav,dialog,figure{padding:0;margin:0;}html{text-size-adjust: 100%;}", false, "reader_global_style", (container, content) => {
+                container.insertBefore(content, container.firstChild);
+            });
         }
 
         await this.notifier.initialize(this.readerContainer);
@@ -352,7 +354,7 @@ export class Reader implements LifecycleHooks {
         if (documents.length == 0) {
             throw new Error("Empty File");
         }
-        const theme=await this.getTheme(this.options.themeName);
+        const theme = await this.getTheme(this.options.themeName);
         await this.getRenderer()?.applyTheme(theme);
         await this.onRenderered?.(this.renderer);
 
@@ -421,13 +423,13 @@ export class Reader implements LifecycleHooks {
             return;
         }
         this.options.themeName = themeName;
-        const theme=await this.getTheme(themeName);
+        const theme = await this.getTheme(themeName);
         await this.applyGlobalTheme(theme);
         await this.getRenderer()?.applyTheme(theme);
         this.events.emit(EventNames.ThemeChange, theme);
     }
 
-    private getTheme=async (themeName: string)=>{
+    private getTheme = async (themeName: string) => {
         const themeProvider = await this.services.get("themeProvider");
         let theme: Theme;
         if (!themeProvider) {
@@ -436,13 +438,13 @@ export class Reader implements LifecycleHooks {
         else {
             theme = themeProvider.getTheme(themeName);
         }
-        if(!theme){
+        if (!theme) {
             theme = new Theme();
         }
         return theme;
     }
 
-    private applyGlobalTheme=async (theme: Theme)=>{
+    private applyGlobalTheme = async (theme: Theme) => {
         for (const key of ThemeCssKeys) {
             this.rootContainer.style.setProperty(toCssVariableName(key), theme[key]);
         }

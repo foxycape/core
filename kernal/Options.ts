@@ -49,7 +49,7 @@ export class Options {
     calcScrollDirection: boolean = true;
 
     /** whether to inject reset CSS */
-    enableInjectResetCss: boolean = true;
+    enableInjectResetCss: boolean = false;
 
     /** file extensions that must be opened in iframe */
     iframeRequiredExtensions = [];

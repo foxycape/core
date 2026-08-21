@@ -1,7 +1,6 @@
 import { isNullOrWhiteSpace } from "../common/text";
 import { computeUniqueId } from "../common/uuid";
-import { Direction, WritingMode } from "../types";
-import { getDocumentBody, getDocumentHead } from "./finder";
+import { getDocumentHead } from "./finder";
 
 const appendElementToTarget = (rootElement: Document | HTMLElement, objectId: string, element: HTMLElement, callback?: (container: Document | Element, content: Element) => void) => {
     const ownerDocument = rootElement.ownerDocument ? rootElement.ownerDocument : rootElement as Document;
