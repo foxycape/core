@@ -63,6 +63,11 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
 
     private internlApplyCssVariables(): void {
         this.owner.refreshHostViewport();
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        const scrollElement = this.getScrollElement();
+        const preservedScroll = flow.flipMode == "scroll" && scrollElement
+            ? { left: scrollElement.scrollLeft, top: scrollElement.scrollTop }
+            : undefined;
         const rendererCssVariables = this.prepareRendererCssVariables();
         const otherCssVariables = this.prepareOtherCssVariables();
         const vars = new Map<string, string>();
@@ -77,6 +82,9 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         vars.forEach((v, k) => {
             rootContainer.style.setProperty(k, v);
         })
+        if (preservedScroll && scrollElement) {
+            scrollElement.scrollTo(preservedScroll.left, preservedScroll.top);
+        }
     }
 
     private prepareRendererCssVariables() {
@@ -112,7 +120,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         const rootContainer = this.owner.getRootContainer();
         const flow = resolveLayoutFlow(this.htmlOptions);
         const flipMode = flow.flipMode;
-        if (flipMode == "page" || !flow.isVerticalWriting) {
+        if (flipMode == "page") {
             this.scrollElement?.scrollTo(0, 0);
         }
 

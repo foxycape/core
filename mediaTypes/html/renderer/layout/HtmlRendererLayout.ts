@@ -57,8 +57,10 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
 
         this.toggleColumnLayout(documentElement, flow);
         documentElement.removeAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName);
+        const layoutState = doc.captureLayoutState();
         doc.resetLayoutSizes();
         await yieldToMain();
+        await doc.restoreLayoutState(layoutState);
     }
 
     private async getCssVariables(theme: Theme, metrics: HtmlLayoutMetrics, flow: ReturnType<typeof resolveLayoutFlow>) {
