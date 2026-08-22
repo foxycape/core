@@ -70,4 +70,9 @@ export class OpenOptions {
     abortController?: AbortController;
     /** whether to require download */
     requireDownload?: boolean;
+    /**
+     * File downloading / local-read progress callback.
+     * contentLength: total bytes when known; receivedLength: bytes already read; done: finished.
+     */
+    fileDownloadingCallback?: (contentLength: number, receivedLength: number, done: boolean) => Promise<void>;
 }

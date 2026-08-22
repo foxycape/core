@@ -1,3 +1,4 @@
+import { formatFileSize } from "./common/data";
 import { deepClone } from "./common/object";
 import { getRandomId } from "./common/uuid";
 import { BrowserCapabilities } from "./web/BrowserCapabilities";
@@ -229,7 +230,12 @@ export class Reader implements LifecycleHooks {
         try {
             await this.fileLoader.getFileParser()?.dispose();
 
-            const result = await this.fileLoader.load(url, openOptions, {
+            const resolvedOpenOptions = Object.assign(new OpenOptions(), openOptions);
+            if (!resolvedOpenOptions.fileDownloadingCallback) {
+                resolvedOpenOptions.fileDownloadingCallback = this.createFileDownloadingCallback();
+            }
+
+            const result = await this.fileLoader.load(url, resolvedOpenOptions, {
                 measureFilePercentage: true,
                 prepareContext: async ({ extension }) => {
                     this.isInIframe = false;
@@ -270,6 +276,23 @@ export class Reader implements LifecycleHooks {
             }
         }
     }
+
+    private createFileDownloadingCallback = (): NonNullable<OpenOptions["fileDownloadingCallback"]> => {
+        return async (contentLength, receivedLength, done) => {
+            if (done) {
+                return;
+            }
+            const totalBytes = contentLength > 0 ? contentLength : receivedLength;
+            const loaded = formatFileSize(receivedLength);
+            const total = formatFileSize(totalBytes);
+            const text = this.locale.getText(
+                "share_loading_file_progress",
+                "Loading file... {loaded}/{total}",
+                { loaded, total },
+            );
+            await this.loading?.show(text);
+        };
+    };
 
     private async createReaderContainer(extension: string): Promise<void> {
         const requireInIframeExtensions = this.options.iframeRequiredExtensions;

@@ -26,7 +26,7 @@ export type Mark = {
     updateTime: string;
 };
 
-export const createMark = (
+export const buildMark = (
     resourceId: string,
     type: MarkType,
     text: string,

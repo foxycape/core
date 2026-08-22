@@ -153,7 +153,8 @@ export class DefaultFileUrlParser implements IFileUrlParser {
             };
 
             reader.onload = (e) => {
-                options.fileDownloadingCallback(e.total, e.total, true);
+                const total = e.total > 0 ? e.total : blob.size;
+                options.fileDownloadingCallback(total, total, true);
                 resolve((e.target as FileReader).result as ArrayBuffer);
             };
 

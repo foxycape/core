@@ -7,9 +7,8 @@ export interface IFileUrlParser {
     parse(url: any, options?: FileUrlParserOptions): Promise<UrlParseResult>
 }
 
+/** Parser-facing open options. Inherits fileDownloadingCallback from OpenOptions. */
 export class FileUrlParserOptions extends OpenOptions {
-    /**File downloading progress callback */
-    fileDownloadingCallback?: (contentLength: number, receivedLength: number, done: boolean) => Promise<void>
 }
 
 export class UrlParseResult {
