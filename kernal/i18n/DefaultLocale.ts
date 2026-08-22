@@ -1,15 +1,7 @@
+import { applyNamed } from "./applyNamed";
 import { ILocale, Language, LocaleChangeListener } from "./ILocale";
 
-export const applyNamed = (text: string, named?: object): string => {
-    if (!named) {
-        return text;
-    }
-    let result = text;
-    for (const [name, value] of Object.entries(named)) {
-        result = result.split(`{${name}}`).join(String(value ?? ""));
-    }
-    return result;
-}
+export { applyNamed } from "./applyNamed";
 
 export class DefaultLocale implements ILocale {
     resource: any = {};

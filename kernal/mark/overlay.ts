@@ -105,6 +105,17 @@ export const paintRects = (
     }
 }
 
+const isPointInBox = (
+    x: number,
+    y: number,
+    left: number,
+    top: number,
+    right: number,
+    bottom: number,
+    slop = 1,
+): boolean =>
+    x >= left - slop && x <= right + slop && y >= top - slop && y <= bottom + slop
+
 export const findOverlayIdAtPoint = (
     host: HTMLElement,
     maskClass: string,
@@ -113,18 +124,31 @@ export const findOverlayIdAtPoint = (
     idAttr = DEFAULT_ID_ATTR,
 ): string | undefined => {
     const masks = host.querySelectorAll<HTMLElement>(`.${maskClass}`)
-    for (const mask of Array.from(masks)) {
+    for (let i = masks.length - 1; i >= 0; i--) {
+        const mask = masks[i]
         const left = Number.parseFloat(mask.style.left)
         const top = Number.parseFloat(mask.style.top)
         const width = Number.parseFloat(mask.style.width)
         const height = Number.parseFloat(mask.style.height)
-        if (
-            offsetX >= left &&
-            offsetX <= left + width &&
-            offsetY >= top &&
-            offsetY <= top + height
-        ) {
+        if (isPointInBox(offsetX, offsetY, left, top, left + width, top + height)) {
             return mask.getAttribute(idAttr) ?? undefined
+        }
+    }
+    return undefined
+}
+
+export const findOverlayAtClientPoint = (
+    root: ParentNode,
+    maskClass: string,
+    clientX: number,
+    clientY: number,
+): HTMLElement | undefined => {
+    const masks = root.querySelectorAll<HTMLElement>(`.${maskClass}`)
+    for (let i = masks.length - 1; i >= 0; i--) {
+        const mask = masks[i]
+        const box = mask.getBoundingClientRect()
+        if (isPointInBox(clientX, clientY, box.left, box.top, box.right, box.bottom)) {
+            return mask
         }
     }
     return undefined
@@ -137,19 +161,7 @@ export const findOverlayIdAtClientPoint = (
     clientY: number,
     idAttr = DEFAULT_ID_ATTR,
 ): string | undefined => {
-    const masks = root.querySelectorAll<HTMLElement>(`.${maskClass}`)
-    for (const mask of Array.from(masks)) {
-        const box = mask.getBoundingClientRect()
-        if (
-            clientX >= box.left &&
-            clientX <= box.right &&
-            clientY >= box.top &&
-            clientY <= box.bottom
-        ) {
-            return mask.getAttribute(idAttr) ?? undefined
-        }
-    }
-    return undefined
+    return findOverlayAtClientPoint(root, maskClass, clientX, clientY)?.getAttribute(idAttr) ?? undefined
 }
 
 /** Merge adjacent boxes on the same line to cut overlay node count. */

@@ -4,8 +4,8 @@ import { Context } from "./Context";
 import { EventEmitter } from "./EventEmitter";
 import { IEventEmitter } from "./IEventEmitter";
 import { IFileParser } from "./IFileParser";
+import { applyNamed } from "./i18n/applyNamed";
 import { ILocale } from "./i18n/ILocale";
-import { DefaultLocale } from "./i18n/DefaultLocale";
 import type { LifecycleHooks } from "./LifecycleHooks";
 import { ILogger } from "./logger/ILogger";
 import type { ILoggerFactory } from "./logger/ILoggerFactory";
@@ -21,6 +21,15 @@ import { InputFormatter } from "./pipelines/InputFormatter";
 import { ReaderInfo } from "./ReaderInfo";
 import { CORE_SERVICE_KEYS, CoreServiceMap, ServiceCollection } from "./services/ServiceCollection";
 import { IStorage } from "./storage/IStorage";
+
+const createFallbackLocale = (): ILocale => ({
+    onLanguageChange: () => () => {},
+    getText: (_key, defaultText, named) => applyNamed(defaultText, named),
+    changeLanguage: async () => {},
+    getCurrentLanguage: () => "en-us",
+    getSupportedLanguages: () => [],
+    dispose: async () => {},
+});
 
 export type CoreServices = {
     device: IDevice;
@@ -64,7 +73,7 @@ export class FileLoader {
         this.version = options.version || "1.0.0";
         this.readerInfo = new ReaderInfo(this.version, options.baseUrl, options.preventCacheHash, options.debug);
         this.events = new EventEmitter();
-        this.locale = services.locale ?? new DefaultLocale();
+        this.locale = services.locale ?? createFallbackLocale();
         this.device = services.device
         if (!this.device) {
             throw new Error("device is required.for web browser, use WebBrowser class.");

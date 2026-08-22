@@ -3,7 +3,6 @@ import type { DocumentInitParameters } from '../../pdfjs/types/src/display/api';
 import workerSrc from '../../pdfjs/legacy/build/pdf.worker.min.js?url'
 import { getCurrentBaseUrl } from '../../kernal/common/url';
 import type { IInternalUrlBuilder } from '../../kernal';
-import { ensurePdfWebWorker } from './ensurePdfWebWorker';
 
 export type LoadPdfDocumentOptions = {
     password?: string;
@@ -21,6 +20,7 @@ export async function loadPdfDocument(
 ) {
     // Real Web Worker (background thread). Uses Vite ?url when usable;
     // otherwise Blob URL from inlined worker source (Obsidian-safe).
+    const ensurePdfWebWorker = await import('./ensurePdfWebWorker').then(m => m.ensurePdfWebWorker);
     ensurePdfWebWorker(workerSrc);
 
     let cmapUrl = options?.cMapUrl

@@ -44,5 +44,8 @@ export type FindMarkTarget = {
     element?: Element;
     offsetX?: number;
     offsetY?: number;
+    /** Viewport coords of the content document (prefer over offsetX/Y). */
+    clientX?: number;
+    clientY?: number;
     pageNumber?: number;
 };
