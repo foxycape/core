@@ -84,6 +84,41 @@ export const getBaseState = (base: Range | Element[] | Element) => {
 
 export const hiddenToolbarPosition = { left: -100000, top: -100000, visible: false };
 
+/**
+ * Convert a pointer/mouse event into the viewport of `displayElement`.
+ * Walks iframe parents the same way as selection-rect normalization.
+ * Uses clientX/Y (not pageX/Y) so the result matches `position: fixed` toolbars.
+ */
+export const calcCursorPosition = (
+    e: PointerEvent | MouseEvent,
+    displayElement: Element
+): { left: number; top: number; visible: boolean } => {
+    const baseElement = e.target as Element | null;
+    const baseDocument = baseElement?.ownerDocument;
+    if (!baseDocument) {
+        return hiddenToolbarPosition;
+    }
+    let baseWindow = baseDocument.defaultView;
+    let left = e.clientX;
+    let top = e.clientY;
+    const displayWindow = displayElement.ownerDocument.defaultView;
+    while (displayWindow != baseWindow) {
+        const frameElement = baseWindow?.frameElement;
+        const parent = frameElement?.ownerDocument?.defaultView;
+        if (!parent) {
+            break;
+        }
+        baseWindow = parent;
+        const frameElementRect = frameElement.getBoundingClientRect();
+        left += frameElementRect.left;
+        top += frameElementRect.top;
+    }
+    if (displayWindow != baseWindow) {
+        return hiddenToolbarPosition;
+    }
+    return { left, top, visible: true };
+};
+
 const isCompletelyVisible = (parent: Rect, child: Rect): boolean => {
     const parentRight = parent.left + parent.width;
     const parentBottom = parent.top + parent.height;
@@ -396,13 +431,22 @@ export const recalculateRect = (baseBoundingRect: { left: number; top: number; w
     return baseBoundingRect;
 };
 
-export const calcToolbarPosition = (ownerPanel: HTMLElement, base: Range | Element[] | Element, displayElement: Element, toolbarPreferPosition?: ToolbarPreferPosition, flipMode?: FlipMode): { left: number, top: number, visible: boolean } => {
+export type ToolbarContainerInset = { top?: number; bottom?: number; left?: number; right?: number };
+
+/** Default inset when chrome bars sit inside the same container as content. */
+export const DEFAULT_TOOLBAR_CONTAINER_INSET: ToolbarContainerInset = { top: 8, bottom: 8, left: 8, right: 8 };
+
+export const calcToolbarPosition = (
+    ownerPanel: HTMLElement,
+    base: Range | Element[] | Element,
+    displayElement: Element,
+    toolbarPreferPosition?: ToolbarPreferPosition,
+    flipMode?: FlipMode,
+    containerInset: ToolbarContainerInset = DEFAULT_TOOLBAR_CONTAINER_INSET
+): { left: number, top: number, visible: boolean } => {
     if (!displayElement || !base)
         return hiddenToolbarPosition;
 
-    const topContainerHeight = 50;
-    const bottomContainerHeight = 50;
-    const containerInset = { top: topContainerHeight, bottom: bottomContainerHeight };
     const preferPosition = toolbarPreferPosition ?? "bottom";
 
     if (flipMode == "page") {
