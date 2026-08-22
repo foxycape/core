@@ -490,9 +490,12 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         }
     }
     private unbindDocumentEvents() {
-        const rootContainer = this.inIframe ? this.getContentContainer().ownerDocument : this.getContentRootElement();
+        const rootContainer = this.inIframe ? this.getContentContainer()?.ownerDocument : this.getContentRootElement();
+        if (!rootContainer) {
+            return;
+        }
         for (const key of this.eventKeyMap.keys()) {
-            rootContainer.removeEventListener(key, this.eventListener, this.capture);
+            rootContainer?.removeEventListener(key, this.eventListener, this.capture);
         }
     }
     private eventListener = (e: Event) => {

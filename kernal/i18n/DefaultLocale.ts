@@ -1,5 +1,16 @@
 import { ILocale, Language, LocaleChangeListener } from "./ILocale";
 
+export const applyNamed = (text: string, named?: object): string => {
+    if (!named) {
+        return text;
+    }
+    let result = text;
+    for (const [name, value] of Object.entries(named)) {
+        result = result.split(`{${name}}`).join(String(value ?? ""));
+    }
+    return result;
+}
+
 export class DefaultLocale implements ILocale {
     resource: any = {};
     private readonly listeners = new Set<LocaleChangeListener>();
@@ -17,19 +28,10 @@ export class DefaultLocale implements ILocale {
 
     getText(key: string, defaultText: string, named?: Object) {
         if (!key) {
-            return defaultText;
+            return applyNamed(defaultText, named);
         }
-        let text = this.resource[key];
-        if (!text) {
-            return defaultText;
-        }
-        if (named) {
-            const keys = Object.keys(named);
-            for (const key of keys) {
-                text = text.replaceAll("{" + key + "}", named[key])
-            }
-        }
-        return text;
+        const text = this.resource[key] || defaultText;
+        return applyNamed(text, named);
     }
 
     private currentLanguage: string;
