@@ -50,7 +50,7 @@ export class PdfRenderer extends PdfDocumentsProvider implements IPdfRenderer {
 
     constructor(owner: Reader, fileParser: IFileParser, readerContainer: HTMLElement, options: PdfOptions) {
         super(owner, fileParser, readerContainer, options);
-
+        this.pdfOptions = options;
         this.layout = new PdfRendererLayout(this.pdfViewer, this.owner.events);
         this.scalable = new PdfScalable(this.pdfViewer, this.options);
         this.themeApplier = new PdfThemeApplier(this.readerContainer);
@@ -93,6 +93,7 @@ export class PdfRenderer extends PdfDocumentsProvider implements IPdfRenderer {
             },
         );
     }
+    readonly pdfOptions: PdfOptions;
     get id() {
         if (!this.currentInstanceId) {
             this.currentInstanceId = getRandomId(true);

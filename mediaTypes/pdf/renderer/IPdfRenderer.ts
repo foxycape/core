@@ -7,6 +7,7 @@ import { IPdfFileParser } from "../fileParser/IPdfFileParser";
 import { IPdfProgressTracker } from "./progress/IPdfProgressTracker";
 import type * as pdfjsLib from "../../../pdfjs/legacy/build/pdf.mjs";
 import type * as pdfjsViewer from "../../../pdfjs/legacy/web/pdf_viewer.mjs";
+import { PdfOptions } from "../PdfOptions";
 
 export interface IPdfRenderer<T extends IPdfDocument = IPdfDocument, W extends IFileParser = IPdfFileParser> extends IRenderer<T, W> {
      get progressTracker(): IPdfProgressTracker;
@@ -56,4 +57,7 @@ export interface IPdfRenderer<T extends IPdfDocument = IPdfDocument, W extends I
 
      /** Resolve a page proxy even if the page view has not rendered yet. */
      getPdfPage(pageNumber: number): Promise<pdfjsLib.PDFPageProxy | undefined>;
+
+     /** Shared PDF layout / typography options for this renderer. */
+	readonly pdfOptions: PdfOptions;
 }
