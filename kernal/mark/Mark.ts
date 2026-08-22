@@ -56,8 +56,51 @@ export const buildMark = (
     };
 };
 
-export const getFixedContentRange = (mark: Mark): FixedContentRange | undefined =>
-    mark.contentRange.kind === "fixed" ? mark.contentRange : undefined;
+export const getFixedContentRange = (mark: Mark): FixedContentRange | undefined => {
+    const range = mark.contentRange as ContentRange | undefined;
+    if (!range) {
+        return undefined;
+    }
+    if (range.kind === "fixed") {
+        return range;
+    }
+    const geometries = (range as { geometries?: FixedContentRange["geometries"] }).geometries;
+    if (Array.isArray(geometries) && geometries.length > 0) {
+        return { kind: "fixed", geometries };
+    }
+    return undefined;
+};
+
+/** Fill pageNumber on legacy PDF marks that only stored it inside geometries. */
+export const hydrateLegacyMark = (mark: Mark): Mark => {
+    if (mark.pageNumber == null) {
+        const pageNumber = getFixedContentRange(mark)?.geometries[0]?.pageNumber;
+        if (pageNumber != null) {
+            mark.pageNumber = pageNumber;
+        }
+    }
+    return mark;
+};
+
+/**
+ * Resolve a mark-query url to a page number.
+ * Pure digits ("3") and PDF spine urls ("3.pdf") map to pageNumber for old Dexie rows.
+ */
+export const parseMarkQueryPageNumber = (url: string): number | undefined => {
+    const trimmed = url.trim();
+    if (/^\d+$/.test(trimmed)) {
+        return Number.parseInt(trimmed, 10);
+    }
+    const spine = /^(\d+)\.pdf$/i.exec(trimmed);
+    if (spine) {
+        return Number.parseInt(spine[1], 10);
+    }
+    return undefined;
+};
+
+export const markMatchesPageNumber = (mark: Mark, pageNumber: number): boolean =>
+    mark.pageNumber === pageNumber ||
+    (getFixedContentRange(mark)?.geometries.some((g) => g.pageNumber === pageNumber) ?? false);
 
 export const getReflowableContentRange = (
     mark: Mark,

@@ -10,8 +10,7 @@ export type MarkStyleName =
 
 /** Query options for listing marks */
 export type QueryMarkOptions = {
-    pageNumber?: number;
-    /** Spine/document URL for reflowable marks */
+    /** Spine/document URL; PDF treats a pure numeric value as pageNumber */
     url?: string;
     types?: MarkType[];
     keyword?: string;
