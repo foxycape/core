@@ -49,10 +49,16 @@ type ImageSizeDescriptor = {
 
 type ImageElement = HTMLImageElement | SVGImageElement;
 
-const collectImageElements = (root: Document | Element): ImageElement[] => [
-    ...root.getElementsByTagName("img"),
-    ...root.getElementsByTagName("image"),
-] as ImageElement[];
+const collectImageElements = (root: Document | Element): ImageElement[] => {
+    const collected = root.querySelectorAll("img, image");
+    if (collected.length > 0) {
+        return [...collected] as ImageElement[];
+    }
+    return [
+        ...root.getElementsByTagName("img"),
+        ...root.getElementsByTagName("image"),
+    ] as ImageElement[];
+};
 
 const isSvgImageElement = (element: Element) => compareTagName(element.tagName, "IMAGE");
 
@@ -89,12 +95,14 @@ export class HtmlImageLoader implements IHtmlImageLoader {
 
     private bindEvents() {
         this.events.on(EventNames.LayoutChange, this.onLayoutChange);
+        this.events.on(EventNames.DocumentLoad, this.onDocumentLoad);
         this.events.on(EventNames.DocumentDisposing, this.onDocumentDisposing);
         this.events.on(EventNames.ImageElementsVisible, this.delayLoadOnImageElementsVisible);
     }
 
     private unbindEvents() {
         this.events.off(EventNames.LayoutChange, this.onLayoutChange);
+        this.events.off(EventNames.DocumentLoad, this.onDocumentLoad);
         this.events.off(EventNames.DocumentDisposing, this.onDocumentDisposing);
         this.events.off(EventNames.ImageElementsVisible, this.delayLoadOnImageElementsVisible);
     }
@@ -160,6 +168,13 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         await this.delayResetAllImageSize();
     };
 
+    private onDocumentLoad = async (doc: IDocument) => {
+        if (this.isDisposed) {
+            return;
+        }
+        await this.resetImageSize(doc);
+    };
+
     private resetAllImageSize = async () => {
         if (this.isDisposed) {
             return;
@@ -186,6 +201,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         }
         await this.prepareImageSize(htmlDocument, ownerDocument);
         this.setImagePreviewUrl(ownerDocument);
+        this.applyOnlyOneImageStyles(ownerDocument);
     }
 
     private setImagePreviewUrl(virtualDocument: Document) {
@@ -493,14 +509,13 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             return;
         }
         const { columnWidth, columnHeight } = this.getColumnMetrics();
-        const images = collectImageElements(ownerDocument);
-
-        if (this.checkIsOnlyOneImageInDocument(ownerDocument)) {
-            const element = images[0];
-            this.handleOnlyOneImageInDocument(columnWidth, columnHeight, element);
-            await this.loadSingleImage(doc as IHtmlDocument, element);
+        const onlyImage = this.getOnlyImageInDocument(ownerDocument);
+        if (onlyImage) {
+            this.handleOnlyOneImageInDocument(columnWidth, columnHeight, onlyImage);
+            await this.loadSingleImage(doc as IHtmlDocument, onlyImage);
             return;
         }
+        const images = collectImageElements(ownerDocument);
 
         if (!BrowserCapabilities.supportCssAspectRatio()) {
             for (const image of images) {
@@ -557,6 +572,15 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         targetElement.setAttribute("data-inline-image", "true");
     }
 
+    private applyOnlyOneImageStyles(ownerDocument: Document) {
+        const onlyImage = this.getOnlyImageInDocument(ownerDocument);
+        if (!onlyImage) {
+            return;
+        }
+        const { columnWidth, columnHeight } = this.getColumnMetrics();
+        this.handleOnlyOneImageInDocument(columnWidth, columnHeight, onlyImage);
+    }
+
     private handleOnlyOneImageInDocument(
         columnWidth: number,
         columnHeight: number,
@@ -564,9 +588,10 @@ export class HtmlImageLoader implements IHtmlImageLoader {
     ) {
         const ownerDocument = element.ownerDocument;
         const body = getDocumentBody(ownerDocument);
-        if (!isNullOrWhiteSpace(body.getAttribute("data-handled-one-image"))) {
+        if (!body) {
             return;
         }
+        injectCssContent(ownerDocument, ONLY_ONE_IMAGE_STYLE, false, "only-one-image");
         body.setAttribute("data-handled-one-image", "true");
         applyStyles(body, {
             display: "flex",
@@ -575,9 +600,11 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             "align-items": "center",
         }, true);
 
+        this.clearPercentageSizeAttributes(element);
         let targetElement: HTMLElement = element as HTMLImageElement;
         if (compareTagName(element.parentElement?.tagName, "SVG")) {
             targetElement = element.parentElement;
+            this.clearPercentageSizeAttributes(targetElement);
             applyStyles(element, {
                 width: "auto",
                 "max-width": "100%",
@@ -596,6 +623,15 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         this.resetImageHeight(element, columnWidth, columnHeight, 0.95, true);
     }
 
+    private clearPercentageSizeAttributes(element: Element) {
+        for (const name of ["width", "height"]) {
+            const value = element.getAttribute(name);
+            if (value && value.includes("%")) {
+                element.removeAttribute(name);
+            }
+        }
+    }
+
     private resetImageHeight(
         element: ImageElement,
         columnWidth: number,
@@ -609,11 +645,11 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         if (!targetElement) {
             return;
         }
-        const width = parseNumber(element.getAttribute("data-width"), 0);
-        const height = parseNumber(element.getAttribute("data-height"), 0);
+        const { width, height } = this.getImageIntrinsicSize(element);
         if (width <= 0 || height <= 0) {
             return;
         }
+        this.setWidthAndHeight(element, width, height);
         this.forceSetImageHeight(targetElement, columnWidth, columnHeight, width, height, maxImageHeightRatio, preferRatioNumber);
     }
 
@@ -650,12 +686,54 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         return columnHeight;
     }
 
-    private checkIsOnlyOneImageInDocument(ownerDocument: Document): boolean {
-        const body = getDocumentBody(ownerDocument);
-        if (!body || body.textContent.trim()) {
-            return false;
+    private getImageIntrinsicSize(element: ImageElement): { width: number; height: number } {
+        const attrWidth = parseNumber(element.getAttribute("data-width"), 0);
+        const attrHeight = parseNumber(element.getAttribute("data-height"), 0);
+        if (attrWidth > 0 && attrHeight > 0) {
+            return { width: attrWidth, height: attrHeight };
         }
-        return collectImageElements(body).length == 1;
+        if (!isSvgImageElement(element)) {
+            const image = element as HTMLImageElement;
+            if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+                return { width: image.naturalWidth, height: image.naturalHeight };
+            }
+        }
+        return { width: 0, height: 0 };
+    }
+
+    private hasNonImageText(root: Element): boolean {
+        const ownerDocument = root.ownerDocument;
+        if (!ownerDocument) {
+            return !!root.textContent?.trim();
+        }
+        const walker = ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let current = walker.nextNode();
+        while (current) {
+            if (current.textContent?.trim()) {
+                return true;
+            }
+            current = walker.nextNode();
+        }
+        return false;
+    }
+
+    private getOnlyImageInDocument(ownerDocument: Document): ImageElement | undefined {
+        const body = getDocumentBody(ownerDocument);
+        if (!body) {
+            return undefined;
+        }
+        const images = collectImageElements(body);
+        if (images.length != 1) {
+            return undefined;
+        }
+        if (!body.classList.contains("lhx-text-empty") && this.hasNonImageText(body)) {
+            return undefined;
+        }
+        return images[0];
+    }
+
+    private checkIsOnlyOneImageInDocument(ownerDocument: Document): boolean {
+        return !!this.getOnlyImageInDocument(ownerDocument);
     }
 
     private checkIsInlineTag(node: Node) {
@@ -780,6 +858,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         element.setAttribute("data-load-state", "loading");
         element.onload = () => {
             element.setAttribute("data-load-state", "loaded");
+            this.applyOnlyOneImageStyles(element.ownerDocument);
         };
         element.onerror = () => {
             element.setAttribute("data-load-state", "fail");
@@ -801,11 +880,14 @@ export class HtmlImageLoader implements IHtmlImageLoader {
                     this.logger.error("image decode failed", "imageUrl", imageUrl, e);
                     this.revokeObjectURL(imageUrl, doc);
                     this.retryLoadAfterDecodeFailure(doc, imgElement, originUrl);
+                    return;
                 }
             }
+            this.applyOnlyOneImageStyles(element.ownerDocument);
             return;
         }
         this.setImageSource(element, imageUrl);
+        this.applyOnlyOneImageStyles(element.ownerDocument);
     }
 
     private retryLoadAfterDecodeFailure(doc: IHtmlDocument, imgElement: HTMLImageElement, originUrl: string) {
