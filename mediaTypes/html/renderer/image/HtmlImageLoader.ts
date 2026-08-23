@@ -26,26 +26,19 @@ import { ContentLayoutCssVariableNames } from "../style/ContentLayoutCssVariable
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import errorImageUrl from "./error-image.png";
 import { IHtmlImageLoader } from "./IHtmlImageLoader";
+import { createHtmlPlaceholderImageUrl, isHtmlPlaceholderImageUrl } from "./htmlImagePlaceholderUrl";
 
 const SVG_STYLE_CLASS = "lhx-svg";
 const IMAGE_SIZES_TABLE_PREFIX = "imagesizes-";
 const PRELOAD_IMAGE_COUNT = 5;
 const SVG_STYLE = `.${SVG_STYLE_CLASS} {width: 100% !important; height: auto !important; }`;
 const ONLY_ONE_IMAGE_STYLE = "*,p,div{text-align:center;margin-block:0 !important;margin-inline:auto !important;text-indent:0 !important;padding:0 !important;line-height:0 !important}";
-const PLACEHOLDER_DATA_URL_PREFIX = "data:image/svg+xml";
-
-const createPlaceholderUrl = (width: number, height: number): string => {
-    const w = width > 0 ? Math.round(width) : 1;
-    const h = height > 0 ? Math.round(height) : 1;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"></svg>`;
-    return `${PLACEHOLDER_DATA_URL_PREFIX},${encodeURIComponent(svg)}`;
-};
 
 const isDefaultPlaceholderUrl = (url: string | null | undefined): boolean => {
     if (isNullOrWhiteSpace(url)) {
         return true;
     }
-    return url.startsWith(PLACEHOLDER_DATA_URL_PREFIX) || url.includes("placeholder.png");
+    return isHtmlPlaceholderImageUrl(url);
 };
 
 type ImageSizeDescriptor = {
@@ -205,7 +198,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
     private applyPreviewUrl(element: ImageElement, imageUrl: string) {
         const width = parseNumber(element.getAttribute("data-width"), 0);
         const height = parseNumber(element.getAttribute("data-height"), 0);
-        const sizedPlaceholderUrl = createPlaceholderUrl(width, height);
+        const sizedPlaceholderUrl = createHtmlPlaceholderImageUrl(width, height);
         let previewUrl = element.getAttribute("data-preview-src");
         if (isDefaultPlaceholderUrl(previewUrl)) {
             previewUrl = sizedPlaceholderUrl;
