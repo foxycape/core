@@ -257,6 +257,11 @@ img {
     object-fit: contain;
 }
 
+img[data-preset-preview-url="true"]:not([data-load-state="loaded"]) {
+    background-color: var(--content-background);
+    background-color: var(--image-placeholder-color);
+}
+
 pre {
     overflow: auto;
     text-indent: 0;

@@ -25,7 +25,6 @@ import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { ContentLayoutCssVariableNames } from "../style/ContentLayoutCssVariableNames";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import errorImageUrl from "./error-image.png";
-import placeholderImageUrl from "./placeholder.png";
 import { IHtmlImageLoader } from "./IHtmlImageLoader";
 
 const SVG_STYLE_CLASS = "lhx-svg";
@@ -33,6 +32,21 @@ const IMAGE_SIZES_TABLE_PREFIX = "imagesizes-";
 const PRELOAD_IMAGE_COUNT = 5;
 const SVG_STYLE = `.${SVG_STYLE_CLASS} {width: 100% !important; height: auto !important; }`;
 const ONLY_ONE_IMAGE_STYLE = "*,p,div{text-align:center;margin-block:0 !important;margin-inline:auto !important;text-indent:0 !important;padding:0 !important;line-height:0 !important}";
+const PLACEHOLDER_DATA_URL_PREFIX = "data:image/svg+xml";
+
+const createPlaceholderUrl = (width: number, height: number): string => {
+    const w = width > 0 ? Math.round(width) : 1;
+    const h = height > 0 ? Math.round(height) : 1;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"></svg>`;
+    return `${PLACEHOLDER_DATA_URL_PREFIX},${encodeURIComponent(svg)}`;
+};
+
+const isDefaultPlaceholderUrl = (url: string | null | undefined): boolean => {
+    if (isNullOrWhiteSpace(url)) {
+        return true;
+    }
+    return url.startsWith(PLACEHOLDER_DATA_URL_PREFIX) || url.includes("placeholder.png");
+};
 
 type ImageSizeDescriptor = {
     url: string;
@@ -189,15 +203,18 @@ export class HtmlImageLoader implements IHtmlImageLoader {
     }
 
     private applyPreviewUrl(element: ImageElement, imageUrl: string) {
+        const width = parseNumber(element.getAttribute("data-width"), 0);
+        const height = parseNumber(element.getAttribute("data-height"), 0);
+        const sizedPlaceholderUrl = createPlaceholderUrl(width, height);
         let previewUrl = element.getAttribute("data-preview-src");
-        if (isNullOrWhiteSpace(previewUrl)) {
-            previewUrl = placeholderImageUrl;
-            element.setAttribute("data-preview-src", placeholderImageUrl);
+        if (isDefaultPlaceholderUrl(previewUrl)) {
+            previewUrl = sizedPlaceholderUrl;
+            element.setAttribute("data-preview-src", sizedPlaceholderUrl);
         }
 
-        if (!isNullOrWhiteSpace(imageUrl) && imageUrl != placeholderImageUrl) {
+        if (!isNullOrWhiteSpace(imageUrl) && !isDefaultPlaceholderUrl(imageUrl)) {
             const currentDataSrc = element.getAttribute("data-src");
-            if (currentDataSrc != placeholderImageUrl) {
+            if (isNullOrWhiteSpace(currentDataSrc) || !isDefaultPlaceholderUrl(currentDataSrc)) {
                 element.setAttribute("data-src", imageUrl);
             }
         }
@@ -457,7 +474,6 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         }
         targetElement.setAttribute("width", `${width}`);
         targetElement.setAttribute("height", `${height}`);
-        const aspectRatio = width / height;
         const widthValue = `calc(100% * var(${ContentLayoutCssVariableNames.MaxImageWidthRatio}))`;
         const maxHeightValue = `min(${height}px,var(${ContentLayoutCssVariableNames.ColumnHeight}),calc(var(${ContentLayoutCssVariableNames.ColumnWidth}) / ${width} * ${height}))`;
         applyStyles(targetElement, {
@@ -465,7 +481,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             height: "auto",
             "max-width": widthValue,
             "max-height": maxHeightValue,
-            "aspect-ratio": `${aspectRatio}`,
+            "aspect-ratio": `${width} / ${height}`,
         });
     }
 

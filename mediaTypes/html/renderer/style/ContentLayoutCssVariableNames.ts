@@ -15,4 +15,5 @@ export class ContentLayoutCssVariableNames {
     static readonly PageMoveLength = "--page-move-length";
     static readonly MaxImageHeightRatio = "--max-image-height-ratio";
     static readonly MaxImageWidthRatio = "--max-image-width-ratio";
+    static readonly ImagePlaceholderColor = "--image-placeholder-color";
 }

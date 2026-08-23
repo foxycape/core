@@ -97,6 +97,10 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         vars.set(ContentLayoutCssVariableNames.MaxImageHeightRatio, `${this.htmlOptions.maxImageHeightRatio}`);
         // vars.set(ReaderCssVariables.MaxImageWidthRatio, `${imageRatio}`);
         vars.set(ContentLayoutCssVariableNames.MaxImageWidthRatio, `${this.htmlOptions.maxImageWidthRatio}`);
+        vars.set(
+            ContentLayoutCssVariableNames.ImagePlaceholderColor,
+            `color-mix(in srgb, var(${Theme.ContentTextColor}) 8%, var(${Theme.ContentBackground}))`
+        );
 
         return vars;
     }
