@@ -203,7 +203,11 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
 
             redirectElement = redirectElement ?? target;
             if (flipMode == "scroll") {
-                await this.gotoScroll(doc, location, redirectElement, isDocumentStart);
+                if (location.suppressScroll) {
+                    this.setDocumentVisible(doc.getWrapperContainer(), true);
+                } else {
+                    await this.gotoScroll(doc, location, redirectElement, isDocumentStart);
+                }
             }
             else {
                 if (isReload && redirectElement && !isNullOrWhiteSpace(location.tagName)) {

@@ -19,6 +19,8 @@ export type EnsureOverlayLayerOptions = {
     relativeClass?: string
     /** Size the layer to the host scroll box (HTML reflow). Default uses client box. */
     sizeToScroll?: boolean
+    /** When set, size the layer to this element's client box (e.g. the iframe). */
+    sizeElement?: HTMLElement
 }
 
 const DEFAULT_ID_ATTR = "data-highlight-id"
@@ -47,12 +49,17 @@ export const ensureOverlayLayer = (
             }
         }
     }
-    const width = options?.sizeToScroll
-        ? Math.max(host.clientWidth, host.scrollWidth)
-        : host.clientWidth
-    const height = options?.sizeToScroll
-        ? Math.max(host.clientHeight, host.scrollHeight)
-        : host.clientHeight
+    const sizeElement = options?.sizeElement
+    const width = sizeElement
+        ? sizeElement.clientWidth
+        : options?.sizeToScroll
+            ? Math.max(host.clientWidth, host.scrollWidth)
+            : host.clientWidth
+    const height = sizeElement
+        ? sizeElement.clientHeight
+        : options?.sizeToScroll
+            ? Math.max(host.clientHeight, host.scrollHeight)
+            : host.clientHeight
     layer.style.width = `${width}px`
     layer.style.height = `${height}px`
     return layer

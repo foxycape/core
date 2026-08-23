@@ -68,7 +68,7 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
 
         const reloadButton = this.wrapperContainer.ownerDocument.createElement("div");
         reloadButton.className = "reload_button";
-        reloadButton.style.cssText = "font-size: 14px;margin-block-start: 10px;background: #14ae5c;color: #fff;padding: 5px 10px;border-radius: 4px;cursor: pointer;";
+        reloadButton.style.cssText = "font-size: 16px;margin-block-start: 10px;background: #14ae5c;color: #fff;padding: 5px 10px;border-radius: 4px;cursor: pointer;";
         reloadButton.textContent = "Reload";
         reloadButton.addEventListener("click", async () => {
             await this.doc.load();

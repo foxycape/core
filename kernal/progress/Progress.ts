@@ -98,6 +98,9 @@ export class FileLocation extends ReadingLocation {
     /** Jump source */
     from?: LocationFrom;
 
+    /** Skip viewport scroll during load; caller will scroll to the final target. */
+    suppressScroll?: boolean;
+
     /** For testing only */
     tagText?: string;
 
