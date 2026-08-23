@@ -43,6 +43,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         public readonly htmlOptions: HtmlOptions
     ) {
         super(owner, fileParser);
+        htmlOptions.documentLanguage = owner.context?.metadata?.language;
         this.logger = this.owner.loggerFactory.getLogger(this.constructor.name);
         this.elementLocator = new HtmlElementLocator(this);
         this.rendererViewport = new HtmlRendererViewport(owner, this.readerContainer, this.owner.optionsProvider, htmlOptions);
@@ -118,6 +119,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     }
 
     override async load(location?: FileLocation, isReload?: boolean): Promise<void> {
+        this.htmlOptions.documentLanguage = this.owner.context?.metadata?.language;
         if (!this.isInit) {
             await this.initialize(this.getTransformContainer());
             this.documentsIntersectionObserver.register();

@@ -1,7 +1,10 @@
 import { getFileName } from "../common/path";
 import { checkIsAbsoluteUrl } from "../common/url";
-import { Metadata } from "../Metadata";
+import { Metadata, stripHtmlFromMetadata, toMetadataList } from "../Metadata";
 import { FilePackage } from "../IFileParser";
+
+const asTrimmedString = (value: unknown): string =>
+    typeof value === "string" ? stripHtmlFromMetadata(value) : "";
 
 export const formatMetadata = (metadata: Metadata, url: any, extension: string): Metadata => {
     if (!metadata) {
@@ -18,56 +21,22 @@ export const formatMetadata = (metadata: Metadata, url: any, extension: string):
     if (metadata.fileName && typeof metadata.fileName !== 'string') {
         metadata.fileName = "";
     }
-    if (metadata.author) {
-        if (typeof metadata.author === 'string') {
-            metadata.author = [metadata.author];
-        }
-        else {
-            if (!Array.isArray(metadata.author)) {
-                metadata.author = [];
-            }
-            else {
-                const authors: string[] = [];
-                for (const author of metadata.author) {
-                    if (typeof author === 'string') {
-                        authors.push(author)
-                    }
-                }
-                metadata.author = authors;
-            }
-        }
-    }
-    if (metadata.subject) {
-        if (typeof metadata.subject === 'string') {
-            metadata.subject = [metadata.subject];
-        }
-        else {
-            if (!Array.isArray(metadata.subject)) {
-                metadata.subject = [];
-            }
-            else {
-                const subjects: string[] = [];
-                for (const s of metadata.subject) {
-                    if (typeof s === 'string') {
-                        subjects.push(s)
-                    }
-                }
-                metadata.subject = subjects;
-            }
-        }
-    }
-    if (metadata.description && typeof metadata.description !== 'string') {
-        metadata.description = "";
-    }
-    if (metadata.rights && typeof metadata.rights !== 'string') {
-        metadata.rights = "";
-    }
-    if (metadata.publisher && typeof metadata.publisher !== 'string') {
-        metadata.publisher = "";
-    }
-    if (metadata.issueDate && typeof metadata.issueDate !== 'string') {
-        metadata.issueDate = "";
-    }
+    metadata.author = toMetadataList(metadata.author);
+    metadata.contributor = toMetadataList(metadata.contributor);
+    metadata.subject = toMetadataList(metadata.subject);
+    metadata.subtitle = asTrimmedString(metadata.subtitle) || undefined;
+    metadata.description = asTrimmedString(metadata.description);
+    metadata.rights = asTrimmedString(metadata.rights);
+    metadata.publisher = asTrimmedString(metadata.publisher);
+    metadata.issueDate = asTrimmedString(metadata.issueDate);
+    metadata.modifiedDate = asTrimmedString(metadata.modifiedDate) || undefined;
+    metadata.language = asTrimmedString(metadata.language) || undefined;
+    metadata.identifier = asTrimmedString(metadata.identifier) || undefined;
+    metadata.isbn = asTrimmedString(metadata.isbn) || undefined;
+    metadata.asin = asTrimmedString(metadata.asin) || undefined;
+    metadata.source = asTrimmedString(metadata.source) || undefined;
+    metadata.series = asTrimmedString(metadata.series) || undefined;
+    metadata.seriesIndex = asTrimmedString(metadata.seriesIndex) || undefined;
     if (metadata.size && typeof metadata.size !== 'number') {
         metadata.size = 0;
     }

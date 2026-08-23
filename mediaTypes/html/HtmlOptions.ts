@@ -1,4 +1,5 @@
 import { MTTAG, STTAG, whitespaceRegex } from "../../kernal/Constants";
+import { RtlLanguageCodes } from "../../kernal/i18n/textDirection";
 import type { Direction, FlipMode, FlipPageStyle, SymbolType, WritingMode } from "../../kernal/types";
 
 /**
@@ -17,8 +18,18 @@ export class HtmlOptions {
      * Inline text direction.
      * Affects page progression only for horizontal-tb (rtl = next page to the right).
      * Ignored for vertical-rl / vertical-lr progression.
+     * Leave unset to infer from {@link documentLanguage} / metadata language.
      */
-    direction: Direction = "ltr";
+    direction?: Direction;
+
+    /**
+     * Document language used to infer text direction when {@link direction} is unset.
+     * Filled from book metadata on open.
+     */
+    documentLanguage?: string;
+
+    /** Language codes treated as RTL when {@link direction} is unset. */
+    rtlLanguages: string[] = [...RtlLanguageCodes];
 
     /** Flip mode: scroll - continuous (vertical writing scrolls horizontally); page - horizontal slices on X, vertical writing slices on Y */
     flipMode: FlipMode = "scroll";

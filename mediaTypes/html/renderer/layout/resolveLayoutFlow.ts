@@ -1,4 +1,5 @@
 import type { Direction, FlipMode, WritingMode } from "../../../../kernal";
+import { resolveTextDirectionFromLanguage } from "../../../../kernal/i18n/textDirection";
 import type { HtmlOptions } from "../../HtmlOptions";
 
 export type LayoutAxis = "x" | "y";
@@ -33,11 +34,20 @@ export type LayoutFlow = {
 export const isVerticalWritingMode = (writingMode?: WritingMode) =>
     writingMode == "vertical-lr" || writingMode == "vertical-rl";
 
+export const resolveHtmlTextDirection = (
+    htmlOptions: Pick<HtmlOptions, "direction" | "documentLanguage" | "rtlLanguages">
+): Direction => {
+    if (htmlOptions.direction == "ltr" || htmlOptions.direction == "rtl") {
+        return htmlOptions.direction;
+    }
+    return resolveTextDirectionFromLanguage(htmlOptions.documentLanguage, htmlOptions.rtlLanguages);
+};
+
 export const resolveLayoutFlow = (
-    htmlOptions: Pick<HtmlOptions, "writingMode" | "direction" | "flipMode" | "forceScroll">
+    htmlOptions: Pick<HtmlOptions, "writingMode" | "direction" | "flipMode" | "forceScroll" | "documentLanguage" | "rtlLanguages">
 ): LayoutFlow => {
     const writingMode = htmlOptions.writingMode ?? "horizontal-tb";
-    const direction = htmlOptions.direction ?? "ltr";
+    const direction = resolveHtmlTextDirection(htmlOptions);
     const flipMode: FlipMode = htmlOptions.forceScroll ? "scroll" : (htmlOptions.flipMode ?? "scroll");
     const isVerticalWriting = isVerticalWritingMode(writingMode);
     const isRtlProgression = writingMode == "vertical-rl" || (!isVerticalWriting && direction == "rtl");

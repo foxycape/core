@@ -35,6 +35,7 @@ export * from './IDocument';
 export * from './shape/SimpleMatrix';
 export * from './progress/Progress';
 export * from './i18n/ILocale';
+export * from './i18n/textDirection';
 export * from './plugins/PluginCore';
 export * from './plugins/PluginRegistry';
 export * from './plugins/PluginManager';

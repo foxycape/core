@@ -14,6 +14,7 @@ import { HtmlOptions } from "../HtmlOptions";
 import { IHtmlProgressTracker } from "./progress/IHtmlIProgressTracker";
 import { IHtmlRendererLayout } from "./layout/IHtmlRendererLayout";
 import { HtmlRendererLayout } from "./layout/HtmlRendererLayout";
+import { resolveHtmlTextDirection } from "./layout/resolveLayoutFlow";
 import { HtmlStyleProvider } from "./style/HtmlStyleProvider";
 import { IHtmlDocument } from "./IHtmlDocument";
 import { HtmlThemeApplier } from "./style/HtmlThemeApplier";
@@ -199,7 +200,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     }
 
     get direction(): Direction {
-        return this.htmlOptions.direction ?? 'ltr';
+        return resolveHtmlTextDirection(this.htmlOptions);
     }
 
     get layout(): IHtmlRendererLayout {
