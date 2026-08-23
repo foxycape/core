@@ -105,21 +105,21 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
                 return;
             }
             if (this.readerContainer.clientWidth == 0 || this.readerContainer.clientHeight == 0) {
-                if (this.readerContainer["lhx_pdf_hidden"]) {
-                    this.readerContainer["lhx_pdf_require_resize"] = "true";
+                if (this.readerContainer["foxycape_document_hidden"]) {
+                    this.readerContainer["foxycape_document_require_resize"] = "true";
                 }
-                this.readerContainer["lhx_pdf_hidden"] = "true";
+                this.readerContainer["foxycape_document_hidden"] = "true";
                 return;
             }
 
             if (this.readerContainer.clientWidth > 0 && this.readerContainer.clientHeight > 0) {
-                if (this.readerContainer["lhx_pdf_hidden"]) {
+                if (this.readerContainer["foxycape_document_hidden"]) {
                     //this is recover from hidden state
-                    this.readerContainer["lhx_pdf_hidden"] = undefined;
-                    if (!this.readerContainer["lhx_pdf_require_resize"]) {
+                    this.readerContainer["foxycape_document_hidden"] = undefined;
+                    if (!this.readerContainer["foxycape_document_require_resize"]) {
                         return;
                     }
-                    this.readerContainer["lhx_pdf_require_resize"] = undefined;
+                    this.readerContainer["foxycape_document_require_resize"] = undefined;
                 }
             }
 

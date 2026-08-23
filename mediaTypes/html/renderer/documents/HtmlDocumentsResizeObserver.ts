@@ -79,28 +79,28 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
         }
         // The container is hidden, for example, using display:none 
         if (this.rendererContainer.clientWidth == 0) {
-            if (this.rendererContainer["lhx_pdf_hidden"]) {
-                this.rendererContainer["lhx_pdf_require_resize"] = 'true'
+            if (this.rendererContainer["foxycape_document_hidden"]) {
+                this.rendererContainer["foxycape_document_require_resize"] = 'true'
             }
-            this.rendererContainer["lhx_pdf_hidden"] = 'true'
+            this.rendererContainer["foxycape_document_hidden"] = 'true'
             return;
         }
         if (this.documentsProvider.owner.getHostViewport().mode != "window" && this.rendererContainer.clientHeight == 0) {
-            if (this.rendererContainer["lhx_pdf_hidden"]) {
-                this.rendererContainer["lhx_pdf_require_resize"] = 'true'
+            if (this.rendererContainer["foxycape_document_hidden"]) {
+                this.rendererContainer["foxycape_document_require_resize"] = 'true'
             }
-            this.rendererContainer["lhx_pdf_hidden"] = 'true'
+            this.rendererContainer["foxycape_document_hidden"] = 'true'
             return;
         }
 
         // The container is hidden and then restored for the first time
         if (this.rendererContainer.clientWidth > 0 && this.rendererContainer.clientHeight > 0) {
-            if (this.rendererContainer["lhx_pdf_hidden"]) {
-                this.rendererContainer["lhx_pdf_hidden"] = undefined;
-                if (!this.rendererContainer["lhx_pdf_require_resize"]) {
+            if (this.rendererContainer["foxycape_document_hidden"]) {
+                this.rendererContainer["foxycape_document_hidden"] = undefined;
+                if (!this.rendererContainer["foxycape_document_require_resize"]) {
                     return;
                 }
-                this.rendererContainer["lhx_pdf_require_resize"] = undefined
+                this.rendererContainer["foxycape_document_require_resize"] = undefined
             }
         }
         this.rendererViewport.applyCssVariables();
