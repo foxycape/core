@@ -167,7 +167,7 @@ export class ServiceCollection<TMap extends CoreServiceMap = ServiceMap> {
         if (!this.has("loadLayer")) {
             this.add("loadLayer", async () => {
                 const { HtmlLoadLayer } = await import("./docLoadLayer/HtmlLoadLayer");
-                return new HtmlLoadLayer(this.events);
+                return new HtmlLoadLayer(this.events, this.locale);
             });
         }
     }

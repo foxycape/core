@@ -2,6 +2,7 @@ import { EventNames, IDocument, IEventEmitter } from "../../../kernal";
 import logo from '../../logo-160x160.png';
 import { emptyElement } from "../../html/dom";
 import { IHtmlLoadLayer } from "./IHtmlLoadLayer";
+import { ILocale } from "../../i18n/ILocale";
 
 export class HtmlLoadLayer implements IHtmlLoadLayer {
     private isVisible = false;
@@ -12,6 +13,7 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
     private wrapperContainer: HTMLElement;
     constructor(
         private readonly events: IEventEmitter,
+        private readonly locale: ILocale
     ) {
         this.bindEvents();
     }
@@ -138,7 +140,7 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
         const text = doc.createElement("div");
         text.style.cssText = "font-size: 14px;";
         text.textContent = processedImageCount
-            ? "Calculating image size... " + processedImageCount + "/" + totalImageCount
+            ? this.locale.getText("share_loading_image_size", "Calculating image size... {processedImageCount}/{totalImageCount}", { processedImageCount, totalImageCount })
             : "Loading...";
         content.appendChild(text);
         loadingLayer.appendChild(content);
