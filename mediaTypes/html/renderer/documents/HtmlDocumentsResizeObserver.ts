@@ -3,6 +3,7 @@ import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { IHtmlRendererLayout } from "../layout/IHtmlRendererLayout";
 import { HtmlSettings } from "../../HtmlSettings";
+import { consumeDocumentHiddenRestore, isCollapsedSize, markDocumentHidden } from "./documentHiddenState";
 
 export class HtmlDocumentsResizeObserver implements IDisposable {
     private rendererContainerResizeObserver: ResizeObserver;
@@ -31,6 +32,14 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
             const currentWidth = entry.contentRect?.width ?? entry.borderBoxSize[0].inlineSize ?? 0;
             const currentHeight = entry.contentRect?.height ?? entry.borderBoxSize[0].blockSize ?? 0;
             const hostViewport = this.documentsProvider.owner.getHostViewport();
+            const treatZeroHeight = hostViewport.mode != "window";
+            if (isCollapsedSize(currentWidth, currentHeight, treatZeroHeight)) {
+                markDocumentHidden(this.rendererContainer);
+                return;
+            }
+            if (consumeDocumentHiddenRestore(this.rendererContainer)) {
+                return;
+            }
             if (hostViewport.mode == "window") {
                 if (originWidth == currentWidth) {
                     this.rendererContainer.setAttribute("data-client-height", `${currentHeight}`);
@@ -77,31 +86,16 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
         if (!this.context) {
             return;
         }
-        // The container is hidden, for example, using display:none 
-        if (this.rendererContainer.clientWidth == 0) {
-            if (this.rendererContainer["foxycape_document_hidden"]) {
-                this.rendererContainer["foxycape_document_require_resize"] = 'true'
-            }
-            this.rendererContainer["foxycape_document_hidden"] = 'true'
-            return;
-        }
-        if (this.documentsProvider.owner.getHostViewport().mode != "window" && this.rendererContainer.clientHeight == 0) {
-            if (this.rendererContainer["foxycape_document_hidden"]) {
-                this.rendererContainer["foxycape_document_require_resize"] = 'true'
-            }
-            this.rendererContainer["foxycape_document_hidden"] = 'true'
+        // The container is hidden, for example, using display:none
+        const treatZeroHeight = this.documentsProvider.owner.getHostViewport().mode != "window";
+        if (isCollapsedSize(this.rendererContainer.clientWidth, this.rendererContainer.clientHeight, treatZeroHeight)) {
+            markDocumentHidden(this.rendererContainer);
             return;
         }
 
         // The container is hidden and then restored for the first time
-        if (this.rendererContainer.clientWidth > 0 && this.rendererContainer.clientHeight > 0) {
-            if (this.rendererContainer["foxycape_document_hidden"]) {
-                this.rendererContainer["foxycape_document_hidden"] = undefined;
-                if (!this.rendererContainer["foxycape_document_require_resize"]) {
-                    return;
-                }
-                this.rendererContainer["foxycape_document_require_resize"] = undefined
-            }
+        if (consumeDocumentHiddenRestore(this.rendererContainer)) {
+            return;
         }
         this.rendererViewport.applyCssVariables();
         await this.rendererLayout.applyStyles();

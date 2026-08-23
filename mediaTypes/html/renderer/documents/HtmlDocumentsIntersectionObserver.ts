@@ -1,4 +1,5 @@
 import { EventNames, IDisposable, IDocument, IDocumentsProvider, IEventEmitter } from "../../../../kernal";
+import { isHostContainerCollapsed } from "./documentHiddenState";
 
 /**
  * HTML intersection observer。
@@ -20,6 +21,9 @@ export class HtmlDocumentsIntersectionObserver implements IDisposable {
             ? this.documentsProvider.getRendererContainer()
             : hostViewport.observerRoot;
         this.contentContainerIntersectionObserver = new IntersectionObserver(entries => {
+            if (this.isRendererCollapsed()) {
+                return;
+            }
             for (let i = 0; i < entries.length; i++) {
                 const entry = entries[i];
                 const isVisible = entry.isIntersecting || entry.intersectionRatio > 0;
@@ -45,6 +49,12 @@ export class HtmlDocumentsIntersectionObserver implements IDisposable {
             this.documentMap.set(doc.getWrapperContainer(), doc);
             this.contentContainerIntersectionObserver.observe(doc.getWrapperContainer());
         }
+    }
+
+    private isRendererCollapsed() {
+        const renderer = this.documentsProvider.getRendererContainer();
+        const treatZeroHeight = this.documentsProvider.owner.getHostViewport().mode != "window";
+        return isHostContainerCollapsed(renderer, treatZeroHeight);
     }
 
     private setDocumentVisible = (wrapperContainer: Element, isVisible: boolean) => {
