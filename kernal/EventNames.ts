@@ -85,6 +85,9 @@ export class EventNames {
     /**general data change event notification (notification format: dataType-data type, action-operation type, items-data list) */
     static readonly DataChange = "dataChange";
 
+    /** table row changed for cloud sync: tableName, action, { key, content?, resource? }, from? */
+    static readonly TableDataChange = "tableDataChange";
+
     static readonly ProcessedImageCount = "processedImageCount";
     static readonly PdfLoadFinished = "pdfLoadFinished";
 
