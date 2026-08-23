@@ -171,13 +171,25 @@ export const findOverlayIdAtClientPoint = (
     return findOverlayAtClientPoint(root, maskClass, clientX, clientY)?.getAttribute(idAttr) ?? undefined
 }
 
+export type OverlayWritingAxis = 'horizontal' | 'vertical'
+
 /** Merge adjacent boxes on the same line to cut overlay node count. */
-export const mergeOverlayRects = (rects: OverlayRect[], gap = 1): OverlayRect[] => {
+export const mergeOverlayRects = (
+    rects: OverlayRect[],
+    gap = 1,
+    writingAxis: OverlayWritingAxis = 'horizontal',
+): OverlayRect[] => {
     const valid = rects.filter((rect) => rect.width > 0 && rect.height > 0)
     if (valid.length <= 1) {
         return valid
     }
-    const sorted = [...valid].sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y))
+    const isVertical = writingAxis === 'vertical'
+    const sorted = [...valid].sort((a, b) => {
+        if (isVertical) {
+            return a.x === b.x ? a.y - b.y : a.x - b.x
+        }
+        return a.y === b.y ? a.x - b.x : a.y - b.y
+    })
     const merged: OverlayRect[] = []
     for (const rect of sorted) {
         const last = merged[merged.length - 1]
@@ -185,10 +197,14 @@ export const mergeOverlayRects = (rects: OverlayRect[], gap = 1): OverlayRect[] 
             merged.push({ ...rect })
             continue
         }
-        const sameLine =
-            Math.abs(rect.y - last.y) <= gap &&
-            Math.abs(rect.height - last.height) <= Math.max(2, last.height * 0.35)
-        const adjacent = rect.x <= last.x + last.width + gap
+        const sameLine = isVertical
+            ? Math.abs(rect.x - last.x) <= gap &&
+              Math.abs(rect.width - last.width) <= Math.max(2, last.width * 0.35)
+            : Math.abs(rect.y - last.y) <= gap &&
+              Math.abs(rect.height - last.height) <= Math.max(2, last.height * 0.35)
+        const adjacent = isVertical
+            ? rect.y <= last.y + last.height + gap
+            : rect.x <= last.x + last.width + gap
         if (sameLine && adjacent) {
             const right = Math.max(last.x + last.width, rect.x + rect.width)
             const bottom = Math.max(last.y + last.height, rect.y + rect.height)
@@ -206,6 +222,7 @@ export const mergeOverlayRects = (rects: OverlayRect[], gap = 1): OverlayRect[] 
 export const clientRectsToOverlayRects = (
     layer: HTMLElement,
     clientRects: ArrayLike<DOMRect>,
+    writingAxis: OverlayWritingAxis = 'horizontal',
 ): OverlayRect[] => {
     const origin = layer.getBoundingClientRect()
     const rects: OverlayRect[] = []
@@ -221,5 +238,5 @@ export const clientRectsToOverlayRects = (
             height: rect.height,
         })
     }
-    return mergeOverlayRects(rects)
+    return mergeOverlayRects(rects, 1, writingAxis)
 }

@@ -21,4 +21,28 @@ describe("mergeOverlayRects", () => {
         ])
         expect(merged).toHaveLength(2)
     })
+
+    it("merges adjacent boxes in the same vertical column", () => {
+        const merged = mergeOverlayRects(
+            [
+                { x: 40, y: 0, width: 14, height: 20 },
+                { x: 40, y: 20, width: 14, height: 18 },
+            ],
+            1,
+            "vertical",
+        )
+        expect(merged).toEqual([{ x: 40, y: 0, width: 14, height: 38 }])
+    })
+
+    it("keeps boxes in different vertical columns", () => {
+        const merged = mergeOverlayRects(
+            [
+                { x: 40, y: 0, width: 14, height: 20 },
+                { x: 20, y: 0, width: 14, height: 20 },
+            ],
+            1,
+            "vertical",
+        )
+        expect(merged).toHaveLength(2)
+    })
 })
