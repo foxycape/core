@@ -1,7 +1,6 @@
 import { EventNames } from "./kernal/EventNames";
-import { CoreServices } from "./kernal/FileLoader";
 import { Options } from "./kernal/Options";
-import { Reader } from "./kernal/Reader";
+import { Reader, type ReaderServices } from "./kernal/Reader";
 
 type ReaderPointerPayload = {
     reader: Reader;
@@ -35,7 +34,7 @@ export class ReaderHub {
         return this.currentFocusReaderId;
     }
 
-    static createReader(options: Options, services: CoreServices) {
+    static createReader(options: Options, services: ReaderServices) {
         const reader = new Reader(options, services);
         this.bindEvents(reader);
         this.addReader(reader);
