@@ -447,10 +447,11 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                 htmlBlockTags: this.options.htmlBlockTags
             });
         }
-
-        const topInset = this.getFlipMode() == "scroll"
-            ? this.owner.optionsProvider.getHeaderHeight()
-            : 0;
+        const rendererContainerTop = this.owner.getRenderer()?.getRendererContainer().getBoundingClientRect().top;
+        // const topInset = this.getFlipMode() == "scroll"
+        //     ? this.owner.optionsProvider.getHeaderHeight()
+        //     : 0;
+        const topInset = rendererContainerTop
         const viewport = resolveVisibleViewportInContentWindow(contentWindow, { topInset });
         if (!viewport) {
             return [];
