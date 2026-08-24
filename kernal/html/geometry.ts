@@ -1,6 +1,7 @@
 import type { FlipMode, WritingMode } from "../types";
 import type { Rect } from "../common/geometry";
 import { findLastNode } from "./finder";
+import { createRange, getTextOffsetInElement } from "./selection";
 
 export type EdgeRect = {
     left: number;
@@ -703,6 +704,112 @@ export const getRangeFromPoint = (doc: Document, x: number, y: number) => {
     }
     return null;
 }
+
+const UNSPLITTABLE_TAGS = new Set(["img", "image", "svg", "video", "audio", "canvas", "iframe"]);
+
+const hasMeaningfulText = (element: Element) => {
+    const text = element.textContent ?? "";
+    for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i);
+        if (code != 32 && code != 9 && code != 10 && code != 13 && code != 160) {
+            return true;
+        }
+    }
+    return false;
+};
+
+/** Images, media, and empty nodes cannot be split into a character Range. */
+export const isUnsplittableContentElement = (element: Element) => {
+    const tag = element.tagName?.toLowerCase();
+    if (tag && UNSPLITTABLE_TAGS.has(tag)) {
+        return true;
+    }
+    return !hasMeaningfulText(element);
+};
+
+export type VisibleTextAnchor = {
+    textOffset: number;
+    rect: DOMRect;
+};
+
+const caretPointForWritingMode = (viewport: EdgeRect, writingMode?: WritingMode) => {
+    if (writingMode == "vertical-rl") {
+        return { x: Math.max(viewport.left, viewport.right - 1), y: viewport.top + 1 };
+    }
+    return { x: viewport.left + 1, y: viewport.top + 1 };
+};
+
+const isZeroSizeRect = (rect: { width: number; height: number }) =>
+    rect.width === 0 && rect.height === 0;
+
+const isNodeInsideElement = (element: Element, node: Node) =>
+    element === node || element.contains(node);
+
+const resolveTextOffsetAnchor = (
+    element: Element,
+    textOffset: number,
+    textLength: number
+): VisibleTextAnchor | undefined => {
+    const end = Math.min(textOffset + 1, textLength);
+    if (textOffset < 0 || textOffset >= textLength) {
+        return undefined;
+    }
+    const range = createRange(element, element, textOffset, end);
+    if (!range) {
+        return undefined;
+    }
+    return { textOffset, rect: getFirstClientRect(range) };
+};
+
+/**
+ * First visible character inside `element` as a textContent offset, without wrapping glyphs in DOM.
+ * Prefers caretRangeFromPoint at the reading-start corner; falls back to binary search over Range rects.
+ */
+export const findFirstVisibleTextOffset = (
+    element: Element,
+    viewport: EdgeRect,
+    writingMode?: WritingMode
+): VisibleTextAnchor | undefined => {
+    if (isUnsplittableContentElement(element)) {
+        return undefined;
+    }
+    const textLength = element.textContent?.length ?? 0;
+    if (textLength <= 0) {
+        return undefined;
+    }
+    const ownerDocument = element.ownerDocument;
+    if (!ownerDocument) {
+        return undefined;
+    }
+
+    const point = caretPointForWritingMode(viewport, writingMode);
+    const pointRange = getRangeFromPoint(ownerDocument, point.x, point.y);
+    if (pointRange && isNodeInsideElement(element, pointRange.startContainer)) {
+        const textOffset = getTextOffsetInElement(element, pointRange.startContainer, pointRange.startOffset);
+        const anchor = resolveTextOffsetAnchor(element, textOffset, textLength);
+        if (anchor && !isZeroSizeRect(anchor.rect)) {
+            const edge = toEdgeRect(anchor.rect);
+            if (!isCompletelyBeforeViewport(edge, viewport, writingMode) && intersectRect(viewport, edge)) {
+                return anchor;
+            }
+        }
+    }
+
+    let low = 0;
+    let high = textLength - 1;
+    let found: VisibleTextAnchor | undefined;
+    while (low <= high) {
+        const mid = (low + high) >> 1;
+        const anchor = resolveTextOffsetAnchor(element, mid, textLength);
+        if (!anchor || isZeroSizeRect(anchor.rect) || isCompletelyBeforeViewport(toEdgeRect(anchor.rect), viewport, writingMode)) {
+            low = mid + 1;
+            continue;
+        }
+        found = anchor;
+        high = mid - 1;
+    }
+    return found;
+};
 
 /**
  * Get a Range covering the last line of an element range.

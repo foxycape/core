@@ -1,7 +1,8 @@
 import { getDocumentBody, getElementIndex } from "../../../../kernal/html/finder";
 import { isNullOrWhiteSpace } from "../../../../kernal/common/text";
 import { getUrlFragment } from "../../../../kernal/common/url";
-import { EventNames, FileLocation, Progress, LastElementAttributeName, Reader, throttle } from "../../../../kernal";
+import { findFirstVisibleTextOffset, resolveVisibleViewportInContentWindow } from "../../../../kernal/html/geometry";
+import { EventNames, FileLocation, Progress, LastElementAttributeName, Reader, throttle, debounce } from "../../../../kernal";
 import type { ILogger } from "js-logger";
 import { IHtmlProgressTracker } from "./IHtmlIProgressTracker";
 import { IHtmlDocument } from "../IHtmlDocument";
@@ -84,7 +85,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
             return null;
         }
 
-        const visibleElements = firstVisibleDocument.getVisibleElements(true);
+        const visibleElements = firstVisibleDocument.getVisibleElements();
         if (visibleElements.length === 0) {
             return null;
         }
@@ -102,17 +103,25 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
 
         const location = this.createElementLocation(firstVisibleDocument, firstVisibleElement);
         const flow = resolveLayoutFlow(this.options);
+        const isFullscreen = !!fullscreenElement;
+        const textAnchor = isFullscreen
+            ? undefined
+            : this.findVisibleTextAnchor(firstVisibleElement, firstVisibleDocument, flow.writingMode);
+        if (textAnchor) {
+            location.textOffset = textAnchor.textOffset;
+        }
+        const offsetRect = textAnchor?.rect ?? firstVisibleElementRect;
         if (flow.blockAxis == "x") {
-            location.offsetLeft = this.calcVisibleElementOffsetLeft(firstVisibleElement, firstVisibleDocument, !!fullscreenElement);
+            location.offsetLeft = this.calcVisibleRectOffset(offsetRect, firstVisibleDocument, isFullscreen, "x");
         }
         else {
-            location.offsetTop = this.calcVisibleElementOffsetTop(firstVisibleElement, firstVisibleDocument, !!fullscreenElement);
+            location.offsetTop = this.calcVisibleRectOffset(offsetRect, firstVisibleDocument, isFullscreen, "y");
         }
         location.precise = true;
         location.ignoreOverlayHeader = true;
         location.scrollBehavior = "smooth";
         location.text = getAdjacentText(this.documentsProvider, this.options.htmlBlockTags, firstVisibleDocument.extension, firstVisibleElement);
-        if (flow.flipMode === "page") {
+        if (flow.flipMode === "page" && location.textOffset == null) {
             const pageNumber = this.documentsProvider.getCurrentPageNumber(firstVisibleDocument);
             const numberOfPages = await firstVisibleDocument.getNumberOfPages();
             location.unit = "page";
@@ -143,45 +152,44 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
         return location;
     }
 
-    private calcVisibleElementOffsetTop(element: Element, doc: IHtmlDocument, isFullscreen: boolean): number | undefined {
+    private findVisibleTextAnchor(element: Element, doc: IHtmlDocument, writingMode: ReturnType<typeof resolveLayoutFlow>["writingMode"]) {
+        const contentWindow = element.ownerDocument?.defaultView ?? doc.getContentContainer()?.ownerDocument?.defaultView;
+        if (!contentWindow) {
+            return undefined;
+        }
+        const rendererContainerTop = this.documentsProvider.getRendererContainer()?.getBoundingClientRect().top ?? 0;
+        const viewport = resolveVisibleViewportInContentWindow(contentWindow, { topInset: rendererContainerTop });
+        if (!viewport) {
+            return undefined;
+        }
+        return findFirstVisibleTextOffset(element, viewport, writingMode);
+    }
+
+    private calcVisibleRectOffset(
+        rect: DOMRect,
+        doc: IHtmlDocument,
+        isFullscreen: boolean,
+        axis: "x" | "y"
+    ): number | undefined {
         if (isFullscreen) {
             return 50;
         }
 
-        const elementRect = element.getBoundingClientRect();
         const iframe = doc.getContentContainer()?.ownerDocument?.defaultView?.frameElement as HTMLElement | null;
-        const iframeRectTop = iframe?.getBoundingClientRect().top ?? 0;
-        let offsetTop = this.options.flipMode === "scroll"
-            ? elementRect.top + iframeRectTop
-            : elementRect.top;
+        const iframeRect = iframe?.getBoundingClientRect();
+        const isScroll = resolveLayoutFlow(this.options).flipMode === "scroll";
+        let offset = axis == "x"
+            ? (isScroll ? rect.left + (iframeRect?.left ?? 0) : rect.left)
+            : (isScroll ? rect.top + (iframeRect?.top ?? 0) : rect.top);
 
         const scrollElement = this.documentsProvider.getScrollElement();
         if (scrollElement) {
-            offsetTop -= scrollElement.getBoundingClientRect().top;
+            const scrollRect = scrollElement.getBoundingClientRect();
+            offset -= axis == "x" ? scrollRect.left : scrollRect.top;
         }
 
         // Preserve previous behavior: 0 means "no offset".
-        return offsetTop || undefined;
-    }
-
-    private calcVisibleElementOffsetLeft(element: Element, doc: IHtmlDocument, isFullscreen: boolean): number | undefined {
-        if (isFullscreen) {
-            return 50;
-        }
-
-        const elementRect = element.getBoundingClientRect();
-        const iframe = doc.getContentContainer()?.ownerDocument?.defaultView?.frameElement as HTMLElement | null;
-        const iframeRectLeft = iframe?.getBoundingClientRect().left ?? 0;
-        let offsetLeft = resolveLayoutFlow(this.options).flipMode === "scroll"
-            ? elementRect.left + iframeRectLeft
-            : elementRect.left;
-
-        const scrollElement = this.documentsProvider.getScrollElement();
-        if (scrollElement) {
-            offsetLeft -= scrollElement.getBoundingClientRect().left;
-        }
-
-        return offsetLeft || undefined;
+        return offset || undefined;
     }
 
     private async getPassedPercentage(url: string, target: Element | number | { tagName: string, tagIndex: number }, shouldCheckFinished?: boolean) {
@@ -264,7 +272,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
         this.owner.events.emit(EventNames.ProgressChange, progress);
     }
 
-    private delayUpdateProgress = throttle(this.updateProgress, 300, true);
+    private delayUpdateProgress = debounce(this.updateProgress, 300);
 
     async dispose(): Promise<void> {
     }

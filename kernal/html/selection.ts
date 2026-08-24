@@ -246,6 +246,44 @@ const findLastTextNode = (root: Node): Text | null => {
     return last;
 };
 
+/**
+ * Map a live Range caret (node + offset) back to a character index within `element.textContent`.
+ * Inverse of the offset used by `createRange`.
+ */
+export const getTextOffsetInElement = (element: Element, node: Node, offset: number): number => {
+    if (!element.contains(node) && element !== node) {
+        return 0;
+    }
+    if (node.nodeType === Node.TEXT_NODE) {
+        const walker = element.ownerDocument?.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        if (!walker) {
+            return Math.max(0, offset);
+        }
+        let accumulated = 0;
+        let current: Text | null;
+        while ((current = walker.nextNode() as Text | null)) {
+            const length = (current.textContent ?? "").length;
+            if (current === node) {
+                return accumulated + Math.min(Math.max(offset, 0), length);
+            }
+            accumulated += length;
+        }
+        return accumulated;
+    }
+    const ownerDocument = element.ownerDocument;
+    if (!ownerDocument) {
+        return 0;
+    }
+    try {
+        const range = ownerDocument.createRange();
+        range.selectNodeContents(element);
+        range.setEnd(node, offset);
+        return range.toString().length;
+    } catch {
+        return 0;
+    }
+};
+
 const mapCharOffsetToTextPosition = (root: Node, charOffset: number): { node: Text; offset: number } | null => {
     if (charOffset < 0) {
         return null;
