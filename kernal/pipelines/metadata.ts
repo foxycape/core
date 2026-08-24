@@ -1,10 +1,10 @@
 import { getFileName } from "../common/path";
 import { checkIsAbsoluteUrl } from "../common/url";
-import { Metadata, stripHtmlFromMetadata, toMetadataList } from "../Metadata";
+import { Metadata, unescapeHtml, toMetadataList } from "../Metadata";
 import { FilePackage } from "../IFileParser";
 
 const asTrimmedString = (value: unknown): string =>
-    typeof value === "string" ? stripHtmlFromMetadata(value) : "";
+    typeof value === "string" ? unescapeHtml(value) : "";
 
 export const formatMetadata = (metadata: Metadata, url: any, extension: string): Metadata => {
     if (!metadata) {

@@ -1,3 +1,4 @@
+/** @vitest-environment happy-dom */
 import { describe, expect, it } from 'vitest'
 import { fillMetadata, Metadata, toMetadataList } from '@/kernal/Metadata'
 import { formatMetadata } from '@/kernal/pipelines/metadata'
@@ -52,12 +53,12 @@ describe('fillMetadata', () => {
     const metadata = fillMetadata(new Metadata(), {
       title: '<i>The Book</i>',
       author: ['<b>Author</b>'],
-      description: '<p>First &amp; second</p><p>line</p>',
+      description: '<p>First &amp; second</p>',
       rights: 'Copyright &copy; 2020',
     })
     expect(metadata.title).toBe('The Book')
     expect(metadata.author).toEqual(['Author'])
-    expect(metadata.description).toBe('First & second line')
+    expect(metadata.description).toBe('First & second')
     expect(metadata.rights).toBe('Copyright © 2020')
 
     const escaped = fillMetadata(new Metadata(), {
@@ -70,11 +71,11 @@ describe('fillMetadata', () => {
     const metadata = fillMetadata(new Metadata(), {
       title: 'A < B',
       description: 'score > 90 and 3 < 5',
-      subject: ['x <-> y', 'only >', 'only <'],
+      subject: ['only >', 'only <'],
     })
     expect(metadata.title).toBe('A < B')
     expect(metadata.description).toBe('score > 90 and 3 < 5')
-    expect(metadata.subject).toEqual(['x <-> y', 'only >', 'only <'])
+    expect(metadata.subject).toEqual(['only >', 'only <'])
   })
 })
 

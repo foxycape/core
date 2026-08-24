@@ -97,6 +97,7 @@
     "@typescript/typescript6": "^6.0.2",
     "fake-indexeddb": "^6.2.5",
     "glob": "^13.0.6",
+    "happy-dom": "^20.11.6",
     "sass": "^1.102.0",
     "typescript": "~7.0.2",
     "vite": "^8.2.1",

@@ -44,56 +44,20 @@ export type BookMetadataSource = {
     size?: unknown;
 };
 
-const NamedHtmlEntities: Record<string, string> = {
-    amp: "&",
-    lt: "<",
-    gt: ">",
-    quot: '"',
-    apos: "'",
-    nbsp: " ",
-    copy: "©",
-    reg: "®",
-    trade: "™",
-    mdash: "—",
-    ndash: "–",
-    hellip: "…",
-    rsquo: "\u2019",
-    lsquo: "\u2018",
-    rdquo: "\u201d",
-    ldquo: "\u201c",
-};
-
-const decodeHtmlEntities = (value: string) =>
-    value.replace(/&(#x[\da-fA-F]+|#\d+|[a-zA-Z]+);/g, (match, entity: string) => {
-        if (entity.startsWith("#")) {
-            const code = entity[1] === "x" || entity[1] === "X"
-                ? Number.parseInt(entity.slice(2), 16)
-                : Number.parseInt(entity.slice(1), 10);
-            return Number.isFinite(code) ? String.fromCodePoint(code) : match;
-        }
-        return NamedHtmlEntities[entity.toLowerCase()] ?? match;
-    });
-
-const stripHtmlTags = (value: string) =>
-    value
-        .replace(/<br\s*\/?>/gi, " ")
-        .replace(/<\/(?:p|div|h[1-6]|li|tr|blockquote|section|article)>/gi, " ")
-        .replace(/<!--[\s\S]*?-->/g, "")
-        .replace(/<\/?[a-zA-Z][a-zA-Z0-9:-]*(?:\s[^<>]*?)?\/?>/g, "");
-
 /** Remove HTML tags / entities from bibliographic fields. */
-export const stripHtmlFromMetadata = (value: string): string => {
-    const text = value.trim();
-    if (!text) {
+export const unescapeHtml = (value: string):string => {
+    if (!value) {
         return "";
     }
-    const cleaned = decodeHtmlEntities(stripHtmlTags(decodeHtmlEntities(stripHtmlTags(text))));
+    const textarea = document.createElement("textarea");
+    textarea.innerHTML = value;
+    const cleaned= textarea.value;
     return cleaned.replace(/\s+/g, " ").trim();
 };
 
 const firstText = (value: unknown): string => {
     if (typeof value === "string") {
-        return stripHtmlFromMetadata(value);
+        return unescapeHtml(value);
     }
     if (typeof value === "number" && Number.isFinite(value)) {
         return String(value);
