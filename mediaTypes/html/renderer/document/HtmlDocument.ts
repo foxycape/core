@@ -406,8 +406,8 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         await this.load();
         return this.internalGetNumberOfPages();
     }
-    async getPageNumber(element: Element) {
-        return this.pageCalculator.getPageNumber(element);
+    async getPageNumber(target: Element | Range) {
+        return this.pageCalculator.getPageNumber(target);
     }
 
     private getContentRootElement(): HTMLElement {

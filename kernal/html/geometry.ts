@@ -16,6 +16,44 @@ export type OrderedIntersectOptions = {
     missStreakToStop?: number;
 };
 
+/** Element or a live Range — iframe-safe, do not use `instanceof Range`. */
+export type LocateTarget = Element | Range;
+
+export const isDomRange = (value: unknown): value is Range =>
+    !!value
+    && typeof value === "object"
+    && !("tagName" in (value as object))
+    && "commonAncestorContainer" in (value as object);
+
+export const getFirstClientRect = (range: Range): DOMRect => {
+    const rects = range.getClientRects();
+    for (let i = 0; i < rects.length; i++) {
+        const rect = rects[i];
+        if (rect.height > 0 || rect.width > 0) {
+            return rect;
+        }
+    }
+    return range.getBoundingClientRect();
+};
+
+export const getLocateClientRect = (target: LocateTarget): DOMRect => {
+    if (isDomRange(target)) {
+        return getFirstClientRect(target);
+    }
+    return target.getBoundingClientRect();
+};
+
+export const getLocateElement = (target: LocateTarget): Element | null => {
+    if (!isDomRange(target)) {
+        return target;
+    }
+    const node = target.startContainer;
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        return node as Element;
+    }
+    return node.parentElement;
+};
+
 export const getBaseState = (base: Range | Element[] | Element) => {
     let baseDocument: Document;
     let baseWindow: Window;

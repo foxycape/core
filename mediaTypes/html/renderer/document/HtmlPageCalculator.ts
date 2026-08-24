@@ -1,5 +1,6 @@
 import { getTransformLength } from "../../../../kernal/html/style";
 import { compareTagName, getDocumentBody } from "../../../../kernal/html/finder";
+import { getLocateClientRect, isDomRange, type LocateTarget } from "../../../../kernal/html/geometry";
 import { parseNumber } from "../../../../kernal/common/number";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { IHtmlDocument } from "../IHtmlDocument";
@@ -72,19 +73,19 @@ export class HtmlPageCalculator {
         return numberOfPages;
     }
 
-    getPageNumber(element: Element) {
-        if (!element)
+    getPageNumber(target: LocateTarget) {
+        if (!target)
             return 1;
         const ownerDocument = this.doc.getContentContainer()?.ownerDocument;
         const body = getDocumentBody(ownerDocument);
         if (!body)
             return 1;
-        if (compareTagName("BODY", element.tagName)) {
+        if (!isDomRange(target) && compareTagName("BODY", target.tagName)) {
             return 1;
         }
         const documentViewport = this.layout.getLayoutMetrics();
         const flow = resolveLayoutFlow(this.options);
-        const elementRect = element.getBoundingClientRect();
+        const elementRect = getLocateClientRect(target);
         if (flow.pageAxis == "y") {
             const translateY = getTransformLength(ownerDocument.documentElement, "y");
             const top = (elementRect?.top ?? 0) + translateY;

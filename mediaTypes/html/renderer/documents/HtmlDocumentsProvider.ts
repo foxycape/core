@@ -2,7 +2,8 @@ import { isNullOrWhiteSpace } from "../../../../kernal/common/text";
 import { parseNumber } from "../../../../kernal/common/number";
 import { compareTagName } from "../../../../kernal/html/finder";
 import { emptyElement } from "../../../../kernal/html/dom";
-import { wrapperCharacters, recoverWrapperCharacters } from "../../../../kernal/html/manipulator";
+import { createRange } from "../../../../kernal/html/selection";
+import { getLocateClientRect, getLocateElement, type LocateTarget } from "../../../../kernal/html/geometry";
 import { scrollElementIntoView, getTransformLength } from "../../../../kernal/html/style";
 import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, asyncDebounce, BrowserCapabilities } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
@@ -180,78 +181,81 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         isReload = isReload ?? false;
         const flipMode = resolveLayoutFlow(this.htmlOptions).flipMode;
 
-        let redirectElement: Element = undefined, target: Element;
-        try {
-            const findTargetResult = await this.findTarget(doc, location);
-            target = findTargetResult?.target;
-            let pageNumber = findTargetResult?.pageNumber;
-            const isDocumentStart = findTargetResult?.isDocumentStart;
-            if (!target && !pageNumber) {
-                return;
-            }
-            if (target && location?.textOffset >= 0) {
-                const textContent = target.textContent;
-                if (location?.textOffset < textContent.length && textContent.length < 3000) {
-                    wrapperCharacters(target, "m");
-                    const elements = target.querySelectorAll("m");
-                    if (compareTagName(target.firstElementChild?.tagName, STTAG) && target.firstElementChild.getBoundingClientRect().width == 0) {
-                        redirectElement = elements.item(target.firstElementChild.textContent.length);
-                    }
-                    else {
-                        redirectElement = elements.item(location.textOffset);
-                    }
-                }
-            }
-
-            redirectElement = redirectElement ?? target;
-            if (flipMode == "scroll") {
-                if (location.suppressScroll) {
-                    this.setDocumentVisible(doc.getWrapperContainer(), true);
-                } else {
-                    await this.gotoScroll(doc, location, redirectElement, isDocumentStart);
-                }
-            }
-            else {
-                if (isReload && redirectElement && !isNullOrWhiteSpace(location.tagName)) {
-                    // Layout metrics changed: resolve page from element under a zeroed transform,
-                    // otherwise getBoundingClientRect is skewed by the previous page offset.
-                    this.resetTransformContainer();
-                    pageNumber = await doc.getPageNumber(redirectElement);
-                }
-                else if (location.unit === "page" && location.current != null && location.current > 0) {
-                    pageNumber = location.current;
-                    const numberOfPages = await doc.getNumberOfPages();
-                    if (location.total > 1 && location.total != numberOfPages) {
-                        pageNumber = Math.ceil(numberOfPages * (location.current / location.total));
-                    }
-                }
-                else if (!pageNumber) {
-                    pageNumber = await doc.getPageNumber(redirectElement);
-                }
-                await this.transformPage(doc, pageNumber, isReload ? undefined : location.direction);
-            }
-        } finally {
-            if (target) {
-                recoverWrapperCharacters(target);
+        const findTargetResult = await this.findTarget(doc, location);
+        const target = findTargetResult?.target;
+        let pageNumber = findTargetResult?.pageNumber;
+        const isDocumentStart = findTargetResult?.isDocumentStart;
+        if (!target && !pageNumber) {
+            return;
+        }
+        const redirectTarget = this.resolveRedirectTarget(target, location);
+        if (flipMode == "scroll") {
+            if (location.suppressScroll) {
+                this.setDocumentVisible(doc.getWrapperContainer(), true);
+            } else if (redirectTarget) {
+                await this.gotoScroll(doc, location, redirectTarget, isDocumentStart);
             }
         }
+        else {
+            if (isReload && redirectTarget && !isNullOrWhiteSpace(location.tagName)) {
+                // Layout metrics changed: resolve page from element under a zeroed transform,
+                // otherwise getBoundingClientRect is skewed by the previous page offset.
+                this.resetTransformContainer();
+                pageNumber = await doc.getPageNumber(redirectTarget);
+            }
+            else if (location.unit === "page" && location.current != null && location.current > 0) {
+                pageNumber = location.current;
+                const numberOfPages = await doc.getNumberOfPages();
+                if (location.total > 1 && location.total != numberOfPages) {
+                    pageNumber = Math.ceil(numberOfPages * (location.current / location.total));
+                }
+            }
+            else if (!pageNumber && redirectTarget) {
+                pageNumber = await doc.getPageNumber(redirectTarget);
+            }
+            await this.transformPage(doc, pageNumber, isReload ? undefined : location.direction);
+        }
+    }
+
+    /**
+     * Map location.textOffset to a live Range so scroll / page calc can use
+     * character geometry without wrapping each glyph into a DOM node.
+     */
+    private resolveRedirectTarget(target: Element | undefined, location: FileLocation): LocateTarget | undefined {
+        if (!target || !(location?.textOffset >= 0)) {
+            return target;
+        }
+        const textContent = target.textContent ?? "";
+        if (location.textOffset >= textContent.length) {
+            return target;
+        }
+        let offset = location.textOffset;
+        const firstChild = target.firstElementChild;
+        if (firstChild && compareTagName(firstChild.tagName, STTAG) && firstChild.getBoundingClientRect().width == 0) {
+            offset = firstChild.textContent?.length ?? 0;
+        }
+        if (offset >= textContent.length) {
+            return target;
+        }
+        return createRange(target, target, offset, Math.min(offset + 1, textContent.length)) ?? target;
     }
 
     /**
      * Scroll mode positioning
      */
-    private async gotoScroll(doc: IHtmlDocument, location: FileLocation, redirectElement: Element, isDocumentStart: boolean): Promise<void> {
+    private async gotoScroll(doc: IHtmlDocument, location: FileLocation, redirectTarget: LocateTarget, isDocumentStart: boolean): Promise<void> {
         const flow = resolveLayoutFlow(this.htmlOptions);
         if (flow.blockAxis == "x") {
-            await this.gotoScrollX(doc, location, redirectElement, isDocumentStart);
+            await this.gotoScrollX(doc, location, redirectTarget, isDocumentStart);
             return;
         }
-        const redirectElementRect = redirectElement.getBoundingClientRect();
+        const redirectElement = getLocateElement(redirectTarget);
+        const redirectElementRect = getLocateClientRect(redirectTarget);
         let scrollTopOffset = 0;
         if (!location?.ignoreOverlayHeader) {
             scrollTopOffset = this.owner.optionsProvider.getHeaderHeight() + this.owner.options.redirectPositionOffset;
 
-            if (redirectElement.clientHeight == 0 && redirectElementRect.height == 0) {
+            if (redirectElementRect.height == 0 && (!redirectElement || redirectElement.clientHeight == 0)) {
                 scrollTopOffset += 50;
             }
         }
@@ -292,7 +296,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                     if (toBottomDistance > 0) {
                         scrollElement.scrollBy(0, scrollTopOffset);
                     }
-                    else {
+                    else if (redirectElement) {
                         scrollElementIntoView(redirectElement, undefined, location?.scrollIntoViewIfNeeded, this.owner.getRootContainer()?.ownerDocument);
                     }
                 }
@@ -307,14 +311,15 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         }
     }
 
-    private async gotoScrollX(doc: IHtmlDocument, location: FileLocation, redirectElement: Element, isDocumentStart: boolean): Promise<void> {
+    private async gotoScrollX(doc: IHtmlDocument, location: FileLocation, redirectTarget: LocateTarget, isDocumentStart: boolean): Promise<void> {
         const scrollElement = this.getScrollElement();
         if (isDocumentStart) {
             this.scrollWrapperIntoView(doc, true);
             return;
         }
 
-        const redirectElementRect = redirectElement.getBoundingClientRect();
+        const redirectElement = getLocateElement(redirectTarget);
+        const redirectElementRect = getLocateClientRect(redirectTarget);
         const iframe = doc.getContentContainer().ownerDocument.defaultView?.frameElement as HTMLElement;
         const iframeX = iframe?.getBoundingClientRect()?.x ?? 0;
         const distance = redirectElementRect.x + iframeX;
@@ -328,7 +333,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
 
         const delta = distance - scrollLeftOffset - scrollElement.getBoundingClientRect().left;
         const toEndDistance = scrollElement.scrollWidth - scrollElement.scrollLeft - scrollElement.clientWidth;
-        if (delta > 0 && toEndDistance <= 0) {
+        if (delta > 0 && toEndDistance <= 0 && redirectElement) {
             scrollElementIntoView(redirectElement, undefined, location?.scrollIntoViewIfNeeded, this.owner.getRootContainer()?.ownerDocument);
         }
         else {

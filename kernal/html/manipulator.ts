@@ -1,6 +1,6 @@
 import { MTTAG, STTAG } from "../Constants";
 import { parseHtmlToFragment } from "./dom";
-import { compareTagName, getDocumentBody, getElementByNameAndIndex, getAllNodes } from "./finder";
+import { compareTagName, getDocumentBody, getElementByNameAndIndex } from "./finder";
 import { getPureTextContent } from "./text";
 
 /**
@@ -177,54 +177,4 @@ export const insertElement = (
     if (root.getElementById(htmlId))
         return;
     insertElementToNode(getPureText, actualElement, actualElement.childNodes, textPostion, html, htmlId);
-};
-
-
-const wrapEachCharacter = (ownerDocument: Document, text: string, tagName: string): DocumentFragment => {
-    const fragment = ownerDocument.createDocumentFragment();
-    for (const character of text) {
-        const wrap = ownerDocument.createElement(tagName);
-        wrap.textContent = character;
-        fragment.appendChild(wrap);
-    }
-    return fragment;
-};
-
-/**
- * Wrap each character inside the element (must restore with recoverWrapperCharacters).
- */
-export const wrapperCharacters = (element: Element, tagName: string) => {
-    if (!element || !tagName) {
-        return;
-    }
-    if (element['originNodes']) {
-        return;
-    }
-    const originNodes = Array.from(element.childNodes).map((node) => node.cloneNode(true));
-    element['originNodes'] = originNodes;
-    if (element.children.length == 0) {
-        element.replaceChildren(wrapEachCharacter(element.ownerDocument, element.textContent ?? "", tagName));
-    }
-    else {
-        const nodes = getAllNodes(element)
-        for (let i = 0; i < nodes.length; i++) {
-            const node = nodes[i]
-            if (node.nodeType == Node.TEXT_NODE) {
-                const container = element.ownerDocument.createElement("k")
-                container.appendChild(wrapEachCharacter(element.ownerDocument, node.textContent ?? "", tagName));
-                node.parentElement.replaceChild(container, node);
-            }
-        }
-    }
-};
-
-export const recoverWrapperCharacters = (element: Element) => {
-    if (!element) {
-        return;
-    }
-    const originNodes = element['originNodes'] as Node[] | undefined;
-    if (originNodes) {
-        element.replaceChildren(...originNodes);
-    }
-    element['originNodes'] = null;
 };

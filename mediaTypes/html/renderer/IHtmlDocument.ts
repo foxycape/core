@@ -12,10 +12,9 @@ export interface IHtmlDocument extends IDocument {
     getNumberOfPages(): Promise<number>;
 
     /**
-     * Get the page number of the element.
-     * @param element 
+     * Get the page number of an element or a character Range.
      */
-    getPageNumber(element: Element): Promise<number>;
+    getPageNumber(target: Element | Range): Promise<number>;
 
     /**
      * Document-scoped symbol calculator.
