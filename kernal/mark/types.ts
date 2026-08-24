@@ -38,6 +38,10 @@ export type CreateMarkOptions = {
     target: Range;
     styleName: MarkStyleName;
     customColor?: string;
+    /** First image in the range (bookmarks that include or are only an image) */
+    imageUrl?: string;
+    /** 150x150 JPEG data URL for list / personal-center preview */
+    thumbnail?: string;
 };
 
 export type FindMarkTarget = {

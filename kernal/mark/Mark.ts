@@ -22,6 +22,12 @@ export type Mark = {
     pageNumber?: number;
     /** Convenience spine/document URL for reflowable marks; omit for fixed / media */
     url?: string;
+    /** First image in the mark range; used by bookmarks that include or are only an image */
+    imageUrl?: string;
+    /** 150x150 JPEG data URL for list / personal-center preview */
+    thumbnail?: string;
+    /** Document-wide progress (0~1) computed from the mark's content range */
+    progress?: number;
     createTime: string;
     updateTime: string;
 };
