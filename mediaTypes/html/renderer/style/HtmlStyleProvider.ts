@@ -72,28 +72,29 @@ export class HtmlStyleProvider implements IStyleProvider {
             this.currentVariables.set(key, value);
         }
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
-        for (const document of loadedDocuments) {
-            const contentContainer = document.getContentContainer();
-            const documentElement = contentContainer?.ownerDocument?.documentElement;
-            if (!documentElement) {
-                continue;
-            }
-            for (const [key, value] of variableNameValues) {
-                documentElement.style.setProperty(key, value);
-            }
+        const visibleDocuments = loadedDocuments.filter((document) => document.getWrapperContainer()?.isVisible);
+        const otherDocuments = loadedDocuments.filter((document) => !document.getWrapperContainer()?.isVisible);
+        for (const document of visibleDocuments) {
+            this.applyVariablesToDocument(document, variableNameValues);
         }
+        for (const document of otherDocuments) {
+            this.applyVariablesToDocument(document, variableNameValues);
+        }
+        await this.documentsProvider.reload();
     }
 
     async changeStyle(variableName: string, variableValue: string): Promise<void> {
-        this.currentVariables.set(variableName, variableValue);
-        const loadedDocuments = this.documentsProvider.getLoadedDocuments();
-        for (const document of loadedDocuments) {
-            const contentContainer = document.getContentContainer();
-            const documentElement = contentContainer?.ownerDocument?.documentElement;
-            if (!documentElement) {
-                continue;
-            }
-            documentElement.style.setProperty(variableName, variableValue);
+        await this.changeStyles(new Map([[variableName, variableValue]]));
+    }
+
+    private applyVariablesToDocument(document: IHtmlDocument, variableNameValues: Map<string, string>): void {
+        const contentContainer = document.getContentContainer();
+        const documentElement = contentContainer?.ownerDocument?.documentElement;
+        if (!documentElement) {
+            return;
+        }
+        for (const [key, value] of variableNameValues) {
+            documentElement.style.setProperty(key, value);
         }
     }
 

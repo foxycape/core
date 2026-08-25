@@ -670,9 +670,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         const location = this.owner.context.currentLocation;
         if (isNullOrWhiteSpace(location?.url))
             return;
-        location.scrollBehavior = 'smooth';
         await this.load(location, true);
-        location.scrollBehavior = undefined;
     }
 
     protected readonly delayReloadTime = 300;

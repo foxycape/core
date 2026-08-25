@@ -106,11 +106,13 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     protected bindEvents() {
         this.owner.events.on(EventNames.OptionsChange, this.onOptionsChange);
         this.owner.events.on(EventNames.PageChange, this.onPageChange);
+        this.owner.events.on(EventNames.DocumentSizeChange, this.onDocumentSizeChange);
     }
 
     protected unbindEvents() {
         this.owner.events.off(EventNames.OptionsChange, this.onOptionsChange);
         this.owner.events.off(EventNames.PageChange, this.onPageChange);
+        this.owner.events.off(EventNames.DocumentSizeChange, this.onDocumentSizeChange);
     }
 
     private bindScrollWatch() {
@@ -146,6 +148,12 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
 
     private onPageChange = async () => {
         this.progressTracker.notifyProgressChange();
+    };
+
+    private onDocumentSizeChange = async () => {
+        if (!this.owner.context.userChangedProgress && !this.owner.context.skipDocumentSizeChangeReload) {
+            await this.reload();
+        }
     };
 
     private onOptionsChange = async (path: string) => {

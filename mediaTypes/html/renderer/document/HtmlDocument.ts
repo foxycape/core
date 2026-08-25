@@ -184,13 +184,10 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.bindDocumentEvents();
         this.owner.events.emit(EventNames.DocumentLoad, this);
         this.resizeObserver.observeIframeSize(async () => {
-            const resizeState = this.captureLayoutState();
             this.resetLayoutSizes();
-            await yieldToMain();
             if (this.getFlipMode() == "page") {
                 this.pageCalculator.calcNumberOfPages(true);
             }
-            await this.restoreLayoutState(resizeState);
         });
         this.loadCompleted(true);
     };
@@ -263,6 +260,8 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                 : `var(${ViewportCssVariableNames.ContentContainerWidth})`
         );
         this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
+        // Do not remove min-height first: collapsing it changes which elements
+        // are visible and makes the subsequent location reload inaccurate.
         const iframeMinHeight = contentRootElement.getBoundingClientRect().height;
         this.iframe.style.minHeight = Math.round(iframeMinHeight) + "px";
     }

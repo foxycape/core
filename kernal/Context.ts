@@ -50,6 +50,8 @@ export class Context {
 
     private currentUserChangedProgress = true;
     private currentRedirectingDocUrl: string;
+    /** Caller is compensating viewport itself; skip DocumentSizeChange-triggered reload */
+    skipDocumentSizeChangeReload = false;
 
     constructor(
         private readonly events: IEventEmitter,
@@ -110,5 +112,6 @@ export class Context {
         this.currentNavPointKey = undefined;
         this.currentRedirectingDocUrl = undefined;
         this.currentUserChangedProgress = true;
+        this.skipDocumentSizeChangeReload = false;
     }
 }

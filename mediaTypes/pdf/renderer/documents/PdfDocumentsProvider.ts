@@ -208,9 +208,7 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
         if (isNullOrWhiteSpace(location?.url)) {
             return;
         }
-        location.scrollBehavior = "smooth";
         await this.load(location, true);
-        location.scrollBehavior = undefined;
     };
 
     override async load(location?: FileLocation, isReload?: boolean): Promise<void> {

@@ -34,7 +34,7 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         }
     }
 
-    async applyDocStyles(doc: IHtmlDocument): Promise<void> {
+    async applyDocStyles(doc: IHtmlDocument, restoreLayoutState = true): Promise<void> {
         const contentContainer = doc.getContentContainer() ?? await doc.getVirtualContentContainer();
         const documentElement = contentContainer.ownerDocument.documentElement;
         const flow = resolveLayoutFlow(this.htmlOptions);
@@ -57,10 +57,12 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
 
         this.toggleColumnLayout(documentElement, flow);
         documentElement.removeAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName);
-        const layoutState = doc.captureLayoutState();
+        const layoutState = restoreLayoutState ? doc.captureLayoutState() : undefined;
         doc.resetLayoutSizes();
         await yieldToMain();
-        await doc.restoreLayoutState(layoutState);
+        if (restoreLayoutState && layoutState) {
+            await doc.restoreLayoutState(layoutState);
+        }
     }
 
     private async getCssVariables(theme: Theme, metrics: HtmlLayoutMetrics, flow: ReturnType<typeof resolveLayoutFlow>) {
@@ -178,7 +180,6 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
                 this.owner.context.currentLocation = progress.location;
             }
         }
-        this.owner.context.setUserChangedProgress(false);
 
         const payload: Record<string, unknown> = {};
         if (flipModeChanged) {
@@ -203,7 +204,7 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         this.renererviewport.applyCssVariables();
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         for (const doc of loadedDocuments) {
-            await this.applyDocStyles(doc);
+            await this.applyDocStyles(doc, false);
         }
         this.owner.events.emit(EventNames.LayoutChange, payload);
         await this.documentsProvider.reload();
