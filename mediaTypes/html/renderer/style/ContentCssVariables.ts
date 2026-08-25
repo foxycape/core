@@ -5,6 +5,8 @@
 export class ContentCssVariables {
     static readonly FontSize = "--font-size";
     static readonly FontFamily = "--font-family";
+    /** System / emoji stack used after `--font-family` for missing glyphs */
+    static readonly FallbackFontFamily = `-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji"`;
     static readonly FontWeight = "--font-weight";
     static readonly TextLineHeight = "--text-line-height";
     static readonly ParagraphMarginTop = "--paragraph-margin-top";
@@ -21,7 +23,7 @@ export class ContentCssVariables {
         if (!this.defaultValues) {
             this.defaultValues = new Map<string, string>();
             this.defaultValues.set(ContentCssVariables.FontSize, "18px")
-            this.defaultValues.set(ContentCssVariables.FontFamily, "inherit")
+            this.defaultValues.set(ContentCssVariables.FontFamily, ContentCssVariables.FallbackFontFamily)
             this.defaultValues.set(ContentCssVariables.FontWeight, "normal")
             this.defaultValues.set(ContentCssVariables.ParagraphMarginTop, "0.5em")
             this.defaultValues.set(ContentCssVariables.ParagraphMarginBottom, "0.5em")

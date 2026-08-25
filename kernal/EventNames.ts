@@ -21,6 +21,7 @@ export class EventNames {
     static readonly ProgressChange = "progressChange";
     static readonly LayoutChange = "layoutChange";
     static readonly ThemeChange = "themeChange";
+    static readonly FontChange = "fontChange";
     static readonly OptionsChange = "optionsChange";
     static readonly PageChange = "pageChange";
     static readonly PdfPageTextRendered = "pageTextRendered";

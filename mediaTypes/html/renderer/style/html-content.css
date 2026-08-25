@@ -7,7 +7,12 @@ html {
     font-size: var(--font-size) !important;
     color: var(--content-text-color);
     font-weight: var(--font-weight) !important;
-    font-family: -apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+    --fallback-font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+html.foxycape-user-font,
+html.foxycape-user-font body {
+    font-family: var(--font-family), var(--fallback-font-family) !important;
 }
 
 body {
@@ -16,7 +21,6 @@ body {
     height: auto !important;
     font-size: 1rem;
     line-height: var(--text-line-height);
-    font-family: var(--font-family);
 }
 
 div,

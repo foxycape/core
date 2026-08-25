@@ -1,5 +1,6 @@
 import { injectCssContent } from "../../../../kernal/html/injector";
 import { IDocument, IDocumentsProvider, IStyleProvider } from "../../../../kernal";
+import { HtmlSettings } from "../../HtmlSettings";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { ContentCssVariables } from "./ContentCssVariables";
 
@@ -61,15 +62,42 @@ export class HtmlStyleProvider implements IStyleProvider {
             }
         }
         for (const [key, value] of this.currentVariables) {
-            documentElement.style.setProperty(key, value);
+            documentElement.style.setProperty(key, this.normalizeVariableValue(key, value));
         }
+        this.syncUserSpecifiedFontClass(documentElement);
         const css = await this.getCss();
         injectCssContent(ownerDocument, css, true, this.contentStyleId);
     }
 
+    private isUserSpecifiedFontFamily(value: string): boolean {
+        const family = value.trim();
+        if (!family || family === "inherit" || family === "default") {
+            return false;
+        }
+        return family !== ContentCssVariables.FallbackFontFamily;
+    }
+
+    private syncUserSpecifiedFontClass(documentElement: HTMLElement): void {
+        const family = this.normalizeVariableValue(
+            ContentCssVariables.FontFamily,
+            this.getVariableValue(ContentCssVariables.FontFamily),
+        );
+        documentElement.classList.toggle(
+            HtmlSettings.UserSpecifiedFontClassName,
+            this.isUserSpecifiedFontFamily(family),
+        );
+    }
+
+    private normalizeVariableValue(variableName: string, variableValue: string): string {
+        if (variableName === ContentCssVariables.FontFamily && variableValue.trim() === "inherit") {
+            return ContentCssVariables.FallbackFontFamily;
+        }
+        return variableValue;
+    }
+
     async changeStyles(variableNameValues: Map<string, string>): Promise<void> {
         for (const [key, value] of variableNameValues) {
-            this.currentVariables.set(key, value);
+            this.currentVariables.set(key, this.normalizeVariableValue(key, value));
         }
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         const visibleDocuments = loadedDocuments.filter((document) => document.getWrapperContainer()?.isVisible);
@@ -94,8 +122,9 @@ export class HtmlStyleProvider implements IStyleProvider {
             return;
         }
         for (const [key, value] of variableNameValues) {
-            documentElement.style.setProperty(key, value);
+            documentElement.style.setProperty(key, this.normalizeVariableValue(key, value));
         }
+        this.syncUserSpecifiedFontClass(documentElement);
     }
 
     async resetStyles(): Promise<void> {

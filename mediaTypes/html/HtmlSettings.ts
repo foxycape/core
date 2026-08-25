@@ -30,7 +30,7 @@ export class HtmlSettings {
     static readonly DocumentVerticalPageModeCssName = "document-vertical-page-mode";
 
     /** Attribute name for the original link value */
-    static readonly LinkOriginHrefPropertyName = "lhx-origin-data-url";
+    static readonly LinkOriginHrefPropertyName = "foxycape-origin-data-url";
 
     /** Attribute name for the document's current page */
     static readonly HtmlDocumentCurrentPagePropertyName = "data-page-index";
@@ -45,4 +45,7 @@ export class HtmlSettings {
     static readonly WithoutMarginBottomCssName = "without-margin-bottom";
 
     static readonly PageMovingAttributeName = "page-moving";
+
+    /** html class: user chose a font; force it over the book's own font-family */
+    static readonly UserSpecifiedFontClassName = "foxycape-user-font";
 }

@@ -121,8 +121,8 @@ export class Font {
     }
     postscriptName?: string;
     
-    /** Supported font weights: 200-light, normal-regular, bold-bold */
-    supportedFontWeight?: string[] = ["200", "normal", "bold"];
+    /** Supported font weights: 300-light, normal-regular, bold-bold */
+    supportedFontWeight?: string[] = ["300", "normal", "bold"];
 
     /** Supported language(s) */
     language?: string | string[];
