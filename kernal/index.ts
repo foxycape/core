@@ -53,7 +53,7 @@ export * from './web/debounce';
 export * from './ISymbolCalclator';
 export * from './hostViewport';
 export * from './services/internalUrlBuilder/IInternalUrlBuilder'
-export * from './storage/IStorage'
+export { computeMd5, computeSimpleId } from './crypto/MD5'
 export * from './JsonConvert'
 export * from './ContentRange'
 export * from './mark'

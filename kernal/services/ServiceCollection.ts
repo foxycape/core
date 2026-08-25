@@ -11,8 +11,6 @@ export type CoreServiceMap = {
     fileUrlProvider: import("./file/IFileUrlProvider").IFileUrlProvider;
     fileDecrypter: import("./file/IFileDecrypter").IFileDecrypter;
     fileProvider: import("./file/IFileProvider").IFileProvider;
-    storage: import("../storage/IStorage").IStorage;
-    readingProgressStore: import("../progress/IReadingProgressStore").IReadingProgressStore;
 };
 
 /** Runtime keys of {@link CoreServiceMap}; adding a map field without updating this is a type error. */
@@ -24,8 +22,6 @@ export const CORE_SERVICE_KEYS = Object.keys({
     fileUrlProvider: true,
     fileDecrypter: true,
     fileProvider: true,
-    storage: true,
-    readingProgressStore: true,
 } satisfies Record<keyof CoreServiceMap, true>) as Array<keyof CoreServiceMap>;
 
 /** DOM / reader UI services (only registered for Reader). */
@@ -134,18 +130,6 @@ export class ServiceCollection<TMap extends CoreServiceMap = ServiceMap> {
                 const httpClient = await this.get("httpClient", true);
                 const internalUrlBuilder = await this.get("internalUrlBuilder", true);
                 return new DefaultFileUrlParser(httpClient, internalUrlBuilder, this.locale);
-            });
-        }
-        if (!this.has("storage")) {
-            this.add("storage", async () => {
-                const { WebStorage } = await import("../storage/WebStorage");
-                return new WebStorage();
-            });
-        }
-        if (!this.has("readingProgressStore")) {
-            this.add("readingProgressStore", async () => {
-                const { ReadingProgressStore } = await import("../progress/ReadingProgressStore");
-                return new ReadingProgressStore(await this.get("storage", true));
             });
         }
     }

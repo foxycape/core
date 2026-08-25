@@ -16,7 +16,6 @@ import {
     IDocumentsProvider,
     IEventEmitter,
     ILogger,
-    IStorage,
 } from "../../../../kernal";
 import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSettings } from "../../HtmlSettings";
@@ -25,11 +24,10 @@ import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { ContentLayoutCssVariableNames } from "../style/ContentLayoutCssVariableNames";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import errorImageUrl from "./error-image.png";
-import { IHtmlImageLoader } from "./IHtmlImageLoader";
+import { IHtmlImageLoader, ImageElement, ImageSizeDescriptor } from "./IHtmlImageLoader";
 import { createHtmlPlaceholderImageUrl, isHtmlPlaceholderImageUrl } from "./htmlImagePlaceholderUrl";
 
 const SVG_STYLE_CLASS = "lhx-svg";
-const IMAGE_SIZES_TABLE_PREFIX = "imagesizes-";
 const PRELOAD_IMAGE_COUNT = 5;
 const SVG_STYLE = `.${SVG_STYLE_CLASS} {width: 100% !important; height: auto !important; }`;
 const ONLY_ONE_IMAGE_STYLE = "*,p,div{text-align:center;margin-block:0 !important;margin-inline:auto !important;text-indent:0 !important;padding:0 !important;line-height:0 !important}";
@@ -40,14 +38,6 @@ const isDefaultPlaceholderUrl = (url: string | null | undefined): boolean => {
     }
     return isHtmlPlaceholderImageUrl(url);
 };
-
-type ImageSizeDescriptor = {
-    url: string;
-    width: number;
-    height: number;
-};
-
-type ImageElement = HTMLImageElement | SVGImageElement;
 
 const collectImageElements = (root: Document | Element): ImageElement[] => {
     const collected = root.querySelectorAll("img, image");
@@ -264,7 +254,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
 
         const images = collectImageElements(virtualDocument);
         const sizeMap = this.getImageSizeMap(doc);
-        const cachedSizes = await this.loadCachedImageSizes(doc);
+        const cachedSizes = await this.loadImageSizes(doc);
         if (cachedSizes) {
             for (const item of cachedSizes) {
                 if (!isNullOrWhiteSpace(item.url) && item.width > 0) {
@@ -304,59 +294,28 @@ export class HtmlImageLoader implements IHtmlImageLoader {
                 this.logger.error(e);
             }
         }
-
-        await this.persistImageSizes(doc, cachedSizes, sizeMap);
-    }
-
-    private async loadCachedImageSizes(doc: IHtmlDocument): Promise<ImageSizeDescriptor[] | null> {
-        const docKey = this.getStorageDocKey(doc);
-        const storage = await this.getStorage();
-        const resourceId = this.getResourceId();
-        if (!docKey || !storage || !resourceId) {
-            return null;
-        }
-        return await storage.get(IMAGE_SIZES_TABLE_PREFIX + resourceId, docKey);
-    }
-
-    private async persistImageSizes(
-        doc: IHtmlDocument,
-        existing: ImageSizeDescriptor[] | null,
-        sizeMap: Map<string, ImageSizeDescriptor>
-    ) {
-        const newImageSizes = Array.from(sizeMap.values()).filter((x) => x.width > 0 && !isNullOrWhiteSpace(x.url));
-        if (newImageSizes.length == 0) {
-            return;
-        }
-        const docKey = this.getStorageDocKey(doc);
-        const storage = await this.getStorage();
-        const resourceId = this.getResourceId();
-        if (!docKey || !storage || !resourceId) {
-            return;
-        }
-        const tableName = IMAGE_SIZES_TABLE_PREFIX + resourceId;
-        if (existing && existing.length > 0) {
-            const urls = new Set(existing.map((x) => x.url));
-            const diff = newImageSizes.filter((x) => !urls.has(x.url));
-            if (diff.length > 0) {
-                await storage.set(tableName, docKey, existing.concat(diff));
+        let imageSizes = Array.from(sizeMap.values()).filter((x) => x.width > 0 && !isNullOrWhiteSpace(x.url));
+        if (imageSizes.length > 0) {
+            if (cachedSizes && cachedSizes.length > 0) {
+                const urls = new Set(cachedSizes.map((x) => x.url));
+                const diff = imageSizes.filter((x) => !urls.has(x.url));
+                if (diff.length > 0) {
+                    //only persist the new image sizes
+                    await this.persistImageSizes(doc, diff);
+                }
+                return;
             }
-            return;
+            //persist all image sizes
+            await this.persistImageSizes(doc, imageSizes);
         }
-        await storage.set(tableName, docKey, newImageSizes);
     }
 
-    private getStorageDocKey(doc: IHtmlDocument): string | undefined {
-        const docIndex = this.documentsProvider.getDocuments().indexOf(doc);
-        return docIndex >= 0 ? docIndex.toString() : undefined;
+    async loadImageSizes(doc: IDocument): Promise<ImageSizeDescriptor[]> {
+        return [];
     }
 
-    private getResourceId(): string {
-        const context = this.documentsProvider.owner.context;
-        return isNullOrWhiteSpace(context.simpleId) ? context.id : context.simpleId;
-    }
-
-    private async getStorage(): Promise<IStorage | undefined> {
-        return await this.documentsProvider.owner.services.get("storage");
+    async persistImageSizes(doc: IDocument, sizes: ImageSizeDescriptor[]): Promise<void> {
+        //do nothing
     }
 
     private getImageSizeMap(doc: IDocument): Map<string, ImageSizeDescriptor> {

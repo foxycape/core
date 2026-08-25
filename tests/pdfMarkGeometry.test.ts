@@ -27,7 +27,7 @@ describe("scaleGeometryCoords", () => {
             200,
             400,
         );
-        expect(scaled).toEqual({ x: 20, y: 40, width: 60, height: 80 });
+        expect(scaled).toEqual({ x: 20, y: 40, width: 60, height: 80, rotationDelta: 0 });
     });
 });
 

@@ -17,7 +17,7 @@ import { isOptionKey, Options } from "./Options";
 import { PluginManager } from "./plugins/PluginManager";
 import { FileLoadResult } from "./pipelines/FileLoadPipeline";
 import { GotoPercentegeOptions } from "./navigator/INavigator";
-import { FileLocation, Progress } from "./progress/Progress";
+import { FileLocation } from "./progress/Progress";
 import { Theme } from "./Theme";
 import { ThemeCssKeys } from "./Theme";
 import { toCssVariableName } from "./common/naming";
@@ -25,7 +25,6 @@ import { OptionsProvider } from "./OptionsProvider";
 import type { LifecycleHooks } from "./LifecycleHooks";
 import { IFileParser } from "./IFileParser";
 import { IDocumentsProvider } from "./IDocumentsProvider";
-import { IReadingProgressStore } from "./progress/IReadingProgressStore";
 
 export type ReaderServices = CoreServices & Partial<UiServiceMap>;
 
@@ -61,7 +60,6 @@ export class Reader implements LifecycleHooks {
     private isInIframe: boolean = false;
     private hostViewport: HostViewport;
     readonly optionsProvider: OptionsProvider;
-    private readingProgressStore: IReadingProgressStore;
 
     onInitialize?: (extension: string) => Promise<void>;
     onDisposing?: () => Promise<void>;
@@ -350,10 +348,6 @@ export class Reader implements LifecycleHooks {
     }
 
     private async mountRenderer(result: FileLoadResult): Promise<void> {
-        if (this.options.enableProgressStore && !this.readingProgressStore) {
-            this.readingProgressStore = await this.services.get("readingProgressStore");
-        }
-        this.unbindEvents();
         if (this.renderer) {
             await this.renderer.dispose();
             this.renderer = null;
@@ -384,21 +378,6 @@ export class Reader implements LifecycleHooks {
         await this.loading?.hide();
         this.events.emit(EventNames.RendererLoad, this.renderer);
         await this.pluginManager?.enablePlugins(result.extension);
-        this.bindEvents();
-    }
-
-    private bindEvents = () => {
-        this.events.on(EventNames.ProgressChange, this.storeProgress);
-    }
-
-    private unbindEvents = () => {
-        this.events.off(EventNames.ProgressChange, this.storeProgress);
-    }
-
-    private storeProgress = async (progress: Progress) => {
-        if (this.readingProgressStore) {
-            await this.readingProgressStore.save(this.context.simpleId, progress);
-        }
     }
 
     get context() {

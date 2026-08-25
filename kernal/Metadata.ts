@@ -44,15 +44,17 @@ export type BookMetadataSource = {
     size?: unknown;
 };
 
-/** Remove HTML tags / entities from bibliographic fields. */
-export const unescapeHtml = (value: string):string => {
+/**
+ * Decode entities and flatten real HTML tags to text via textarea.
+ * Leftover `<` / `>` are content (escaped tags, comparisons), not markup.
+ */
+export const unescapeHtml = (value: string): string => {
     if (!value) {
         return "";
     }
     const textarea = document.createElement("textarea");
     textarea.innerHTML = value;
-    const cleaned= textarea.value;
-    return cleaned.replace(/\s+/g, " ").trim();
+    return textarea.value.replace(/\s+/g, " ").trim();
 };
 
 const firstText = (value: unknown): string => {

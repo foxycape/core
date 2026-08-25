@@ -61,9 +61,6 @@ export class Options {
     /** scrollbar border */
     scrollbarBorder: string = "1px";
 
-    /** whether to enable progress store */
-    enableProgressStore: boolean = true;
-
     static readonly HeaderHeight = toCssVariableName("headerHeight" satisfies OptionsCssKey);
     static readonly FooterHeight = toCssVariableName("footerHeight" satisfies OptionsCssKey);
     static readonly ScrollbarSize = toCssVariableName("scrollbarSize" satisfies OptionsCssKey);

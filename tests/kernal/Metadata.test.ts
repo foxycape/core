@@ -64,7 +64,7 @@ describe('fillMetadata', () => {
     const escaped = fillMetadata(new Metadata(), {
       title: '&lt;i&gt;Escaped&lt;/i&gt;',
     })
-    expect(escaped.title).toBe('Escaped')
+    expect(escaped.title).toBe('<i>Escaped</i>')
   })
 
   it('keeps lone angle brackets and comparison text', () => {

@@ -6,7 +6,7 @@ import type { LifecycleHooks } from "../LifecycleHooks";
 import { MediaTypeRegistry } from "../MediaTypeRegistry";
 import { OpenOptions } from "../OpenOptions";
 import { Options } from "../Options";
-import { FileLocation, Progress } from "../progress/Progress";
+import { FileLocation } from "../progress/Progress";
 import { CoreServiceMap, ServiceCollection } from "../services/ServiceCollection";
 import { InputFormatter } from "./InputFormatter";
 import { formatMetadata } from "./metadata";
@@ -134,16 +134,7 @@ export class FileLoadPipeline {
         const isValidLocation = location != undefined || (!isNaN(percentage) && percentage <= 1 && percentage >= 0);
 
         if (!isValidLocation) {
-            if (options.enableProgressStore) {
-                const progressStore = await this.deps.services.get("readingProgressStore");
-                const progress = await progressStore?.get(simpleId);
-                if (progress) {
-                    location = progress.location
-                }
-            }
-            if (!location) {
-                location = new FileLocation("0", 1, "ratio");
-            }
+            location = new FileLocation("0", 1, "ratio");
         }
 
         await pipelineOptions?.afterParserReady?.(formatted.extension);

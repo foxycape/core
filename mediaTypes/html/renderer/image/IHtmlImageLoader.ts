@@ -5,4 +5,18 @@ export interface IHtmlImageLoader extends IDisposable {
     preprocessImages(doc: IDocument): Promise<void>;
     /** Load images for the given visible elements. */
     loadImages(doc: IDocument, visibleElements: Element[]): Promise<void>;
+
+    /** Persist image sizes to storage. */
+    persistImageSizes(doc: IDocument,sizes: ImageSizeDescriptor[]): Promise<void>;
+
+    /** Load image sizes from storage. */
+    loadImageSizes(doc: IDocument): Promise<ImageSizeDescriptor[]>;
 }
+
+export type ImageSizeDescriptor = {
+    url: string;
+    width: number;
+    height: number;
+};
+
+export type ImageElement = HTMLImageElement | SVGImageElement;

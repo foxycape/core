@@ -1,9 +1,9 @@
-import { Context, EventNames, IEventEmitter, ILocale, IStorage } from "../../../kernal";
+import { Context, EventNames, IEventEmitter, ILocale } from "../../../kernal";
 import * as pdfjsLib from '../../../pdfjs/legacy/build/pdf.mjs';
 import { PdfPasswordPromptCallback } from "./IPdfFileParser";
 
 export class PdfPasswordProvider {
-    private static readonly PASSWORD_TABLE = 'pdf-passwords';
+    private static readonly PASSWORD_KEY_PREFIX = 'pdf-passwords:';
 
     private pdfjsPasswordCallback?: (password: string | Error) => void;
     private sessionPassword?: string;
@@ -12,7 +12,6 @@ export class PdfPasswordProvider {
         public readonly events: IEventEmitter,
         public readonly locale: ILocale,
         public readonly context: Context,
-        public readonly storage: IStorage | null,
     ) {
     }
 
@@ -24,7 +23,7 @@ export class PdfPasswordProvider {
         if (this.sessionPassword) {
             return this.sessionPassword;
         }
-        return await this.getStoredPassword();
+        return this.getStoredPassword();
     };
 
     onPasswordPrompt = (callback: (password: string) => void, reason: number) => {
@@ -57,11 +56,11 @@ export class PdfPasswordProvider {
         }
     };
 
-    private onPdfPasswordCallback: PdfPasswordPromptCallback = async (password) => {
+    private onPdfPasswordCallback: PdfPasswordPromptCallback = (password) => {
         if (typeof password === 'string') {
-            await this.setPassword(password);
+            this.setPassword(password);
         } else {
-            await this.clearPassword();
+            this.clearPassword();
         }
         this.pdfjsPasswordCallback?.(password);
     };
@@ -71,39 +70,57 @@ export class PdfPasswordProvider {
         return simpleId || undefined;
     }
 
-    private async getStoredPassword(): Promise<string | undefined> {
-        const simpleId = this.getSimpleId();
-        if (!simpleId || !this.storage) {
-            return undefined;
-        }
-        const password = await this.storage.get<string>(PdfPasswordProvider.PASSWORD_TABLE, simpleId);
-        if (password) {
-            this.sessionPassword = password;
-        }
-        return password || undefined;
+    private getStorageKey(simpleId: string): string {
+        return `${PdfPasswordProvider.PASSWORD_KEY_PREFIX}${simpleId}`;
     }
 
-    private async setPassword(password: string) {
+    private getStoredPassword(): string | undefined {
+        const simpleId = this.getSimpleId();
+        if (!simpleId) {
+            return undefined;
+        }
+        try {
+            const password = localStorage.getItem(this.getStorageKey(simpleId));
+            if (password) {
+                this.sessionPassword = password;
+            }
+            return password || undefined;
+        } catch {
+            return undefined;
+        }
+    }
+
+    private setPassword(password: string) {
         this.sessionPassword = password;
         const openOptions = this.context.openOptions;
         if (openOptions) {
             openOptions.password = password;
         }
         const simpleId = this.getSimpleId();
-        if (simpleId && this.storage) {
-            await this.storage.set(PdfPasswordProvider.PASSWORD_TABLE, simpleId, password);
+        if (!simpleId) {
+            return;
+        }
+        try {
+            localStorage.setItem(this.getStorageKey(simpleId), password);
+        } catch {
+            // ignore quota / private mode
         }
     }
 
-    private async clearPassword() {
+    private clearPassword() {
         this.sessionPassword = undefined;
         const openOptions = this.context.openOptions;
         if (openOptions) {
             openOptions.password = '';
         }
         const simpleId = this.getSimpleId();
-        if (simpleId && this.storage) {
-            await this.storage.delete(PdfPasswordProvider.PASSWORD_TABLE, simpleId);
+        if (!simpleId) {
+            return;
+        }
+        try {
+            localStorage.removeItem(this.getStorageKey(simpleId));
+        } catch {
+            // ignore
         }
     }
 }

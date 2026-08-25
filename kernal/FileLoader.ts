@@ -20,7 +20,6 @@ export type { FileLoadPipelineOptions, FileLoadResult } from "./pipelines/FileLo
 import { InputFormatter } from "./pipelines/InputFormatter";
 import { ReaderInfo } from "./ReaderInfo";
 import { CORE_SERVICE_KEYS, CoreServiceMap, ServiceCollection } from "./services/ServiceCollection";
-import { IStorage } from "./storage/IStorage";
 
 const createFallbackLocale = (): ILocale => ({
     onLanguageChange: () => () => {},
@@ -34,7 +33,6 @@ const createFallbackLocale = (): ILocale => ({
 export type CoreServices = {
     device: IDevice;
     locale?: ILocale;
-    storage?: IStorage;
     loggerFactory?: ILoggerFactory;
 } & Partial<CoreServiceMap>;
 

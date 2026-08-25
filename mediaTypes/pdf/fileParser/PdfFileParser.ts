@@ -1,5 +1,5 @@
 import { isNullOrWhiteSpace } from "../../../kernal/common/text";
-import { Nav, SpineFile, FileLocation, NavPoint, IFileDecrypter, IStorage, Context, ILocale, IEventEmitter } from "../../../kernal";
+import { Nav, SpineFile, FileLocation, NavPoint, IFileDecrypter, Context, ILocale, IEventEmitter } from "../../../kernal";
 import { IPdfFileParser, PdfFileParserOptions } from "./IPdfFileParser";
 import * as pdfjsLib from '../../../pdfjs/legacy/build/pdf.mjs';
 import { loadPdfDocument } from "../loadPdfDocument";
@@ -24,13 +24,12 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
         public readonly events: IEventEmitter,
         public readonly locale: ILocale,
         public readonly context: Context,
-        public readonly storage: IStorage | null,
         public readonly url: any,
         public readonly extension: string,
         public readonly options: PdfFileParserOptions,
     ) {
         super(crypto, fileDecrypter, fileProvider, fileUrlParser, httpClient, url, extension);
-        this.passwordProvider = new PdfPasswordProvider(events, locale, context, storage);
+        this.passwordProvider = new PdfPasswordProvider(events, locale, context);
         this.bindDefaultPasswordFlow();
     }
 
