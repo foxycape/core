@@ -134,7 +134,12 @@ export class FileLoadPipeline {
         const isValidLocation = location != undefined || (!isNaN(percentage) && percentage <= 1 && percentage >= 0);
 
         if (!isValidLocation) {
-            location = new FileLocation("0", 1, "ratio");
+            try {
+                location = (await lifecycle.onLocationRequest?.(simpleId))
+                    ?? new FileLocation("0", 1, "ratio");
+            } catch {
+                location = new FileLocation("0", 1, "ratio");
+            }
         }
 
         await pipelineOptions?.afterParserReady?.(formatted.extension);

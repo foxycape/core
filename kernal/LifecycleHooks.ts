@@ -2,6 +2,7 @@ import { IRenderer } from "./IRenderer";
 import { Options } from "./Options";
 import { IFileParser } from "./IFileParser";
 import { IDocumentsProvider } from "./IDocumentsProvider";
+import { FileLocation } from "./progress/Progress";
 
 /**
  * Reader / FileLoader lifecycle and extension hooks.
@@ -21,4 +22,7 @@ export type LifecycleHooks = {
     onProgressChangeGuard?: (progress: number) => boolean;
     /** redirect before (can be used to save current progress) */
     onBeforeRedirect?: (documentsProvider: IDocumentsProvider) => Promise<void>;
+
+    /**if no valid location is provided, request a location for the file */
+    onLocationRequest?: (simpleId: string) => Promise<FileLocation | undefined>;
 };
