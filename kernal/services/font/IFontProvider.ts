@@ -3,6 +3,9 @@ import { IDisposable } from "../../IDisposable";
 /** font-display strategy used when loading fonts */
 export type FontDisplay = "auto" | "block" | "swap" | "fallback" | "optional";
 
+/** Where a selectable font comes from */
+export type FontSource = "default" | "system" | "google" | "imported";
+
 /**
  * Font load options.
  * Supports dynamically generating CSS / subsets from text (e.g. Google Fonts `text` parameter).
@@ -132,6 +135,12 @@ export class Font {
 
     /** Whether this is the default font */
     isDefault?: boolean;
+
+    /** Font source used by the settings picker */
+    source?: FontSource;
+
+    /** Relative OPFS path for an imported font file */
+    opfsPath?: string;
 
     /** Sample text */
     sampleText?: string;

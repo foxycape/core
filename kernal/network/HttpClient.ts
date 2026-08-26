@@ -1,5 +1,28 @@
 import { HttpClientOptions, IHttpClient, ResponseType } from "./IHttpClient";
 import { isNumber } from "../common/number";
+
+const attachTimeout = (request: RequestInit, options?: HttpClientOptions) => {
+    if (options?.abortController) {
+        request.signal = options.abortController.signal
+    }
+    const timeout = options?.timeout
+    if (!timeout || timeout <= 0) {
+        return () => { }
+    }
+    const controller = options.abortController ?? new AbortController()
+    if (!options.abortController) {
+        request.signal = controller.signal
+    }
+    const timer = setTimeout(() => {
+        try {
+            controller.abort()
+        } catch {
+            // ignore
+        }
+    }, timeout)
+    return () => clearTimeout(timer)
+}
+
 export class HttpClient implements IHttpClient {
     async get(url: string, options?: HttpClientOptions): Promise<any> {
 
@@ -23,10 +46,13 @@ export class HttpClient implements IHttpClient {
             request.headers = options.headers;
         }
         request.method = "get"
-        if (options?.abortController) {
-            request.signal = options.abortController.signal;
+        const clearGetTimeout = attachTimeout(request, options)
+        let response: Response
+        try {
+            response = await fetch(url, request)
+        } finally {
+            clearGetTimeout()
         }
-        const response = await fetch(url, request)
         if (!response.ok) {
             if (response.status == 404) {
                 throw new Error(`File not found! status: ${response.status}`);
@@ -145,9 +171,7 @@ export class HttpClient implements IHttpClient {
             }
         }
         request.method = "post"
-        if (options?.abortController) {
-            request.signal = options.abortController.signal;
-        }
+        const clearPostTimeout = attachTimeout(request, options)
         // FormData requires fetch to set the multipart boundary automatically; keeping Content-Type manually prevents the server from parsing form fields
         if (postData && typeof postData === 'object' && typeof postData.append === 'function') {
             for (const key of Object.keys(request.headers)) {
@@ -157,7 +181,12 @@ export class HttpClient implements IHttpClient {
             }
         }
         request.body = postData
-        const response = await fetch(url, request)
+        let response: Response
+        try {
+            response = await fetch(url, request)
+        } finally {
+            clearPostTimeout()
+        }
         if (!response.ok) {
             if (response.status == 404) {
                 throw new Error(`File not found! status: ${response.status}`);
