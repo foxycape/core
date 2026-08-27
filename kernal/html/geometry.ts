@@ -227,18 +227,50 @@ export const normalizeBaseRectsInDisplayWindow = (base: Range | Element[] | Elem
     return { normalizedRects, inSameWindow: true };
 };
 
+const rectArea = (rect: Rect): number => rect.width * rect.height;
+
+const largestRect = (rects: Rect[]): Rect => {
+    let best = rects[0];
+    let bestArea = rectArea(best);
+    for (let i = 1; i < rects.length; i++) {
+        const area = rectArea(rects[i]);
+        if (area > bestArea) {
+            best = rects[i];
+            bestArea = area;
+        }
+    }
+    return best;
+};
+
+/**
+ * Merge same-column fragments, but keep the largest fragment when boxes sit in
+ * different columns (union would span the whole page).
+ */
+const mergeVisibleFragments = (rects: Rect[]): Rect => {
+    if (rects.length === 1) {
+        return rects[0];
+    }
+    const merged = mergeRects(rects);
+    const maxWidth = Math.max(...rects.map((rect) => rect.width));
+    if (merged.width > maxWidth * 2 + 24) {
+        return largestRect(rects);
+    }
+    return merged;
+};
+
 /** Resolve a valid positioning rect for the selection within the container */
 export const resolveVisibleBaseRectInContainer = (normalizedRects: Rect[], containerRect: Rect, allowPartialVisibility = true): Rect | null => {
-    const visibleBaseRects = normalizedRects.filter(rect => isCompletelyVisible(containerRect, rect));
+    const usableRects = normalizedRects.filter((rect) => rect.width >= 1 && rect.height >= 1);
+    const visibleBaseRects = usableRects.filter(rect => isCompletelyVisible(containerRect, rect));
     if (visibleBaseRects.length > 0)
-        return mergeRects(visibleBaseRects);
+        return mergeVisibleFragments(visibleBaseRects);
 
     if (!allowPartialVisibility)
         return null;
 
     const minVisibleArea = 4;
     const partials: { clipped: Rect; origArea: number }[] = [];
-    for (const rect of normalizedRects) {
+    for (const rect of usableRects) {
         const clipped = intersectWithContainer(containerRect, rect);
         if (!clipped)
             continue;
@@ -280,6 +312,9 @@ export const applyContainerInset = (containerRect: Rect, inset?: { top?: number;
 
 export type ToolbarPreferPosition = "top" | "bottom" | "right";
 
+const clamp = (value: number, min: number, max: number): number =>
+    max < min ? min : Math.min(Math.max(value, min), max);
+
 /**
  * Compute toolbar left/top from a base rect and container.
  * @param containerRect Container rect
@@ -299,6 +334,9 @@ export const calcToolbarPositionFromRect = (
     const displayElementRect = displayElement.getBoundingClientRect();
     const toolbarWidth = displayElementRect.width;
     const toolbarHeight = displayElementRect.height;
+    if (toolbarWidth < 1 || toolbarHeight < 1) {
+        return hiddenToolbarPosition;
+    }
     const selectionRight = baseRect.left + baseRect.width;
     const selectionBottom = baseRect.top + baseRect.height;
     const containerBottom = containerRect.top + containerRect.height;
@@ -307,48 +345,37 @@ export const calcToolbarPositionFromRect = (
     const spaceRequired = toolbarHeight + bias;
     const containerLeft = containerRect.left;
     const containerRight = containerRect.left + containerRect.width;
+    const containerTop = containerRect.top;
+    const minLeft = containerLeft + bias;
+    const maxLeft = containerRight - toolbarWidth - bias;
+    const minTop = containerTop + bias;
+    const maxTop = containerBottom - toolbarHeight - bias;
 
     if (toolbarPreferPosition === "right") {
-        let left = selectionRight + bias;
-        const maxLeft = containerRight - toolbarWidth - bias;
-        if (left > maxLeft) {
-            left = maxLeft;
-        }
-
+        const left = clamp(selectionRight + bias, minLeft, maxLeft);
         const centerY = baseRect.top + baseRect.height / 2;
-        const top = centerY - toolbarHeight / 2;
+        const top = clamp(centerY - toolbarHeight / 2, minTop, maxTop);
         return { left, top, visible: true };
     }
 
     const centerX = baseRect.left + baseRect.width / 2;
-    const preferredLeft = centerX - toolbarWidth / 2;
-    let left: number;
-    if (preferredLeft < containerLeft + bias) {
-        left = containerLeft + bias;
-    }
-    else if (preferredLeft + toolbarWidth > containerRight - bias) {
-        left = containerRight - toolbarWidth - bias;
-    }
-    else {
-        left = preferredLeft;
-    }
+    const left = clamp(centerX - toolbarWidth / 2, minLeft, maxLeft);
 
     const preferTop = toolbarPreferPosition === "top";
-
+    let top: number;
     if (spaceBelow >= spaceRequired && spaceAbove >= spaceRequired) {
-        const top = preferTop
+        top = preferTop
             ? baseRect.top - toolbarHeight - bias
             : selectionBottom + bias;
-        return { left, top, visible: true };
+    } else if (spaceBelow >= spaceRequired) {
+        top = selectionBottom + bias;
+    } else if (spaceAbove >= spaceRequired) {
+        top = baseRect.top - toolbarHeight - bias;
+    } else {
+        const centerY = baseRect.top + baseRect.height / 2;
+        top = centerY - toolbarHeight / 2;
     }
-    if (spaceBelow >= spaceRequired) {
-        return { left, top: selectionBottom + bias, visible: true };
-    }
-    if (spaceAbove >= spaceRequired) {
-        return { left, top: baseRect.top - toolbarHeight - bias, visible: true };
-    }
-    const centerY = baseRect.top + baseRect.height / 2;
-    return { left, top: centerY - toolbarHeight / 2, visible: true };
+    return { left, top: clamp(top, minTop, maxTop), visible: true };
 };
 
 /** Compute toolbar position within a container (multi-rect visibility + placement) */
@@ -489,7 +516,7 @@ export const calcToolbarPosition = (
     const preferPosition = toolbarPreferPosition ?? "bottom";
 
     if (flipMode == "page") {
-        let { firstBaseNode, lastBaseNode, baseWindow, baseBoundingRect } = getBaseState(base);
+        const { baseWindow, baseBoundingRect } = getBaseState(base);
 
         const baseWindowInnerWidth = baseWindow.innerWidth;
         const baseWindowInnerHeight = baseWindow.innerHeight;
@@ -506,27 +533,10 @@ export const calcToolbarPosition = (
         if (baseBoundingRect.top > baseWindowInnerHeight)
             return hiddenToolbarPosition;
 
-        baseBoundingRect = recalculateRect(baseBoundingRect, firstBaseNode, lastBaseNode, baseWindow);
-
-        let left = baseBoundingRect.left;
-        let top = baseBoundingRect.top;
-        const displayWindow = displayElement.ownerDocument.defaultView;
-        while (displayWindow != baseWindow) {
-            const frameElement = baseWindow.frameElement;
-            const parent = frameElement?.ownerDocument?.defaultView
-            if (!parent)
-                break;
-            baseWindow = parent
-            const frameElementRect = frameElement.getBoundingClientRect();
-            left += frameElementRect.left;
-            top += frameElementRect.top;
-        }
-        if (displayWindow != baseWindow)
-            return hiddenToolbarPosition;
-
-        const containerRect = applyContainerInset(toRect(ownerPanel.getBoundingClientRect()), containerInset);
-        const baseRect: Rect = { left, top, width: baseBoundingRect.width, height: baseBoundingRect.height };
-        return calcToolbarPositionFromRect(containerRect, baseRect, displayElement, preferPosition);
+        // Use visible client rects instead of recalculateRect. A highlight flush
+        // with the iframe edge is a subpixel "overflow"; recalculateRect then
+        // inflates it to the window origin, which sends large panels to 0,0.
+        return calcToolbarPositionInContainer(ownerPanel, base, displayElement, preferPosition, containerInset);
     }
 
     return calcToolbarPositionInContainer(ownerPanel, base, displayElement, preferPosition, containerInset);
