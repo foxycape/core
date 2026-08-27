@@ -362,7 +362,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             this.syncPageNumberWhenTransformBlocked(doc, direction);
             return;
         }
-        this.applyPageTransform(resolved.transformContainer, resolved.newTransformLength, direction, "x", resolved.styleTransformedLength);
+        this.applyPageTransform(resolved.transformContainer, resolved.newTransformLength, direction, "x");
         this.setCurrentPageNumber(doc, pageNumber);
     }
 
@@ -372,7 +372,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             this.syncPageNumberWhenTransformBlocked(doc, direction);
             return;
         }
-        this.applyPageTransform(resolved.transformContainer, resolved.newTransformLength, direction, "y", resolved.styleTransformedLength);
+        this.applyPageTransform(resolved.transformContainer, resolved.newTransformLength, direction, "y");
         this.setCurrentPageNumber(doc, pageNumber);
     }
 
@@ -447,7 +447,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             newTransformLength = 0;
         }
 
-        return { transformContainer, newTransformLength, styleTransformedLength };
+        return { transformContainer, newTransformLength };
     }
 
     canAdvancePageTransform(doc: IHtmlDocument): boolean {
@@ -558,13 +558,15 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         transformContainer: HTMLElement,
         newTransformLegnth: number,
         direction?: 'next' | 'previous',
-        axis: 'x' | 'y' = "x",
-        styleTransformedLength?: number
+        axis: 'x' | 'y' = "x"
     ) {
-        const currentStyleLength = styleTransformedLength ?? getTransformLength(transformContainer, axis);
-        const shouldUpdateStyle = Math.abs(newTransformLegnth - currentStyleLength) > 0.5;
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        const length = parseFloat(newTransformLegnth.toFixed(10));
+        const nextTransformCss = getPageTranslateCss(length, axis, flow.pageSign);
+        const expectedSignedLength = axis == "y" ? -length : -flow.pageSign * length;
+        const currentSignedLength = getTransformLength(transformContainer, axis, true);
         transformContainer.setAttribute('data-target-transform', `${newTransformLegnth}`);
-        if (!shouldUpdateStyle) {
+        if (Math.abs(expectedSignedLength - currentSignedLength) <= 0.5) {
             return;
         }
         if (!transformContainer.style.transition && this.htmlOptions.flipPageStyle == 'slide' && (direction == 'next' || direction == 'previous')) {
@@ -573,9 +575,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         if (transformContainer.style.transition) {
             transformContainer.addEventListener('transitionend', this.removeElementTransitionEvent);
         }
-        const length = parseFloat(newTransformLegnth.toFixed(10));
-        const flow = resolveLayoutFlow(this.htmlOptions);
-        transformContainer.style.transform = getPageTranslateCss(length, axis, flow.pageSign);
+        transformContainer.style.transform = nextTransformCss;
     }
 
     private resetTransformContainer = () => {

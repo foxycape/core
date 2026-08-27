@@ -1,9 +1,10 @@
 import { HtmlLayoutMetrics } from "./HtmlLayoutMetrics";
 import { HtmlOptions } from "../../HtmlOptions";
-import { Direction, EventNames, IDocumentsProvider, IProgressTracker, Reader, Theme, WritingMode, yieldToMain } from "../../../../kernal";
+import { Direction, EventNames, FileLocation, IDocumentsProvider, IProgressTracker, Reader, Theme, WritingMode, yieldToMain } from "../../../../kernal";
 import { HtmlChangeLayoutOptions, IHtmlRendererLayout } from "./IHtmlRendererLayout";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { IHtmlDocument } from "../IHtmlDocument";
+import { IHtmlDocumentsProvider } from "../IHtmlDocumentsProvider";
 import { ContentLayoutCssVariableNames } from "../style/ContentLayoutCssVariableNames";
 import { getDocumentBody } from "../../../../kernal/html/finder";
 import { HtmlSettings } from "../../HtmlSettings";
@@ -18,6 +19,7 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
     /**Vertical writing scroll mode style name */
     private readonly WritingVerticalScollDocumentLayoutCssName = "vertical-document-layout";
     private readonly DocumentVerticalPageModeCssName = HtmlSettings.DocumentVerticalPageModeCssName;
+    private pageReloadLocation: FileLocation | undefined;
 
     constructor(private readonly owner: Reader,
         private readonly documentsProvider: IDocumentsProvider<IHtmlDocument>,
@@ -201,12 +203,41 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
             this.htmlOptions.direction = options.direction;
         }
 
+        if (
+            (directionChanged || writingModeChanged)
+            && resolveLayoutFlow(this.htmlOptions).flipMode == "page"
+        ) {
+            this.capturePageReloadLocation();
+        }
         this.renererviewport.applyCssVariables();
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         for (const doc of loadedDocuments) {
             await this.applyDocStyles(doc, false);
         }
         this.owner.events.emit(EventNames.LayoutChange, payload);
+        if (this.pageReloadLocation) {
+            const location = this.pageReloadLocation;
+            this.pageReloadLocation = undefined;
+            await this.documentsProvider.load(location, true);
+            return;
+        }
         await this.documentsProvider.reload();
+    }
+
+    private capturePageReloadLocation() {
+        const provider = this.documentsProvider as IHtmlDocumentsProvider;
+        const location = this.owner.context.currentLocation;
+        const doc = (location?.url && provider.getDocument(location.url)) || provider.getFirstVisibleDocument();
+        if (!doc) {
+            return;
+        }
+        const pageLocation = new FileLocation(doc.url, 1, "page");
+        pageLocation.current = Math.max(1, provider.getCurrentPageNumber(doc));
+        const contentRoot = doc.getContentContainer()?.ownerDocument?.documentElement;
+        const cachedPages = parseInt(contentRoot?.getAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName) ?? "", 10);
+        if (Number.isFinite(cachedPages) && cachedPages > 0) {
+            pageLocation.total = cachedPages;
+        }
+        this.pageReloadLocation = pageLocation;
     }
 }

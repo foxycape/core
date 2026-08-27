@@ -8,7 +8,7 @@ import { HtmlContainerBuilder } from "../documents/HtmlContainerBuilder";
 import { injectCssContent } from "../../../../kernal/html/injector";
 import { HtmlSettings } from "../../HtmlSettings";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
-import { resolveLayoutFlow } from "./resolveLayoutFlow";
+import { resolveLayoutFlow, getPageTranslateCss } from "./resolveLayoutFlow";
 
 export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics>, IDisposable {
     private layout: HtmlLayoutMetrics;
@@ -82,9 +82,30 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         vars.forEach((v, k) => {
             rootContainer.style.setProperty(k, v);
         })
+        this.syncPageTransformSign(flow);
         if (preservedScroll && scrollElement) {
             scrollElement.scrollTo(preservedScroll.left, preservedScroll.top);
         }
+    }
+
+    private syncPageTransformSign(flow: ReturnType<typeof resolveLayoutFlow>) {
+        if (flow.flipMode != "page") {
+            return;
+        }
+        const transformContainer = this.rendererContainer.querySelector("." + HtmlSettings.TransformContainerCssName);
+        if (!(transformContainer instanceof HTMLElement)) {
+            return;
+        }
+        const target = transformContainer.getAttribute("data-target-transform");
+        if (target == null || target === "") {
+            return;
+        }
+        const length = parseFloat(target);
+        if (!Number.isFinite(length)) {
+            return;
+        }
+        transformContainer.style.removeProperty("transition");
+        transformContainer.style.transform = getPageTranslateCss(length, flow.pageAxis, flow.pageSign);
     }
 
     private prepareRendererCssVariables() {
@@ -116,6 +137,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         renderer.classList.toggle(HtmlSettings.FlipScrollClassName, flow.flipMode == "scroll");
         renderer.classList.toggle(HtmlSettings.FlipPageClassName, flow.flipMode == "page");
         renderer.classList.toggle(HtmlSettings.RtlProgressionClassName, flow.isRtlProgression);
+        renderer.style.setProperty("direction", flow.direction);
     }
 
     private prepareOtherCssVariables() {
