@@ -209,7 +209,7 @@ export class Reader implements LifecycleHooks {
         }
         this.optionsProvider.applyCssVariables(this.rootContainer);
         const theme = await this.getTheme(this.options.themeName);
-        await this.applyGlobalTheme(theme);
+        await this.applyTheme(theme);
         this.currentNotifier = await this.services.get("notifier", false);
         this.currentLoading = await this.services.get("loading", false);
         emptyElement(this.readerWrapper);
@@ -427,7 +427,7 @@ export class Reader implements LifecycleHooks {
         }
         this.options.themeName = themeName;
         const theme = await this.getTheme(themeName);
-        await this.applyGlobalTheme(theme);
+        await this.applyTheme(theme);
         await this.getRenderer()?.applyTheme(theme);
         this.events.emit(EventNames.ThemeChange, theme);
     }
@@ -447,7 +447,7 @@ export class Reader implements LifecycleHooks {
         return theme;
     }
 
-    private applyGlobalTheme = async (theme: Theme) => {
+    private applyTheme = async (theme: Theme) => {
         for (const key of ThemeCssKeys) {
             this.rootContainer.style.setProperty(toCssVariableName(key), theme[key]);
         }

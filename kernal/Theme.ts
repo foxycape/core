@@ -30,7 +30,7 @@ export class Theme {
     selectionColor: string = "inherit";
     columnRuleColor: string = "rgba(100, 100, 100, 0.1)";
     textAccentColor: string = "#14ae5c";
-    textMutedColor: string = "#999";
+    textMutedColor: string = "#777";
     borderColor: string = "#e9e9e9";
 
     /** scrollbar thumb color */

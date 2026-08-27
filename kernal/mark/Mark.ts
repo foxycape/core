@@ -1,9 +1,23 @@
+import { getRandomId } from "../common/uuid";
 import type {
     ContentRange,
     FixedContentRange,
     ReflowableContentRange,
 } from "../ContentRange";
 import type { MarkStyleName, MarkType } from "./types";
+
+/** User-authored note attached to a mark. */
+export type Note = {
+    id: string;
+    content: string;
+    createTime: string;
+    updateTime: string;
+};
+
+export type UpsertNoteInput = {
+    id?: string;
+    content: string;
+};
 
 /**
  * Persisted annotation mark.
@@ -28,8 +42,69 @@ export type Mark = {
     thumbnail?: string;
     /** Document-wide progress (0~1) computed from the mark's content range */
     progress?: number;
+    /** User-authored notes attached to this mark */
+    notes?: Note[];
     createTime: string;
     updateTime: string;
+};
+
+export const getNotes = (mark: Pick<Mark, "notes">): Note[] => mark.notes ?? [];
+
+export const getLatestNote = (mark: Pick<Mark, "notes">): Note | undefined => {
+    const notes = getNotes(mark);
+    if (notes.length === 0) {
+        return undefined;
+    }
+    return notes.reduce((latest, note) =>
+        note.updateTime > latest.updateTime ? note : latest,
+    );
+};
+
+export const upsertNote = (mark: Mark, input: UpsertNoteInput): Note => {
+    const now = new Date().toISOString();
+    if (input.id) {
+        const existing = mark.notes?.find((note) => note.id === input.id);
+        if (existing) {
+            existing.content = input.content;
+            existing.updateTime = now;
+            return existing;
+        }
+    }
+    const note: Note = {
+        id: input.id || getRandomId(),
+        content: input.content,
+        createTime: now,
+        updateTime: now,
+    };
+    if (!mark.notes) {
+        mark.notes = [];
+    }
+    mark.notes.push(note);
+    return note;
+};
+
+export const removeNote = (mark: Mark, noteId: string): void => {
+    if (!mark.notes) {
+        return;
+    }
+    mark.notes = mark.notes.filter((note) => note.id !== noteId);
+    if (mark.notes.length === 0) {
+        delete mark.notes;
+    }
+};
+
+export const markMatchesKeyword = (
+    mark: Pick<Mark, "text" | "notes">,
+    keyword: string,
+): boolean => {
+    const needle = keyword.trim().toLowerCase();
+    if (!needle) {
+        return true;
+    }
+    if ((mark.text ?? "").toLowerCase().includes(needle)) {
+        return true;
+    }
+    return getNotes(mark).some((note) => note.content.toLowerCase().includes(needle));
 };
 
 export const buildMark = (
