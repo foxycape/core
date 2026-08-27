@@ -173,11 +173,11 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
             this.htmlOptions.columns = columns;
         }
         // const shadowMargin = this.getContentsShadowMargin() + Math.min(20, contentsContainerWidthNumber * factor)
-        const shadowMargin = this.getContentsShadowMargin(contentsContainerWidthNumber);
-        const { columnWidth, remainder } = this.getFinalColumnWidth(contentsContainerWidthNumber - shadowMargin * 2, columns, columnGap)
+        const {marginInline:shadowMargin,marginBlock:shadowMarginBlock} = this.getContentsShadowMargin(contentsContainerWidthNumber);
+        const { columnWidth } = this.getFinalColumnWidth(contentsContainerWidthNumber - shadowMargin * 2, columns, columnGap)
         // let marginInline = remainder != 0 ? shadowMargin + (remainder / 2) : shadowMargin;
         let marginInline = shadowMargin;
-        let marginBlock = marginInline
+        let marginBlock = shadowMarginBlock
         if (flipMode == "scroll") {
             marginInline = 0;
             marginBlock = 0;
@@ -185,7 +185,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         if (flipMode == "scroll") {
             shadowContainer.style = `margin: ${marginBlock}px ${marginInline}px;`;
         } else {
-            shadowContainer.style = `margin: ${marginBlock}px ${marginInline}px;height: ${rendererHeight - 2 * shadowMargin}px;`;
+            shadowContainer.style = `margin: ${marginBlock}px ${marginInline}px;height: ${rendererHeight - 2 * shadowMarginBlock}px;`;
         }
         const shadowWidth = shadowContainer.getBoundingClientRect().width;
         const pageBoxWidth = columns * columnWidth + Math.max(0, columns - 1) * columnGap;
@@ -277,14 +277,18 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
     private getContentsShadowMargin(contentsContainerWidthNumber: number) {
         const contentsShadowMargin = this.htmlOptions.contentsShadowMargin ?? 20;
         const factor = this.getContentPaddingFactor();
-        return contentsShadowMargin + Math.min(10, contentsContainerWidthNumber * factor);
+        const marginInline= contentsShadowMargin + Math.min(10, contentsContainerWidthNumber * factor);
+        return {
+            marginBlock:contentsShadowMargin,
+            marginInline
+        }
     }
 
     private getContentWrapperPadding(contentsContainerWidthNumber: number, columnGap: number) {
         const flipMode = this.getFlipMode();
         const defaultContentWrapperPaddingTopNumber = 30;
         let contentWrapperPaddingTopNumber = flipMode == 'scroll' ? defaultContentWrapperPaddingTopNumber : 0;
-        const paddingTopOrBottomNumber = this.getContentsShadowMargin(contentsContainerWidthNumber);
+        const { marginBlock:paddingTopOrBottomNumber,marginInline:paddingLeftOrRightNumber } = this.getContentsShadowMargin(contentsContainerWidthNumber);
 
         if (flipMode == "page") {
             contentWrapperPaddingTopNumber += paddingTopOrBottomNumber
@@ -298,8 +302,6 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         if (flipMode == "scroll" && contentWrapperPaddingBottomNumber < this.options.minFooterHeight) {
             contentWrapperPaddingBottomNumber = this.options.minFooterHeight
         }
-
-        const paddingLeftOrRightNumber = this.getContentsShadowMargin(contentsContainerWidthNumber);
 
         const contentWrapperPaddingBottom = contentWrapperPaddingBottomNumber + 'px';
         const contentWrapperPaddingLeft = flipMode == 'scroll' ? `${paddingLeftOrRightNumber}px` : '0'
