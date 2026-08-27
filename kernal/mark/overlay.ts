@@ -60,8 +60,14 @@ export const ensureOverlayLayer = (
         : options?.sizeToScroll
             ? Math.max(host.clientHeight, host.scrollHeight)
             : host.clientHeight
-    layer.style.width = `${width}px`
-    layer.style.height = `${height}px`
+    const widthPx = `${width}px`
+    const heightPx = `${height}px`
+    if (layer.style.width !== widthPx) {
+        layer.style.width = widthPx
+    }
+    if (layer.style.height !== heightPx) {
+        layer.style.height = heightPx
+    }
     return layer
 }
 
@@ -223,8 +229,9 @@ export const clientRectsToOverlayRects = (
     layer: HTMLElement,
     clientRects: ArrayLike<DOMRect>,
     writingAxis: OverlayWritingAxis = 'horizontal',
+    originRect?: Pick<DOMRect, 'left' | 'top'>,
 ): OverlayRect[] => {
-    const origin = layer.getBoundingClientRect()
+    const origin = originRect ?? layer.getBoundingClientRect()
     const rects: OverlayRect[] = []
     for (let i = 0; i < clientRects.length; i++) {
         const rect = clientRects[i]
