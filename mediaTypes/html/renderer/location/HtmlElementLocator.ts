@@ -76,7 +76,7 @@ export class HtmlElementLocator implements IHtmlElementLocator {
             }
         }
         else {
-            if (flipMode == "page" && !pageNumber) {
+            if (flipMode == "page" && !pageNumber && !(location.textOffset >= 0)) {
                 pageNumber = await doc.getPageNumber(target);
             }
         }

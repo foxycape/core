@@ -3,7 +3,7 @@ import { parseNumber } from "../../../../kernal/common/number";
 import { compareTagName } from "../../../../kernal/html/finder";
 import { emptyElement } from "../../../../kernal/html/dom";
 import { createRange } from "../../../../kernal/html/selection";
-import { getLocateClientRect, getLocateElement, type LocateTarget } from "../../../../kernal/html/geometry";
+import { getLocateClientRect, getLocateElement, isDomRange, type LocateTarget } from "../../../../kernal/html/geometry";
 import { scrollElementIntoView, getTransformLength } from "../../../../kernal/html/style";
 import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, asyncDebounce, BrowserCapabilities } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
@@ -209,6 +209,11 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                 if (location.total > 1 && location.total != numberOfPages) {
                     pageNumber = Math.ceil(numberOfPages * (location.current / location.total));
                 }
+            }
+            else if (isDomRange(redirectTarget)) {
+                // Character Range (search / mark textOffset): use hit geometry so
+                // a paragraph that spans CSS columns does not pin the previous column.
+                pageNumber = await doc.getPageNumber(redirectTarget);
             }
             else if (!pageNumber && redirectTarget) {
                 pageNumber = await doc.getPageNumber(redirectTarget);
