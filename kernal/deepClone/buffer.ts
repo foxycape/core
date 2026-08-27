@@ -1,30 +1,33 @@
-const isBufferExists = typeof Buffer !== 'undefined';
+type NodeBufferLike = Uint8Array;
+
+type NodeBufferCtor = {
+  isBuffer: (obj: unknown) => obj is NodeBufferLike;
+  from: (value: NodeBufferLike) => NodeBufferLike;
+};
+
+const nodeBuffer = (globalThis as { Buffer?: NodeBufferCtor }).Buffer;
 
 /**
  * is it Buffer?
  *
  * @private
  */
-export const isBuffer: typeof Buffer.isBuffer = isBufferExists
-  ? Buffer.isBuffer.bind(Buffer)
+export const isBuffer: NodeBufferCtor['isBuffer'] = nodeBuffer
+  ? nodeBuffer.isBuffer.bind(nodeBuffer)
   : /**
      * return false every time if Buffer unsupported
      *
      * @private
      */
-    function isBuffer(
-      obj: Parameters<typeof Buffer.isBuffer>[0]
-    ): obj is Buffer {
-      return false;
-    };
+    (_obj: unknown): _obj is NodeBufferLike => false;
 
 /**
  * clone Buffer
  *
  * @private
  */
-export const cloneBuffer: typeof Buffer.from = isBufferExists
-  ? Buffer.from.bind(Buffer)
+export const cloneBuffer: NodeBufferCtor['from'] = nodeBuffer
+  ? nodeBuffer.from.bind(nodeBuffer)
   : /**
      * return argument
      * use if Buffer unsupported
@@ -32,6 +35,4 @@ export const cloneBuffer: typeof Buffer.from = isBufferExists
      * @private
      * @param value
      */
-    function cloneBuffer(value: unknown): any {
-      return value;
-    };
+    (value: NodeBufferLike): NodeBufferLike => value;

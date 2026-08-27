@@ -22,7 +22,7 @@ export function clone(value: unknown, valueType: string): unknown {
     case 'Boolean':
       return new Boolean((value as boolean).valueOf());
     case 'Buffer':
-      return /*#__INLINE__*/ cloneBuffer(value as Buffer);
+      return /*#__INLINE__*/ cloneBuffer(value as Uint8Array);
     // TODO: copy ArrayBuffer?
     case 'DataView':
       return new DataView((value as DataView).buffer);
