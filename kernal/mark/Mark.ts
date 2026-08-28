@@ -42,6 +42,12 @@ export type Mark = {
     thumbnail?: string;
     /** Document-wide progress (0~1) computed from the mark's content range */
     progress?: number;
+    /** Chapter / TOC entry URL */
+    navUrl?: string;
+    /** Chapter / TOC entry title */
+    navTitle?: string;
+    /** PDF in-document destination, typically `[{"num":3,"gen":0},{"name":"XYZ"},68,440,0]` */
+    pdfDest?: string;
     /** User-authored notes attached to this mark */
     notes?: Note[];
     createTime: string;
