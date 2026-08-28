@@ -385,7 +385,7 @@ export const calcToolbarPositionInContainer = (
     displayElement: Element,
     toolbarPreferPosition?: ToolbarPreferPosition,
     containerInset?: { top?: number; bottom?: number; left?: number; right?: number }
-): { left: number; top: number; visible: boolean } => {
+): { left: number; top: number; visible: boolean; baseRect?: Rect } => {
     if (!displayElement || !base)
         return hiddenToolbarPosition;
 
@@ -399,7 +399,10 @@ export const calcToolbarPositionInContainer = (
     if (!baseRect)
         return hiddenToolbarPosition;
 
-    return calcToolbarPositionFromRect(containerRect, baseRect, displayElement, toolbarPreferPosition ?? "bottom");
+    return {
+        ...calcToolbarPositionFromRect(containerRect, baseRect, displayElement, toolbarPreferPosition ?? "bottom"),
+        baseRect,
+    };
 };
 
 export const checkRangeOrElementIsVisible = (rendererContainer: Element, base: Range | Element[] | Element, displayWindow: Window, margin?: { left?: number, right?: number, top?: number, bottom?: number }): { left: number, top: number, visible: boolean } => {
@@ -509,7 +512,7 @@ export const calcToolbarPosition = (
     toolbarPreferPosition?: ToolbarPreferPosition,
     flipMode?: FlipMode,
     containerInset: ToolbarContainerInset = DEFAULT_TOOLBAR_CONTAINER_INSET
-): { left: number, top: number, visible: boolean } => {
+): { left: number, top: number, visible: boolean, baseRect?: Rect } => {
     if (!displayElement || !base)
         return hiddenToolbarPosition;
 
