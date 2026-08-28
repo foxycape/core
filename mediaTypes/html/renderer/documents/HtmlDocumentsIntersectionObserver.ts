@@ -1,6 +1,11 @@
 import { EventNames, IDisposable, IDocument, IDocumentsProvider, IEventEmitter } from "../../../../kernal";
 import { isHostContainerCollapsed } from "./documentHiddenState";
 
+const isDocumentScroller = (scrollElement: HTMLElement, doc: Document) =>
+    scrollElement === doc.scrollingElement
+    || scrollElement === doc.documentElement
+    || scrollElement === doc.body;
+
 /**
  * HTML intersection observer。
  */
@@ -16,10 +21,6 @@ export class HtmlDocumentsIntersectionObserver implements IDisposable {
     }
 
     register() {
-        const hostViewport = this.documentsProvider.owner.getHostViewport();
-        const root = hostViewport.mode == "host"
-            ? this.documentsProvider.getRendererContainer()
-            : hostViewport.observerRoot;
         this.contentContainerIntersectionObserver = new IntersectionObserver(entries => {
             if (this.isRendererCollapsed()) {
                 return;
@@ -33,7 +34,7 @@ export class HtmlDocumentsIntersectionObserver implements IDisposable {
                     this.events.emit(EventNames.DocumentVisibleChange, doc, isVisible);
                 }
             }
-        }, { root, rootMargin: "-2px" });
+        }, { root: this.resolveObserverRoot(), rootMargin: "0px", threshold: 0 });
 
         this.observeContainers();
     }
@@ -42,6 +43,15 @@ export class HtmlDocumentsIntersectionObserver implements IDisposable {
         this.contentContainerIntersectionObserver?.disconnect();
         this.contentContainerIntersectionObserver = undefined;
         this.documentMap.clear();
+    }
+
+    private resolveObserverRoot(): Element | null {
+        const scrollElement = this.documentsProvider.getScrollElement();
+        const doc = scrollElement?.ownerDocument;
+        if (!scrollElement || !doc || isDocumentScroller(scrollElement, doc)) {
+            return null;
+        }
+        return scrollElement;
     }
 
     private observeContainers() {

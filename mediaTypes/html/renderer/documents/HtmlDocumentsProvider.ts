@@ -68,6 +68,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         return this.loadingDoc;
     }
 
+    override getLoadedDocuments(): IHtmlDocument[] {
+        return this.getDocuments().filter(doc => doc.getLoadStatus() == "success");
+    }
+
     override getVisibleDocuments(): IHtmlDocument[] {
         return this.getDocuments().filter(doc => doc.getWrapperContainer()?.isVisible);
     }
