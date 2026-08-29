@@ -11,7 +11,7 @@ html {
 }
 
 html.foxycape-user-font,
-html.foxycape-user-font body {
+html.foxycape-user-font body * {
     font-family: var(--font-family), var(--fallback-font-family) !important;
 }
 

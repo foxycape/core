@@ -19,6 +19,14 @@ export class ContentCssVariables {
 
     private static defaultValues: Map<string, string>;
 
+    static isUserSpecifiedFontFamily(value: string): boolean {
+        const family = value.trim();
+        if (!family || family === "inherit" || family === "default") {
+            return false;
+        }
+        return family !== ContentCssVariables.FallbackFontFamily;
+    }
+
     static getDefaultVariables(): Map<string, string> {
         if (!this.defaultValues) {
             this.defaultValues = new Map<string, string>();

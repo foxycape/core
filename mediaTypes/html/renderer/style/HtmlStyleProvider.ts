@@ -69,14 +69,6 @@ export class HtmlStyleProvider implements IStyleProvider {
         injectCssContent(ownerDocument, css, true, this.contentStyleId);
     }
 
-    private isUserSpecifiedFontFamily(value: string): boolean {
-        const family = value.trim();
-        if (!family || family === "inherit" || family === "default") {
-            return false;
-        }
-        return family !== ContentCssVariables.FallbackFontFamily;
-    }
-
     private syncUserSpecifiedFontClass(documentElement: HTMLElement): void {
         const family = this.normalizeVariableValue(
             ContentCssVariables.FontFamily,
@@ -84,7 +76,7 @@ export class HtmlStyleProvider implements IStyleProvider {
         );
         documentElement.classList.toggle(
             HtmlSettings.UserSpecifiedFontClassName,
-            this.isUserSpecifiedFontFamily(family),
+            ContentCssVariables.isUserSpecifiedFontFamily(family),
         );
     }
 
