@@ -22,7 +22,7 @@ export class ContentCssVariables {
     static getDefaultVariables(): Map<string, string> {
         if (!this.defaultValues) {
             this.defaultValues = new Map<string, string>();
-            this.defaultValues.set(ContentCssVariables.FontSize, "18px")
+            this.defaultValues.set(ContentCssVariables.FontSize, "20px")
             this.defaultValues.set(ContentCssVariables.FontFamily, ContentCssVariables.FallbackFontFamily)
             this.defaultValues.set(ContentCssVariables.FontWeight, "normal")
             this.defaultValues.set(ContentCssVariables.ParagraphMarginTop, "0.5em")
