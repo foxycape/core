@@ -103,9 +103,6 @@ export class HtmlOptions {
     /** Whether to highlight fenced code blocks with highlight.js */
     enableFormatCodeBlock: boolean = true;
 
-    /** Set of non-plain-text visible element tag names */
-    nonWhiteSpaceSymbolTagNames = ["object", "svg", "embed", "audio", "video", "canvas", "img"];
-
     /** HTML block-level tags */
     htmlBlockTags = [
         "" + MTTAG.toLowerCase() + "",
@@ -130,7 +127,10 @@ export class HtmlOptions {
     whitespaceRegex = whitespaceRegex;
 
     /** Whether to remove whitespace characters from HTML documents (excluding space) */
-    removeHtmlWhitespace: boolean = true;
+    removeHtmlWhitespace: boolean = false;
+
+    /** Set of non-plain-text visible element tag names */
+    nonWhiteSpaceSymbolTagNames = ["object", "svg", "embed", "audio", "video", "canvas", "img"];
 
     /** Whether to forcibly remove spaces between tags */
     forceRemoveHtmlChar32BetweenTags = false;
