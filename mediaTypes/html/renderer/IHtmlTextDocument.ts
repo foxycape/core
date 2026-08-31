@@ -2,12 +2,13 @@ import { ITextDocument } from "../../../kernal/ITextDocument";
 
 export interface IHtmlTextDocument extends ITextDocument {
     /**
-     * Get the original document content
+     * Normalized chapter HTML source (after IHtmlContentNormalizer).
      */
     getContent(): Promise<string>;
 
     /**
-     * Get the formatted document content, which will always return the original document
+     * Standard chapter Document: normalize → parse → wrap/number.
+     * Use this for chapter DOM; do not re-parse the source.
      */
     getFormattedDocument(): Promise<Document>;
 }

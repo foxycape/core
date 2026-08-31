@@ -14,10 +14,4 @@ export type ChangeLayoutOptions = {
     preserveLocation: boolean;
 }
 
-export type TextSymbolOptions = {
-    removeHtmlWhitespace?: boolean;
-    whitespaceRegex?: RegExp;
-    nonWhiteSpaceSymbolTagNames?: string[];
-};
-
 export type TagDescriptor = { tagName: string; tagIndex: number };

@@ -1,32 +1,22 @@
 import { compareTagName, getDocumentBody, getElementByElementNumber, getElementByNameAndIndex, getElementIndex } from "../../../../kernal/html/finder";
-import { ElementPositionResult, getElementByPosition, getPositionByElement } from "../../../../kernal/html/position";
-import { getPureInnerTextLength } from "../../../../kernal/html/text";
+import { ElementPositionResult } from "../../../../kernal/html/position";
 import { ElementInitialNumberName, ISymbolCalclator, ROOT_IDX, SymbolType } from "../../../../kernal";
-import type { TagDescriptor, TextSymbolOptions } from "../../../../kernal/types";
+import type { TagDescriptor } from "../../../../kernal/types";
 import { IHtmlDocument } from "../IHtmlDocument";
-import { HtmlOptions } from "../../HtmlOptions";
+import type { IHtmlSymbolMeasure } from "../../IHtmlSymbolMeasure";
 import { parseNumber } from "../../../../kernal/common/number";
 
 export class HtmlSymbolCalclator implements ISymbolCalclator {
-    constructor(public readonly doc: IHtmlDocument, private readonly options: HtmlOptions) {
-    }
-
-    private get textSymbolOptions(): TextSymbolOptions {
-        return {
-            removeHtmlWhitespace: this.options.removeHtmlWhitespace,
-            whitespaceRegex: this.options.whitespaceRegex,
-            nonWhiteSpaceSymbolTagNames: this.options.nonWhiteSpaceSymbolTagNames,
-        };
+    constructor(public readonly doc: IHtmlDocument, private readonly measure: IHtmlSymbolMeasure) {
     }
 
     async getElementByPosition(symbolPosition: number, symbolType: SymbolType, preferEnd?: boolean): Promise<ElementPositionResult> {
         const virtualContentContainer = await this.getFormatVirtualContentContainer();
-        return getElementByPosition(
+        return this.measure.getElementByPosition(
             virtualContentContainer,
             symbolPosition,
             symbolType,
             preferEnd,
-            this.textSymbolOptions
         );
     }
 
@@ -38,23 +28,12 @@ export class HtmlSymbolCalclator implements ISymbolCalclator {
         return this.formatVirtualContentContainer;
     }
 
-    private getOtherNonWhiteSpaceSymbolCount(element: Element) {
-        let otherSymbolCount = 0;
-        if (this.options?.nonWhiteSpaceSymbolTagNames) {
-            for (const tagName of this.options.nonWhiteSpaceSymbolTagNames) {
-                otherSymbolCount += element.getElementsByTagName(tagName).length;
-            }
-        }
-        return otherSymbolCount;
-    }
-
     async getElementByProgress(progress: number, symbolType: SymbolType): Promise<ElementPositionResult> {
         progress = progress ?? 0;
         const totalSymbolCount = await this.getTotalSymbolCount(symbolType);
         const elementPosition = Math.ceil(totalSymbolCount * progress);
         return this.getElementByPosition(elementPosition, symbolType);
     }
-
 
     async getProgressByElement(element: TagDescriptor | Element, symbolType: SymbolType, internalSymbolOffset?: number,): Promise<number> {
         const totalSymbolCount = await this.getTotalSymbolCount(symbolType)
@@ -104,12 +83,11 @@ export class HtmlSymbolCalclator implements ISymbolCalclator {
             return internalSymbolOffset ?? ROOT_IDX;
         }
 
-        return getPositionByElement(
+        return this.measure.getPositionByElement(
             virtualContentContainer,
             targetElement,
             symbolType,
             internalSymbolOffset,
-            this.textSymbolOptions
         );
     }
 
@@ -157,17 +135,7 @@ export class HtmlSymbolCalclator implements ISymbolCalclator {
         if (totalTotalSymbolCount >= 0)
             return totalTotalSymbolCount;
         const virtualContentContainer = await this.getFormatVirtualContentContainer();
-        const characterCount = getPureInnerTextLength(
-            virtualContentContainer,
-            this.options.removeHtmlWhitespace,
-            this.options.whitespaceRegex
-        );
-        let totalCount = characterCount;
-        if (symbolType == "custom") {
-            const otherSymbolCount = this.getOtherNonWhiteSpaceSymbolCount(virtualContentContainer);
-            totalCount += otherSymbolCount;
-        }
-        totalTotalSymbolCount = totalCount
+        totalTotalSymbolCount = this.measure.count(virtualContentContainer, symbolType)
         this.totalTotalSymbolCountMap.set(symbolType, totalTotalSymbolCount)
         return totalTotalSymbolCount;
     }

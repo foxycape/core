@@ -1,17 +1,23 @@
-import { convertUint8ArrayToString } from "../../../kernal/common/encoding";
 import { ITextDocument } from "../../../kernal/ITextDocument";
 import { SpineFile, SymbolType, IFileDecrypter } from "../../../kernal";
+import { getDocumentBody } from "../../../kernal/html/finder";
 import { HtmlTextDocument } from "./HtmlTextDocument";
 import { BaseFileParser } from "../../base/fileParser/BaseFileParser";
 import { FileUrlParserOptions, IFileUrlParser, UrlParseResult } from "../../../kernal/services/fileUrlParser/IFileUrlParser";
-import { getTotalSymbolCount } from "../../../kernal/html/position";
 import { IFileProvider } from "../../../kernal/services/file/IFileProvider";
 import { ICrypto } from "../../../kernal/crypto/ICrypto";
 import { IHttpClient } from "../../../kernal/network/IHttpClient";
+import { IHtmlTextDocument } from "../renderer/IHtmlTextDocument";
+import type { IHtmlContentNormalizer } from "../IHtmlContentNormalizer";
+import type { IHtmlSymbolMeasure } from "../IHtmlSymbolMeasure";
 import { HtmlFileParserOptions, IHtmlFileParser } from "./IHtmlFileParser";
+import { NoopHtmlContentNormalizer } from "../NoopHtmlContentNormalizer";
+import { DefaultHtmlSymbolMeasure } from "../DefaultHtmlSymbolMeasure";
 
 export class HtmlFileParser extends BaseFileParser implements IHtmlFileParser {
     private data: ArrayBuffer;
+    readonly contentNormalizer: IHtmlContentNormalizer;
+    readonly symbolMeasure: IHtmlSymbolMeasure;
     constructor(
         crypto: ICrypto,
         fileDecrypter: IFileDecrypter,
@@ -21,8 +27,12 @@ export class HtmlFileParser extends BaseFileParser implements IHtmlFileParser {
         url: any,
         extension: string,
         public readonly options: HtmlFileParserOptions,
+        contentNormalizer?: IHtmlContentNormalizer,
+        symbolMeasure?: IHtmlSymbolMeasure,
     ) {
         super(crypto, fileDecrypter, fileProvider, fileUrlParser, httpClient, url, extension)
+        this.contentNormalizer = contentNormalizer ?? new NoopHtmlContentNormalizer();
+        this.symbolMeasure = symbolMeasure ?? new DefaultHtmlSymbolMeasure();
     }
 
     protected override async parseUrl(url: any, options: FileUrlParserOptions): Promise<UrlParseResult> {
@@ -61,23 +71,13 @@ export class HtmlFileParser extends BaseFileParser implements IHtmlFileParser {
         return this.textDocuments;
     }
 
-    protected override  async calculateSymbolCount(spineFile: SpineFile, symbolType: SymbolType) {
-        let data: Uint8Array;
-        if (spineFile.data) {
-            data = new Uint8Array(await this.getSpineFileData(spineFile));
+    protected override async calculateSymbolCount(spineFile: SpineFile, symbolType: SymbolType) {
+        const textDocument = await this.getTextDocument(spineFile.url) as IHtmlTextDocument;
+        if (!textDocument) {
+            return 1;
         }
-        else {
-            const bytesData = await this.getFileBytes(spineFile.url);
-            data = bytesData.data;
-        }
-
-        const html = convertUint8ArrayToString(data);
-        const symbolCount = getTotalSymbolCount(html, symbolType, {
-            removeHtmlWhitespace: this.options.removeHtmlWhitespace,
-            whitespaceRegex: this.options.whitespaceRegex,
-            nonWhiteSpaceSymbolTagNames: this.options.nonWhiteSpaceSymbolTagNames,
-        });
-        return symbolCount;
+        const formattedDocument = await textDocument.getFormattedDocument();
+        return this.symbolMeasure.count(getDocumentBody(formattedDocument), symbolType);
     }
 
     override async dispose(): Promise<void> {

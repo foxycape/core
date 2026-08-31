@@ -151,11 +151,8 @@ export const insertElement = (
     textPostion: number,
     html: string,
     htmlId: string,
-    removeHtmlWhitespace?: boolean,
-    whitespaceRegex?: RegExp
 ) => {
-    const getPureText = (node: Node) =>
-        getPureTextContent(node, removeHtmlWhitespace, whitespaceRegex) ?? "";
+    const getPureText = (node: Node) => getPureTextContent(node) ?? "";
 
     if (!element)
         return;

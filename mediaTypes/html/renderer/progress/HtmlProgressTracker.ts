@@ -8,6 +8,7 @@ import { IHtmlProgressTracker } from "./IHtmlIProgressTracker";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { IHtmlDocumentsProvider } from "../IHtmlDocumentsProvider";
 import { HtmlOptions } from "../../HtmlOptions";
+import { asHtmlFileParser } from "../../fileParser/IHtmlFileParser";
 import { getAdjacentText } from "./adjacent";
 import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
 
@@ -238,7 +239,8 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
             return page / numberOfPages;
         }
 
-        return await doc.symbolCalclator.getProgressByElement(target, this.options.symbolType);
+        const symbolType = asHtmlFileParser(this.documentsProvider.fileParser).symbolMeasure.defaultSymbolType;
+        return await doc.symbolCalclator.getProgressByElement(target, symbolType);
     }
 
     async getPercentage(url: string, target: Element | number | { tagName: string, tagIndex: number }): Promise<number> {

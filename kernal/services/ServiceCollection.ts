@@ -31,7 +31,6 @@ export type UiServiceMap = {
     themeProvider: import("../IThemeProvider").IThemeProvider;
     wallpaperProvider: import("../IWallpaperProvider").IWallpaperProvider;
     loadLayer: import("./docLoadLayer/IHtmlLoadLayer").IHtmlLoadLayer;
-    symbolCalclator: import("../ISymbolCalclator").ISymbolCalclator;
     fullscreen: import("../screen/IFullscreen").IFullscreen;
 };
 
@@ -42,7 +41,6 @@ export const UI_SERVICE_KEYS = Object.keys({
     themeProvider: true,
     wallpaperProvider: true,
     loadLayer: true,
-    symbolCalclator: true,
     fullscreen: true,
 } satisfies Record<keyof UiServiceMap, true>) as Array<keyof UiServiceMap>;
 

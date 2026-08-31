@@ -1,6 +1,6 @@
-import { MTTAG, STTAG, whitespaceRegex } from "../../kernal/Constants";
+import { MTTAG, STTAG } from "../../kernal/Constants";
 import { RtlLanguageCodes } from "../../kernal/i18n/textDirection";
-import type { Direction, FlipMode, FlipPageStyle, SymbolType, WritingMode } from "../../kernal/types";
+import type { Direction, FlipMode, FlipPageStyle, WritingMode } from "../../kernal/types";
 
 /**
  * Configuration dedicated to HTML / reflowable document media types
@@ -119,24 +119,6 @@ export class HtmlOptions {
         "i", "input", "kbd", "label", "q", "s", "samp", "select", "small", "span", "strike",
         "strong", "sub", "sup", "textarea", "tt", "u",
     ];
-
-    /** Default method for counting document symbols (characters and multimedia) */
-    symbolType: SymbolType = "custom";
-
-    /** Whitespace character regex (excluding space) */
-    whitespaceRegex = whitespaceRegex;
-
-    /** Whether to remove whitespace characters from HTML documents (excluding space) */
-    removeHtmlWhitespace: boolean = false;
-
-    /** Set of non-plain-text visible element tag names */
-    nonWhiteSpaceSymbolTagNames = ["object", "svg", "embed", "audio", "video", "canvas", "img"];
-
-    /** Whether to forcibly remove spaces between tags */
-    forceRemoveHtmlChar32BetweenTags = false;
-
-    /** Custom tags */
-    customTags = ["t", "tn", "n"];
 
     /** Supported file extensions */
     htmlExtensions = [".html", ".xhtml", ".xml"];

@@ -5,7 +5,7 @@ import { wrapFloatingTextNodes } from "../../../kernal/html/manipulator";
 import { getFormatDocumentAsync } from "../../../kernal/html/parser";
 import { TextFormatOptions, SpineFile, ElementInitialNumberName } from "../../../kernal";
 import { IHtmlTextDocument } from "../renderer/IHtmlTextDocument";
-import { getPureTextContent, removeWhiteSpaceBetweenTags, transformHtmlPreservingPreformattedBlocks } from "../../../kernal/html/text";
+import { getPureTextContent } from "../../../kernal/html/text";
 import { computeUniqueId } from "../../../kernal/common/uuid";
 import { IHtmlFileParser } from "./IHtmlFileParser";
 
@@ -28,7 +28,7 @@ export class HtmlTextDocument implements IHtmlTextDocument {
             return this.texts.get(key);
         }
         const virtualDocument = await this.getFormattedDocument();
-        let text = getPureTextContent(getDocumentBody(virtualDocument), undefined, undefined, options?.convertLFToWhitespace)
+        let text = getPureTextContent(getDocumentBody(virtualDocument), options?.convertLFToWhitespace)
         if (options) {
             text = formatText(text, options);
         }
@@ -56,26 +56,9 @@ export class HtmlTextDocument implements IHtmlTextDocument {
             content = convertUint8ArrayToString(bytes);
         }
 
-        if (this.fileParser.options.removeHtmlWhitespace && this.fileParser.options.whitespaceRegex) {
-            // eslint-disable-next-line no-irregular-whitespace
-            // 不能替换全角空格，因为存在某些资源是以全角空格来隔开文字的情况
-            // content = content.replaceAll(String.fromCharCode(12288), '');
-            //替换除空格外的所有不可见字符(不能替换空格，因为空格在行内标签与行内标签之间属于合法字符)
-            // Keep <pre>/<textarea> intact — code blocks rely on LF/TAB.
-            const whitespaceRegex = this.fileParser.options.whitespaceRegex;
-            const shouldRemoveBetweenTags = this.fileParser.options.forceRemoveHtmlChar32BetweenTags;
-            const removeHtmlWhitespace = this.fileParser.options.removeHtmlWhitespace;
-            content = transformHtmlPreservingPreformattedBlocks(content, (html) => {
-                let next = html.replace(whitespaceRegex, "");
-                if (shouldRemoveBetweenTags) {
-                    next = removeWhiteSpaceBetweenTags(next, removeHtmlWhitespace);
-                }
-                return next;
-            });
-        }
         content = removeBomHeader(content ?? "");
-        this.docContent = content;
-        return content;
+        this.docContent = this.fileParser.contentNormalizer.normalize(content);
+        return this.docContent;
     }
     private formattedDocument: Document;
     async getFormattedDocument(): Promise<Document> {

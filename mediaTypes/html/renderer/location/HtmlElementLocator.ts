@@ -4,9 +4,10 @@ import { HtmlOptions } from "../../HtmlOptions";
 import { compareTagName, getElementByNameAndIndex } from "../../../../kernal/html/finder";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { Progress } from "../../../../kernal/progress/Progress";
-import { getElementByPosition, getElementByProgress } from "../../../../kernal/html/position";
 import { getUrlFragment } from "../../../../kernal/common/url";
-import type { FlipMode, TextSymbolOptions } from "../../../../kernal/types";
+import type { FlipMode } from "../../../../kernal/types";
+import type { IHtmlSymbolMeasure } from "../../IHtmlSymbolMeasure";
+import { asHtmlFileParser } from "../../fileParser/IHtmlFileParser";
 import { ElementLocatorResult } from "./IHtmlElementLocator";
 import { IHtmlElementLocator } from "./IHtmlElementLocator";
 
@@ -20,12 +21,8 @@ export class HtmlElementLocator implements IHtmlElementLocator {
         let isDocumentStart: boolean = false;
         const flipMode = options.flipMode;
         const contentContainer = doc.getContentContainer();
-        const symbolOptions: TextSymbolOptions = {
-            removeHtmlWhitespace: options.removeHtmlWhitespace,
-            whitespaceRegex: options.whitespaceRegex,
-            nonWhiteSpaceSymbolTagNames: options.nonWhiteSpaceSymbolTagNames,
-        };
-        const symbolType = location.symbolType ?? options.symbolType;
+        const measure = asHtmlFileParser(this.documentsProvider.fileParser).symbolMeasure;
+        const symbolType = location.symbolType ?? measure.defaultSymbolType;
 
         if (!isNullOrWhiteSpace(location.tagName)) {
             target = getElementByNameAndIndex(contentContainer, location.tagName, location.tagIndex);
@@ -35,19 +32,19 @@ export class HtmlElementLocator implements IHtmlElementLocator {
             const current = location.current ?? 0;
 
             if (unit === "page") {
-                const result = await this.locateByPageUnit(doc, contentContainer, location, current, flipMode, symbolType, symbolOptions);
+                const result = await this.locateByPageUnit(doc, contentContainer, location, current, flipMode, symbolType, measure);
                 target = result.target;
                 pageNumber = result.pageNumber;
                 isDocumentStart = result.isDocumentStart;
             }
             else if (unit === "symbol") {
-                const result = this.locateBySymbolUnit(contentContainer, current, symbolType, symbolOptions);
+                const result = this.locateBySymbolUnit(contentContainer, current, symbolType, measure);
                 target = result.target;
                 isDocumentStart = result.isDocumentStart;
             }
             else {
                 // ratio / second: locate by ratio; keep a compatibility heuristic for values that look like page numbers in page flip mode
-                const result = await this.locateByRatioUnit(doc, contentContainer, location, current, flipMode, symbolType, symbolOptions);
+                const result = await this.locateByRatioUnit(doc, contentContainer, location, current, flipMode, symbolType, measure);
                 target = result.target;
                 pageNumber = result.pageNumber;
                 isDocumentStart = result.isDocumentStart;
@@ -93,7 +90,7 @@ export class HtmlElementLocator implements IHtmlElementLocator {
         current: number,
         flipMode: FlipMode,
         symbolType: SymbolType,
-        symbolOptions: TextSymbolOptions,
+        measure: IHtmlSymbolMeasure,
     ): Promise<PartialLocateResult> {
         if (current == 0) {
             return { target: contentContainer, pageNumber: 1, isDocumentStart: true };
@@ -114,23 +111,23 @@ export class HtmlElementLocator implements IHtmlElementLocator {
             return { target: contentContainer, isDocumentStart: true };
         }
         if (page >= numberOfPages) {
-            return this.locateElementByRatio(contentContainer, Progress.Max, symbolType, symbolOptions);
+            return this.locateElementByRatio(contentContainer, Progress.Max, symbolType, measure);
         }
         const ratio = (page - 1) / numberOfPages;
-        return this.locateElementByRatio(contentContainer, ratio, symbolType, symbolOptions);
+        return this.locateElementByRatio(contentContainer, ratio, symbolType, measure);
     }
 
     private locateBySymbolUnit(
         contentContainer: HTMLElement,
         current: number,
         symbolType: SymbolType,
-        symbolOptions: TextSymbolOptions,
+        measure: IHtmlSymbolMeasure,
     ): PartialLocateResult {
         if (current == 0) {
             return { target: contentContainer, isDocumentStart: true };
         }
 
-        const result = getElementByPosition(contentContainer, current, symbolType, false, symbolOptions);
+        const result = measure.getElementByPosition(contentContainer, current, symbolType);
         if (result?.element) {
             return { target: result.element, isDocumentStart: false };
         }
@@ -147,7 +144,7 @@ export class HtmlElementLocator implements IHtmlElementLocator {
         current: number,
         flipMode: FlipMode,
         symbolType: SymbolType,
-        symbolOptions: TextSymbolOptions,
+        measure: IHtmlSymbolMeasure,
     ): Promise<PartialLocateResult> {
         if (flipMode == "page") {
             if (current == 0) {
@@ -162,24 +159,24 @@ export class HtmlElementLocator implements IHtmlElementLocator {
             }
 
             if (value >= Progress.Min && value <= Progress.Max) {
-                return this.locateElementByRatio(contentContainer, value, symbolType, symbolOptions);
+                return this.locateElementByRatio(contentContainer, value, symbolType, measure);
             }
             return { pageNumber: value, isDocumentStart: false };
         }
 
-        return this.locateElementByRatio(contentContainer, current, symbolType, symbolOptions);
+        return this.locateElementByRatio(contentContainer, current, symbolType, measure);
     }
 
     private locateElementByRatio(
         contentContainer: HTMLElement,
         ratio: number,
         symbolType: SymbolType,
-        symbolOptions: TextSymbolOptions,
+        measure: IHtmlSymbolMeasure,
     ): PartialLocateResult {
         if (ratio >= Progress.Max && contentContainer.lastElementChild) {
             return { target: contentContainer.lastElementChild, isDocumentStart: false };
         }
-        const result = getElementByProgress(contentContainer, ratio, symbolType, symbolOptions);
+        const result = measure.getElementByProgress(contentContainer, ratio, symbolType);
         return { target: result?.element, isDocumentStart: false };
     }
 }

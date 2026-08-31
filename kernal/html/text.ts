@@ -44,28 +44,17 @@ const getTextContentConvertingSoleTextLF = (node: Node) => {
 
 export const getPureTextContent = (
     node: Node,
-    removeHtmlWhitespace?: boolean,
-    whitespaceRegex?: RegExp,
     /** Whether to convert line feeds to spaces */
     convertLFToWhitespace?: boolean
 ) => {
     if (convertLFToWhitespace) {
         return getTextContentConvertingSoleTextLF(node);
     }
-    const content = node.textContent;
-    if (!removeHtmlWhitespace || !whitespaceRegex) {
-        return content;
-    }
-    return content.replace(whitespaceRegex, '');
+    return node.textContent;
 };
 
-export const getPureInnerTextLength = (
-    node: Node,
-    removeHtmlWhitespace?: boolean,
-    whitespaceRegex?: RegExp
-) => {
-    const content = getPureTextContent(node, removeHtmlWhitespace, whitespaceRegex);
-    return content.length;
+export const getPureInnerTextLength = (node: Node) => {
+    return getPureTextContent(node)?.length ?? 0;
 };
 
 /**
@@ -76,12 +65,10 @@ export const getTextBetweenNodes = (
     endNode: Node | undefined,
     excludeStartNodeText: boolean | undefined,
     excludeEndNodeText: boolean | undefined,
-    removeHtmlWhitespace: boolean | undefined,
-    whitespaceRegex: RegExp | undefined,
     /** Whether to convert line feeds to spaces */
     convertLFToWhitespace?: boolean
 ) => {
-    const getPure = (node: Node) => getPureTextContent(node, removeHtmlWhitespace, whitespaceRegex, convertLFToWhitespace);
+    const getPure = (node: Node) => getPureTextContent(node, convertLFToWhitespace);
     if (!startNode) {
         return ""
     }

@@ -1,4 +1,6 @@
 import type { Reader } from '../../kernal'
+import type { IHtmlContentNormalizer } from '../../mediaTypes/html/IHtmlContentNormalizer'
+import type { IHtmlSymbolMeasure } from '../../mediaTypes/html/IHtmlSymbolMeasure'
 import { HtmlFileParser } from '../../mediaTypes/html/fileParser/HtmlFileParser'
 import { HtmlOptions } from '../../mediaTypes/html/HtmlOptions'
 import { HtmlRenderer } from '../../mediaTypes/html/renderer/HtmlRenderer'
@@ -6,6 +8,8 @@ import { ContentCssVariables } from '../../mediaTypes/html/renderer/style/Conten
 
 export type RegisterHtmlMediaTypeOptions = {
   htmlOptions?: HtmlOptions
+  contentNormalizer?: IHtmlContentNormalizer
+  symbolMeasure?: IHtmlSymbolMeasure
   /** Injected default content-area CSS variables; overrides ContentCssVariables defaults */
   defaultContentCssVariables?: Map<string, string> | Record<string, string>
 }
@@ -57,13 +61,9 @@ export const registerHtmlMediaType = (
         httpClient!,
         url,
         extension,
-        {
-          removeHtmlWhitespace: htmlOptions.removeHtmlWhitespace,
-          whitespaceRegex: htmlOptions.whitespaceRegex,
-          nonWhiteSpaceSymbolTagNames: htmlOptions.nonWhiteSpaceSymbolTagNames,
-          forceRemoveHtmlChar32BetweenTags: htmlOptions.forceRemoveHtmlChar32BetweenTags,
-          // wrapFullTextNode: true,
-        },
+        {},
+        config.contentNormalizer,
+        config.symbolMeasure,
       )
     },
     async (owner, fileParser, readerContainer) => {

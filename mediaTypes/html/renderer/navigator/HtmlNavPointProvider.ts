@@ -3,10 +3,10 @@ import { deepClone } from "../../../../kernal/common/object";
 import { isNullOrWhiteSpace } from "../../../../kernal/common/text";
 import { getElementIndex } from "../../../../kernal/html/finder";
 import { INavPointProvider, IFileParser, IDocumentsProvider, NavPoint, Nav, SymbolType, yieldToMain } from "../../../../kernal";
-import { getElementByProgress } from "../../../../kernal/html/position";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { IHtmlTextDocument } from "../IHtmlTextDocument";
 import { HtmlOptions } from "../../HtmlOptions";
+import { asHtmlFileParser } from "../../fileParser/IHtmlFileParser";
 
 export class HtmlNavPointProvider implements INavPointProvider {
     readonly fileParser: IFileParser;
@@ -298,11 +298,10 @@ export class HtmlNavPointProvider implements INavPointProvider {
             if (!ownerDocument) {
                 return undefined;
             }
-            element = getElementByProgress(ownerDocument, target, symbolType, {
-                removeHtmlWhitespace: this.options.removeHtmlWhitespace,
-                whitespaceRegex: this.options.whitespaceRegex,
-                nonWhiteSpaceSymbolTagNames: this.options.nonWhiteSpaceSymbolTagNames,
-            }).element;
+            element = asHtmlFileParser(this.fileParser)
+                .symbolMeasure
+                .getElementByProgress(ownerDocument, target, symbolType)
+                .element;
         }
         else {
             ownerDocument = target.ownerDocument;

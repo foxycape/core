@@ -15,6 +15,7 @@ import { IHtmlLoadLayer } from "../../../../kernal/services/docLoadLayer/IHtmlLo
 import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { createIframe, getTooBigHtmlTemplate } from "../html/template";
 import { HtmlPageCalculator } from "./HtmlPageCalculator";
+import { asHtmlFileParser } from "../../fileParser/IHtmlFileParser";
 import { HtmlSymbolCalclator } from "./HtmlSymbolCalclator";
 import { HtmlDocumentResizeObserver } from "./HtmlDocumentResizeObserver";
 import { collectContentUnitElements } from "../visibilityCandidates";
@@ -37,7 +38,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         super(owner, fileParser, wrapperContainer, spineFile);
 
         this.pageCalculator = new HtmlPageCalculator(this, viewport, options);
-        this.symbolCalclator = new HtmlSymbolCalclator(this, options);
+        this.symbolCalclator = new HtmlSymbolCalclator(this, asHtmlFileParser(fileParser).symbolMeasure);
         this.layoutStatePreserver = new HtmlLayoutStatePreserver(this, viewport, options);
         this.logger = this.owner.loggerFactory.getLogger(this.constructor.name);
         this.resizeObserver = new HtmlDocumentResizeObserver(this, this.owner.events);
