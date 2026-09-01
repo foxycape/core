@@ -115,43 +115,187 @@ const appendPdfLineBreakIfNeeded = (pageText: string, item: TextItem, allowCRLF:
     return pageText + '\n';
 };
 
-const buildPageTextWithCjWhitespaceHandling = (items: unknown[], allowCRLF: boolean): string => {
-    let pageText = '';
-    let lastTextItem: TextItem | null = null;
+type PdfPageTextRun = {
+    start: number
+    length: number
+    item: TextItem
+}
+
+type PdfPageTextCollector = {
+    text: string
+    runs: PdfPageTextRun[]
+}
+
+const createPdfPageTextCollector = (): PdfPageTextCollector => ({ text: '', runs: [] })
+
+const appendToPdfPageTextCollector = (
+    collector: PdfPageTextCollector,
+    next: string,
+    item?: TextItem,
+) => {
+    if (!next) {
+        return
+    }
+    if (item) {
+        collector.runs.push({ start: collector.text.length, length: next.length, item })
+    }
+    collector.text += next
+}
+
+const shrinkPdfPageTextCollectorTo = (collector: PdfPageTextCollector, nextText: string) => {
+    while (collector.text.length > nextText.length) {
+        const last = collector.runs[collector.runs.length - 1]
+        if (last && last.start + last.length === collector.text.length && last.length > 0) {
+            last.length -= 1
+            collector.text = collector.text.slice(0, -1)
+            if (last.length <= 0) {
+                collector.runs.pop()
+            }
+            continue
+        }
+        collector.text = collector.text.slice(0, -1)
+    }
+}
+
+const collectPageTextWithCjWhitespaceHandling = (
+    items: unknown[],
+    allowCRLF: boolean,
+): PdfPageTextCollector => {
+    const collector = createPdfPageTextCollector()
+    let lastTextItem: TextItem | null = null
 
     for (let i = 0; i < items.length; i++) {
-        const item = items[i];
+        const item = items[i]
         if (!isPdfTextItem(item)) {
-            continue;
+            continue
         }
         if (!item.str) {
-            pageText = appendPdfLineBreakIfNeeded(pageText, item, allowCRLF);
-            lastTextItem = item;
-            continue;
+            const next = appendPdfLineBreakIfNeeded(collector.text, item, allowCRLF)
+            appendToPdfPageTextCollector(collector, next.slice(collector.text.length), item)
+            lastTextItem = item
+            continue
         }
 
         if (/^\s+$/.test(item.str)) {
-            const prev = lastTextItem ?? findAdjacentPdfTextItem(items, i - 1, -1);
-            const next = findAdjacentPdfTextItem(items, i + 1, 1);
+            const prev = lastTextItem ?? findAdjacentPdfTextItem(items, i - 1, -1)
+            const next = findAdjacentPdfTextItem(items, i + 1, 1)
             if (!prev || !next) {
-                pageText += item.str;
+                appendToPdfPageTextCollector(collector, item.str, item)
+            } else if (shouldKeepPdfCjSpace(prev, next, item)) {
+                appendToPdfPageTextCollector(collector, ' ', item)
             }
-            else if (shouldKeepPdfCjSpace(prev, next, item)) {
-                pageText += ' ';
-            }
-            continue;
+            continue
         }
 
-        const str = removeCJCharWhitespace(item.str);
+        const str = removeCJCharWhitespace(item.str)
         if (lastTextItem) {
-            pageText = trimSpuriousCjkTrailingSpace(pageText, lastTextItem, item);
+            shrinkPdfPageTextCollectorTo(
+                collector,
+                trimSpuriousCjkTrailingSpace(collector.text, lastTextItem, item),
+            )
         }
-        pageText = appendPdfTextItem(pageText, str, item.hasEOL, allowCRLF);
-        lastTextItem = item;
+        const next = appendPdfTextItem(collector.text, str, item.hasEOL, allowCRLF)
+        appendToPdfPageTextCollector(collector, next.slice(collector.text.length), item)
+        lastTextItem = item
     }
 
-    return pageText;
-};
+    return collector
+}
+
+const buildPageTextWithCjWhitespaceHandling = (items: unknown[], allowCRLF: boolean): string =>
+    collectPageTextWithCjWhitespaceHandling(items, allowCRLF).text
+
+const collectPdfPagePlaintext = (
+    items: unknown[],
+    options?: TextFormatOptions,
+): PdfPageTextCollector => {
+    const allowCRLF = !!(
+        options?.combineLines
+        || options?.convertEOLToCRLF
+        || options?.removeConsecutiveBlankLine
+        || options?.removeConsecutiveWhitespaceCharacters
+    )
+    if (options?.removeCJWhitespace) {
+        return collectPageTextWithCjWhitespaceHandling(items, allowCRLF)
+    }
+    const collector = createPdfPageTextCollector()
+    for (const raw of items) {
+        if (!isPdfTextItem(raw)) {
+            continue
+        }
+        if (!raw.str) {
+            const next = appendPdfLineBreakIfNeeded(collector.text, raw, allowCRLF)
+            appendToPdfPageTextCollector(collector, next.slice(collector.text.length), raw)
+            continue
+        }
+        const next = appendPdfTextItem(collector.text, raw.str, raw.hasEOL, allowCRLF)
+        appendToPdfPageTextCollector(collector, next.slice(collector.text.length), raw)
+    }
+    return collector
+}
+
+const findPdfPageTextRunAtOffset = (runs: PdfPageTextRun[], offset: number) => {
+    if (runs.length === 0) {
+        return undefined
+    }
+    for (const run of runs) {
+        if (offset < run.start) {
+            return { item: run.item, local: 0, length: run.length }
+        }
+        if (offset < run.start + run.length) {
+            return { item: run.item, local: offset - run.start, length: run.length }
+        }
+    }
+    const last = runs[runs.length - 1]!
+    return { item: last.item, local: last.length, length: last.length }
+}
+
+export const formatPdfXyzDest = (
+    ref: { num: number; gen?: number | string },
+    x: number,
+    y: number,
+): string => {
+    const gen = ref.gen ?? 0
+    return `[{"num":${ref.num},"gen":${gen}},{"name":"XYZ"},${x},${y},0]`
+}
+
+export type PdfDestPage = {
+    ref?: { num: number; gen?: number | string } | null
+    getTextContent: (params?: unknown) => Promise<{ items: unknown[] }>
+}
+
+/** Build a user-space XYZ dest for a getPageText character offset, without rendering the page. */
+export const buildPdfXyzDestAtTextOffset = async (
+    page: PdfDestPage,
+    offset: number,
+    snippet?: string,
+): Promise<string | undefined> => {
+    const ref = page.ref
+    if (!ref || ref.num == null) {
+        return undefined
+    }
+    const textContent = await page.getTextContent()
+    const items = dedupePdfTextContentItems(textContent.items)
+    const collected = collectPdfPagePlaintext(items)
+    let target = Math.max(0, offset)
+    if (snippet) {
+        const exact = collected.text.indexOf(snippet)
+        const needle = snippet.replace(/\s+/g, ' ').trim()
+        const found = exact >= 0 ? exact : needle ? collected.text.indexOf(needle) : -1
+        if (found >= 0) {
+            target = found
+        }
+    }
+    const hit = findPdfPageTextRunAtOffset(collected.runs, target)
+    if (!hit) {
+        return undefined
+    }
+    const advance = Math.max(hit.length, 1)
+    const ratio = Math.min(Math.max(hit.local, 0), advance) / advance
+    const x = hit.item.transform[4] + ratio * Math.max(hit.item.width, 0)
+    const y = hit.item.transform[5] + Math.max(hit.item.height, 0)
+    return formatPdfXyzDest(ref, x, y)
+}
 
 const mergeAxisAlignedRects = (a: PdfAxisAlignedRect, b: PdfAxisAlignedRect): PdfAxisAlignedRect => {
     return {
@@ -411,31 +555,9 @@ export const getPageTextItems = async (page: any, width: number, options?: TextF
  * @returns
  */
 export const getPageText = async (page: any, options?: TextFormatOptions) => {
-    let pageText = '';
     const textContent = await page.getTextContent();
     const items = dedupePdfTextContentItems(textContent.items);
-    const allowCRLF = !!(
-        options?.combineLines
-        || options?.convertEOLToCRLF
-        || options?.removeConsecutiveBlankLine
-        || options?.removeConsecutiveWhitespaceCharacters
-    );
-    if (options?.removeCJWhitespace) {
-        pageText = buildPageTextWithCjWhitespaceHandling(items, allowCRLF);
-    }
-    else {
-        items.forEach((v) => {
-            if (!isPdfTextItem(v)) {
-                return;
-            }
-            if (!v.str) {
-                pageText = appendPdfLineBreakIfNeeded(pageText, v, allowCRLF);
-                return;
-            }
-            // Do not insert a space when an English word is hyphenated across a line break with '-'
-            pageText = appendPdfTextItem(pageText, v.str, v.hasEOL, allowCRLF);
-        });
-    }
+    let pageText = collectPdfPagePlaintext(items, options).text;
     if (options?.combineLines) {
         let newPageText = '';
         const texts = pageText.split('\n');
