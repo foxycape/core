@@ -149,8 +149,8 @@ const splitText = (text: string, options: SplitTextOptions = {}): TextSegment[] 
         for (const line of lines) {
             const lineLength = (line?.length ?? 0);
 
-            // If the line length is within the limit, add it directly
-            if (lineLength <= config.minChars) {
+            // Keep the whole line when it does not exceed maxChars (preferCTRL)
+            if (lineLength <= config.maxChars) {
                 const trimmedLine = line.trim();
                 if (trimmedLine) {
                     segments.push({
@@ -168,8 +168,8 @@ const splitText = (text: string, options: SplitTextOptions = {}): TextSegment[] 
 
                 // Process each separator-based segment
                 for (const seg of separatorSegments) {
-                    if (seg.length <= config.minChars) {
-                        // Segment length is within the limit; add it directly
+                    if (seg.length <= config.maxChars) {
+                        // Segment length is within maxChars; add it directly
                         const trimmedSeg = seg.trim();
                         if (trimmedSeg) {
                             segments.push({
@@ -185,8 +185,8 @@ const splitText = (text: string, options: SplitTextOptions = {}): TextSegment[] 
                         // Segment still exceeds maxChars; split further with findSplitIndex
                         let segCurrentIndex = 0;
                         while (segCurrentIndex < seg.length) {
-                            // If remaining text length is within minChars, take it as one segment
-                            if (seg.length - segCurrentIndex <= config.minChars) {
+                            // Remaining text fits in maxChars; take it as one segment
+                            if (seg.length - segCurrentIndex <= config.maxChars) {
                                 const segmentText = seg.slice(segCurrentIndex);
                                 const trimmedText = segmentText.trim();
                                 if (trimmedText) {

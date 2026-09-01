@@ -414,7 +414,12 @@ export const getPageText = async (page: any, options?: TextFormatOptions) => {
     let pageText = '';
     const textContent = await page.getTextContent();
     const items = dedupePdfTextContentItems(textContent.items);
-    const allowCRLF = options?.combineLines || options?.convertEOLToCRLF || options?.removeConsecutiveBlankLine || options?.removeConsecutiveWhitespaceCharacters || options?.convertLFToWhitespace || options?.removeCJWhitespace;
+    const allowCRLF = !!(
+        options?.combineLines
+        || options?.convertEOLToCRLF
+        || options?.removeConsecutiveBlankLine
+        || options?.removeConsecutiveWhitespaceCharacters
+    );
     if (options?.removeCJWhitespace) {
         pageText = buildPageTextWithCjWhitespaceHandling(items, allowCRLF);
     }

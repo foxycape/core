@@ -41,6 +41,9 @@ export class HtmlElementLocator implements IHtmlElementLocator {
                 const result = this.locateBySymbolUnit(contentContainer, current, symbolType, measure);
                 target = result.target;
                 isDocumentStart = result.isDocumentStart;
+                if (result.textOffset != null) {
+                    location.textOffset = result.textOffset;
+                }
             }
             else {
                 // ratio / second: locate by ratio; keep a compatibility heuristic for values that look like page numbers in page flip mode
@@ -129,7 +132,7 @@ export class HtmlElementLocator implements IHtmlElementLocator {
 
         const result = measure.getElementByPosition(contentContainer, current, symbolType);
         if (result?.element) {
-            return { target: result.element, isDocumentStart: false };
+            return { target: result.element, textOffset: result.offset, isDocumentStart: false };
         }
         if (contentContainer.lastElementChild) {
             return { target: contentContainer.lastElementChild, isDocumentStart: false };
@@ -185,4 +188,6 @@ type PartialLocateResult = {
     target?: Element;
     pageNumber?: number;
     isDocumentStart: boolean;
+    /** Intra-element symbol offset; written back onto FileLocation.textOffset for unit=symbol. */
+    textOffset?: number;
 };

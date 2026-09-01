@@ -21,6 +21,13 @@ export class Progress {
     /** Current URL */
     location: FileLocation = new FileLocation(undefined, 1, 'ratio');
 }
+/**
+ * How {@link ReadingLocation.current} should be interpreted:
+ * - `ratio`: 0~1 within the current file (reflowable progress / PDF page fraction)
+ * - `page`: 1-based page number
+ * - `second`: timestamp in seconds
+ * - `symbol`: symbol index within the current file; {@link ReadingLocation.symbolType} selects char vs custom
+ */
 export type ProgressUnit = 'ratio' | 'page' | 'second' | 'symbol'
 export class ReadingLocation {
     /**
@@ -34,7 +41,11 @@ export class ReadingLocation {
         this.unit = unit || 'ratio';
     }
 
-    /** Current progress value; unit is determined by `unit` */
+    /**
+     * Current progress value. Meaning depends on {@link unit}:
+     * ratio → 0~1, page → 1-based page, second → seconds, symbol → file-level symbol index.
+     * Not an in-element text offset; that belongs on {@link FileLocation.textOffset}.
+     */
     current?: number;
 
     /** Symbol type used for progress calculation: custom - custom, char - calculated by character */

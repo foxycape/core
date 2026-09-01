@@ -3,6 +3,7 @@ import { getElementByNameAndIndex } from "../../../../kernal/html/finder";
 import { injectCssContent } from "../../../../kernal/html/injector";
 import { scrollElementIntoView } from "../../../../kernal/html/style";
 import { asyncDebounce, EventNames, FileLocation, IDocument, IFileParser, ILogger, Progress, SpineFile, Theme } from "../../../../kernal";
+import { resolvePdfLocationPageNumber } from "./resolvePdfLocationPageNumber";
 import type { Reader } from "../../../../kernal/Reader";
 import { BaseDocumentsProvider } from "../../../base/renderer/BaseDocumentsProvider";
 import { PdfOptions } from "../../PdfOptions";
@@ -272,27 +273,19 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
 
     /**
      * Resolve target page from location.
-     * - current in (0, 1): ratio of total pages (ceil)
-     * - current >= 1: absolute page
-     * - url: document index + 1
-     * - otherwise: page 1
+     * Honors {@link FileLocation.unit}: page → `current` as 1-based page; ratio with
+     * `current` in (0, 1) → fraction of total pages; symbol → page from url only
+     * (`current` is a char/symbol index, not a page).
      * @returns null when url is set but document is missing (no navigation)
      */
     private resolvePageNumber(location?: FileLocation): number | null {
-        if (location?.current) {
-            if (location.current < 1) {
-                return Math.max(1, Math.ceil(location.current * this.numberOfPages));
-            }
-            return location.current;
-        }
-        if (location?.url) {
-            const doc = this.getDocument(location.url);
+        return resolvePdfLocationPageNumber(location, this.numberOfPages, (url) => {
+            const doc = this.getDocument(url);
             if (!doc) {
                 return null;
             }
             return this.getDocuments().indexOf(doc) + 1;
-        }
-        return 1;
+        });
     }
 
     private async initializeEngine(): Promise<void> {
