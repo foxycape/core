@@ -10,8 +10,8 @@ import type { MarkStyleName, MarkType } from "./types";
 export type Note = {
     id: string;
     content: string;
-    createTime: string;
-    updateTime: string;
+    createdAt: number;
+    updatedAt: number;
 };
 
 export type UpsertNoteInput = {
@@ -50,8 +50,8 @@ export type Mark = {
     pdfDest?: string;
     /** User-authored notes attached to this mark */
     notes?: Note[];
-    createTime: string;
-    updateTime: string;
+    createdAt: number;
+    updatedAt: number;
 };
 
 export const getNotes = (mark: Pick<Mark, "notes">): Note[] => mark.notes ?? [];
@@ -62,25 +62,25 @@ export const getLatestNote = (mark: Pick<Mark, "notes">): Note | undefined => {
         return undefined;
     }
     return notes.reduce((latest, note) =>
-        note.updateTime > latest.updateTime ? note : latest,
+        note.updatedAt > latest.updatedAt ? note : latest,
     );
 };
 
 export const upsertNote = (mark: Mark, input: UpsertNoteInput): Note => {
-    const now = new Date().toISOString();
+    const now = Date.now();
     if (input.id) {
         const existing = mark.notes?.find((note) => note.id === input.id);
         if (existing) {
             existing.content = input.content;
-            existing.updateTime = now;
+            existing.updatedAt = now;
             return existing;
         }
     }
     const note: Note = {
         id: input.id || getRandomId(),
         content: input.content,
-        createTime: now,
-        updateTime: now,
+        createdAt: now,
+        updatedAt: now,
     };
     if (!mark.notes) {
         mark.notes = [];
@@ -123,7 +123,7 @@ export const buildMark = (
     customColor?: string,
     url?: string,
 ): Mark => {
-    const now = new Date().toISOString();
+    const now = Date.now();
     const pageNumber =
         contentRange.kind === "fixed"
             ? contentRange.geometries[0]?.pageNumber
@@ -138,8 +138,8 @@ export const buildMark = (
         contentRange,
         pageNumber,
         url,
-        createTime: now,
-        updateTime: now,
+        createdAt: now,
+        updatedAt: now,
     };
 };
 
@@ -156,17 +156,6 @@ export const getFixedContentRange = (mark: Mark): FixedContentRange | undefined 
         return { kind: "fixed", geometries };
     }
     return undefined;
-};
-
-/** Fill pageNumber on legacy PDF marks that only stored it inside geometries. */
-export const hydrateLegacyMark = (mark: Mark): Mark => {
-    if (mark.pageNumber == null) {
-        const pageNumber = getFixedContentRange(mark)?.geometries[0]?.pageNumber;
-        if (pageNumber != null) {
-            mark.pageNumber = pageNumber;
-        }
-    }
-    return mark;
 };
 
 /**

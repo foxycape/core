@@ -9,14 +9,14 @@ export class Progress {
      * @param current Current overall progress (page number for fixed-layout files, 0~1 for reflowable files)
      */
     constructor(public total: number, public current: number) {
-        var now = new Date();
-        this.createTime = now
-        this.updateTime = now;
+        const now = Date.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
     /** Creation time */
-    createTime: Date;
+    createdAt: number;
     /** Modification time, used for data synchronization */
-    updateTime: Date;
+    updatedAt: number;
 
     /** Current URL */
     location: FileLocation = new FileLocation(undefined, 1, 'ratio');

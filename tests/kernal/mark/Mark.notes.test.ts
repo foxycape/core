@@ -22,8 +22,8 @@ const createMark = (overrides: Partial<Mark> = {}): Mark => ({
     text: "hello",
     styleName: "mark_pen",
     contentRange,
-    createTime: "2026-01-01T00:00:00.000Z",
-    updateTime: "2026-01-01T00:00:00.000Z",
+    createdAt: Date.parse("2026-01-01T00:00:00.000Z"),
+    updatedAt: Date.parse("2026-01-01T00:00:00.000Z"),
     ...overrides,
 })
 
@@ -44,7 +44,7 @@ describe("mark notes", () => {
         expect(updated.id).toBe(created.id)
         expect(getNotes(mark)).toHaveLength(1)
         expect(getNotes(mark)[0].content).toBe("edited")
-        expect(getNotes(mark)[0].updateTime >= created.updateTime).toBe(true)
+        expect(getNotes(mark)[0].updatedAt >= created.updatedAt).toBe(true)
     })
 
     it("removes a note and drops the field when empty", () => {
@@ -63,14 +63,14 @@ describe("mark notes", () => {
                 {
                     id: "old",
                     content: "older",
-                    createTime: "2026-01-01T00:00:00.000Z",
-                    updateTime: "2026-01-01T00:00:00.000Z",
+                    createdAt: Date.parse("2026-01-01T00:00:00.000Z"),
+                    updatedAt: Date.parse("2026-01-01T00:00:00.000Z"),
                 },
                 {
                     id: "new",
                     content: "newer",
-                    createTime: "2026-01-02T00:00:00.000Z",
-                    updateTime: "2026-01-03T00:00:00.000Z",
+                    createdAt: Date.parse("2026-01-02T00:00:00.000Z"),
+                    updatedAt: Date.parse("2026-01-03T00:00:00.000Z"),
                 },
             ],
         })
@@ -84,14 +84,14 @@ describe("mark notes", () => {
                 {
                     id: "n1",
                     content: "alpha",
-                    createTime: "2026-01-01T00:00:00.000Z",
-                    updateTime: "2026-01-01T00:00:00.000Z",
+                    createdAt: Date.parse("2026-01-01T00:00:00.000Z"),
+                    updatedAt: Date.parse("2026-01-01T00:00:00.000Z"),
                 },
                 {
                     id: "n2",
                     content: "contains HELLO",
-                    createTime: "2026-01-01T00:00:00.000Z",
-                    updateTime: "2026-01-01T00:00:00.000Z",
+                    createdAt: Date.parse("2026-01-01T00:00:00.000Z"),
+                    updatedAt: Date.parse("2026-01-01T00:00:00.000Z"),
                 },
             ],
         })
