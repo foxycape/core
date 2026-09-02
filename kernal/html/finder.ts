@@ -52,11 +52,15 @@ const getTagIndex = (tags: HTMLCollectionOf<Element>, tag: Element) => {
 
 export const getAllNodes = (node: Node) => {
     const nodes: Node[] = [];
-    nodes.push(node);
-    if (node.hasChildNodes()) {
-        node.childNodes.forEach(childNode => {
-            nodes.push(...getAllNodes(childNode))
-        })
+    const stack: Node[] = [node];
+    while (stack.length > 0) {
+        const current = stack.pop()!;
+        nodes.push(current);
+        if (current.hasChildNodes()) {
+            for (let i = current.childNodes.length - 1; i >= 0; i--) {
+                stack.push(current.childNodes[i]);
+            }
+        }
     }
     return nodes;
 };

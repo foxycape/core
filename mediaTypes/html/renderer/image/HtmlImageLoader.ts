@@ -282,11 +282,11 @@ export class HtmlImageLoader implements IHtmlImageLoader {
                     this.resetImageStyles(image, imageSize.width, imageSize.height);
                     this.resetInlineImageSize(image);
                 }
-                if (requireEmitProgress && i % 10 == 0) {
+                if (requireEmitProgress && (i % 10 == 0 || i === images.length - 1)) {
                     this.events.emit(EventNames.ProcessedImageCount, {
                         doc,
                         totalImageCount: images.length,
-                        processedImageCount: i,
+                        processedImageCount: i === images.length - 1 ? images.length : i,
                     });
                     await yieldToMain();
                 }

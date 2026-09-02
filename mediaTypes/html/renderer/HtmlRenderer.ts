@@ -40,7 +40,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     private readonly themeApplier: IHtmlThemeApplier;
     private readonly documentsResizeObserver: HtmlDocumentsResizeObserver;
     private readonly contentProcessor: IHtmlContentProcessor;
-    private readonly imageLoader: IHtmlImageLoader;
+    protected imageLoader: IHtmlImageLoader;
     private readonly imageObserver: HtmlImageObserver;
     private scrollWatchTarget?: Document | Element;
     private scrollWatchState?: { _eventHandler: (e: Event) => void };
@@ -59,7 +59,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
         this.themeApplier = new HtmlThemeApplier(this);
         this.documentsResizeObserver = new HtmlDocumentsResizeObserver(this, this.rendererViewport, this.progressTracker, this.rendererLayout);
         this.contentProcessor = new HtmlContentProcessor(fileParser);
-        this.imageLoader = new HtmlImageLoader(this, this.rendererViewport, htmlOptions);
+        this.imageLoader = this.createImageLoader();
         this.imageObserver = new HtmlImageObserver(this, htmlOptions);
         this.bindEvents();
         this.bindScrollWatch();
@@ -67,6 +67,10 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     }
     get id(): string {
         return this.currentInstanceId;
+    }
+
+    protected createImageLoader(): IHtmlImageLoader {
+        return new HtmlImageLoader(this, this.rendererViewport, this.htmlOptions);
     }
 
     private injectProcessHandlers = () => {
