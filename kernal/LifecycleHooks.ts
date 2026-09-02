@@ -16,8 +16,6 @@ export type LifecycleHooks = {
     onFileParsed?: (fileParser: IFileParser) => Promise<void>;
     onRenderer?: (renderer: IRenderer) => Promise<void>;
     onRenderered?: (renderer: IRenderer) => Promise<void>;
-    /** inject/rewrite file content before rendering */
-    onRenderingFileInject?: (extension: string, data: string, url?: string) => Promise<string>;
     /** progress change guard (return false to interrupt subsequent broadcast/storage) */
     onProgressChangeGuard?: (progress: number) => boolean;
     /** redirect before (can be used to save current progress) */

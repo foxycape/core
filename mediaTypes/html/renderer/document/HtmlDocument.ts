@@ -145,11 +145,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             }
         }
 
-        let loadingContent = virtualDocument.documentElement.outerHTML;
-        if (this.owner.onRenderingFileInject) {
-            loadingContent = await this.owner.onRenderingFileInject(this.extension, loadingContent, this.url);
-        }
-        loadingContent = loadingContent.replace(/<([^<]*)\?xml([^>]*)\?.*?>/i, "");
+        let loadingContent = virtualDocument.documentElement.outerHTML.replace(/<([^<]*)\?xml([^>]*)\?.*?>/i, "");
         const existDocType = loadingContent.match(/<!DOCTYPE[^>]*>/i);
         if (!existDocType) {
             loadingContent = "<!DOCTYPE html>" + loadingContent;

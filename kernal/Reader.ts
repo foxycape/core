@@ -69,7 +69,6 @@ export class Reader implements LifecycleHooks {
     onFileParsed?: (fileParser: IFileParser) => Promise<void>;
     onRenderer?: (renderer: IRenderer) => Promise<void>;
     onRenderered?: (renderer: IRenderer) => Promise<void>;
-    onRenderingFileInject?: (extension: string, data: string, url?: string) => Promise<string>;
     onProgressChangeGuard?: (progress: number) => boolean;
     onBeforeRedirect?: (documentsProvider: IDocumentsProvider) => Promise<void>;
     onLocationRequest?: (simpleId: string) => Promise<FileLocation | undefined>;
