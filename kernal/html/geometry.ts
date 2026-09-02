@@ -209,7 +209,7 @@ export const normalizeBaseRectsInDisplayWindow = (base: Range | Element[] | Elem
     const normalizedRects = baseRects.map(rect => ({ left: rect.left, top: rect.top, width: rect.width, height: rect.height }));
 
     while (displayWindow != baseWindow) {
-        const frameElement = baseWindow.frameElement;
+        const frameElement = baseWindow?.frameElement;
         const parent = frameElement?.ownerDocument?.defaultView
         if (!parent)
             break;
