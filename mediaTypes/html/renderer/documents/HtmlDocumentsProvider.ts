@@ -5,7 +5,7 @@ import { emptyElement } from "../../../../kernal/html/dom";
 import { createRange } from "../../../../kernal/html/selection";
 import { getLocateClientRect, getLocateElement, isDomRange, type LocateTarget } from "../../../../kernal/html/geometry";
 import { scrollElementIntoView, getTransformLength } from "../../../../kernal/html/style";
-import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, asyncDebounce, BrowserCapabilities } from "../../../../kernal";
+import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, asyncDebounce, BrowserCapabilities, yieldToMain } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
 import { HtmlSettings } from "../../HtmlSettings";
 import { BaseDocumentsProvider } from "../../../base/renderer/BaseDocumentsProvider";
@@ -178,51 +178,68 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     private async gotoDoc(doc: IHtmlDocument, location: FileLocation, isReload?: boolean): Promise<void> {
         if (!location)
             return;
-        await doc.load();
-        const contentContainer = doc.getContentContainer();
-        if (!contentContainer)
-            return;
         isReload = isReload ?? false;
         const flipMode = resolveLayoutFlow(this.htmlOptions).flipMode;
-
-        const findTargetResult = await this.findTarget(doc, location);
-        const target = findTargetResult?.target;
-        let pageNumber = findTargetResult?.pageNumber;
-        const isDocumentStart = findTargetResult?.isDocumentStart;
-        if (!target && !pageNumber) {
-            return;
+        const htmlDoc = doc instanceof HtmlDocument ? doc : null;
+        const retainLoadingLayer = !!htmlDoc
+            && flipMode == "scroll"
+            && !isReload
+            && !location.suppressScroll
+            && doc.getLoadStatus() != "success";
+        if (retainLoadingLayer && htmlDoc) {
+            htmlDoc.prepareCoveredLoad();
+            this.scrollWrapperIntoView(doc, true);
+            await yieldToMain();
         }
-        const redirectTarget = this.resolveRedirectTarget(target, location);
-        if (flipMode == "scroll") {
-            if (location.suppressScroll) {
-                this.setDocumentVisible(doc.getWrapperContainer(), true);
-            } else if (redirectTarget) {
-                await this.gotoScroll(doc, location, redirectTarget, isDocumentStart);
+        try {
+            await doc.load();
+            const contentContainer = doc.getContentContainer();
+            if (!contentContainer)
+                return;
+            const findTargetResult = await this.findTarget(doc, location);
+            const target = findTargetResult?.target;
+            let pageNumber = findTargetResult?.pageNumber;
+            const isDocumentStart = findTargetResult?.isDocumentStart;
+            if (!target && !pageNumber) {
+                return;
             }
-        }
-        else {
-            if (isReload && redirectTarget && !isNullOrWhiteSpace(location.tagName)) {
-                // Layout metrics changed: resolve page from element under a zeroed transform,
-                // otherwise getBoundingClientRect is skewed by the previous page offset.
-                this.resetTransformContainer();
-                pageNumber = await doc.getPageNumber(redirectTarget);
-            }
-            else if (location.unit === "page" && location.current != null && location.current > 0) {
-                pageNumber = location.current;
-                const numberOfPages = await doc.getNumberOfPages();
-                if (location.total > 1 && location.total != numberOfPages) {
-                    pageNumber = Math.ceil(numberOfPages * (location.current / location.total));
+            const redirectTarget = this.resolveRedirectTarget(target, location);
+            if (flipMode == "scroll") {
+                if (location.suppressScroll) {
+                    this.setDocumentVisible(doc.getWrapperContainer(), true);
+                } else if (redirectTarget) {
+                    await this.gotoScroll(doc, location, redirectTarget, isDocumentStart);
                 }
             }
-            else if (isDomRange(redirectTarget)) {
-                // Character Range (search / mark textOffset): use hit geometry so
-                // a paragraph that spans CSS columns does not pin the previous column.
-                pageNumber = await doc.getPageNumber(redirectTarget);
+            else {
+                if (isReload && redirectTarget && !isNullOrWhiteSpace(location.tagName)) {
+                    // Layout metrics changed: resolve page from element under a zeroed transform,
+                    // otherwise getBoundingClientRect is skewed by the previous page offset.
+                    this.resetTransformContainer();
+                    pageNumber = await doc.getPageNumber(redirectTarget);
+                }
+                else if (location.unit === "page" && location.current != null && location.current > 0) {
+                    pageNumber = location.current;
+                    const numberOfPages = await doc.getNumberOfPages();
+                    if (location.total > 1 && location.total != numberOfPages) {
+                        pageNumber = Math.ceil(numberOfPages * (location.current / location.total));
+                    }
+                }
+                else if (isDomRange(redirectTarget)) {
+                    // Character Range (search / mark textOffset): use hit geometry so
+                    // a paragraph that spans CSS columns does not pin the previous column.
+                    pageNumber = await doc.getPageNumber(redirectTarget);
+                }
+                else if (!pageNumber && redirectTarget) {
+                    pageNumber = await doc.getPageNumber(redirectTarget);
+                }
+                await this.transformPage(doc, pageNumber, isReload ? undefined : location.direction);
             }
-            else if (!pageNumber && redirectTarget) {
-                pageNumber = await doc.getPageNumber(redirectTarget);
+        }
+        finally {
+            if (retainLoadingLayer && htmlDoc) {
+                await htmlDoc.revealCoveredLoad();
             }
-            await this.transformPage(doc, pageNumber, isReload ? undefined : location.direction);
         }
     }
 

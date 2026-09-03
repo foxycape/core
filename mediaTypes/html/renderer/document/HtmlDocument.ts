@@ -49,6 +49,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     }
 
     private callbacks: { resolve: any; reject: any; }[] = [];
+    private retainLoadingLayer = false;
     override async load(): Promise<void> {
         await new Promise<void>(async (resolve, reject) => {
             if (this.loadStatus == "success") {
@@ -65,6 +66,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             emptyElement(this.wrapperContainer);
             this.loadingLayer.removeLoadingLayer();
             this.loadingLayer.loadLoadingLayer();
+            await yieldToMain();
 
             try {
                 if (this.inIframe) {
@@ -80,12 +82,14 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                         const loadingContent = await this.buildLoadingContent();
                         await yieldToMain();
                         this.wrapperContainer.appendChild(this.iframe);
+                        this.bringLoadingLayerToFront();
 
                         await yieldToMain();
                         this.iframe.addEventListener("load", async () => {
                             await this.processAfterLoaded();
                         }, false);
                         this.iframe.addEventListener("error", (err) => {
+                            this.retainLoadingLayer = false;
                             this.loadingLayer?.removeLoadingLayer();
                             this.loadStatus = "fail";
                             this.iframe = undefined;
@@ -115,7 +119,9 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             }
             catch (error) {
                 this.logger.error(error);
+                this.retainLoadingLayer = false;
                 if (!this.owner?.context) {
+                    await this.releaseLoadingLayer();
                     this.loadCompleted(true);
                 }
                 else {
@@ -127,12 +133,139 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                     this.loadCompleted(true);
                 }
             }
-            finally {
-                await this.loadingLayer?.dispose();
-                this.loadingLayer = undefined;
-            }
         });
     }
+    prepareCoveredLoad(): void {
+        this.retainLoadingLayer = true;
+    }
+
+    async revealCoveredLoad(): Promise<void> {
+        this.retainLoadingLayer = false;
+        try {
+            await this.waitForRevealPaint();
+            await this.fadeOutCover();
+        }
+        finally {
+            await this.releaseLoadingLayer();
+        }
+    }
+    private waitForRevealPaint = async () => {
+        await yieldToMain();
+        await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => resolve());
+            });
+        });
+        await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 120);
+        });
+        await this.waitForVisibleImagesReady();
+    };
+    private waitForVisibleImagesReady = async () => {
+        const contentContainer = this.getContentContainer();
+        const view = contentContainer?.ownerDocument?.defaultView;
+        if (!contentContainer || !view) {
+            return;
+        }
+        const images = [
+            ...contentContainer.querySelectorAll("img"),
+            ...contentContainer.getElementsByTagName("image"),
+        ] as (HTMLImageElement | SVGImageElement)[];
+        if (images.length == 0) {
+            return;
+        }
+        const viewportHeight = view.innerHeight || contentContainer.clientHeight;
+        const visible = images.filter((image) => {
+            const rect = image.getBoundingClientRect();
+            return rect.bottom > -200 && rect.top < viewportHeight + 200;
+        });
+        if (visible.length == 0) {
+            return;
+        }
+        const waitMs = 800;
+        await Promise.race([
+            Promise.all(visible.map((image) => this.waitForImageReady(image))),
+            new Promise<void>((resolve) => {
+                window.setTimeout(resolve, waitMs);
+            }),
+        ]);
+    };
+    private waitForImageReady = (image: HTMLImageElement | SVGImageElement) => {
+        if (this.isImageReady(image)) {
+            return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+            let settled = false;
+            const finish = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                image.removeEventListener("load", finish);
+                image.removeEventListener("error", finish);
+                observer.disconnect();
+                resolve();
+            };
+            const observer = new MutationObserver(() => {
+                if (this.isImageReady(image)) {
+                    finish();
+                }
+            });
+            observer.observe(image, { attributes: true, attributeFilter: ["src", "href", "data-load-state"] });
+            image.addEventListener("load", finish);
+            image.addEventListener("error", finish);
+            window.setTimeout(finish, 800);
+        });
+    };
+    private isImageReady = (image: HTMLImageElement | SVGImageElement) => {
+        const loadState = image.getAttribute("data-load-state");
+        if (loadState == "loaded" || loadState == "fail") {
+            return true;
+        }
+        const ImageCtor = image.ownerDocument.defaultView?.HTMLImageElement;
+        if (!ImageCtor || !(image instanceof ImageCtor)) {
+            return false;
+        }
+        const src = image.currentSrc || image.src;
+        if (!src || src.startsWith("data:image/svg+xml")) {
+            return false;
+        }
+        return image.complete && image.naturalWidth > 0;
+    };
+    private bringLoadingLayerToFront = () => {
+        const layer = this.wrapperContainer.querySelector("div[data-type='loading-layer']");
+        if (layer) {
+            this.wrapperContainer.appendChild(layer);
+        }
+    };
+    private fadeOutCover = async (durationMs = 200) => {
+        const layer = this.wrapperContainer.querySelector("div[data-type='loading-layer']") as HTMLElement | null;
+        if (!layer) {
+            return;
+        }
+        const duration = Math.max(0, durationMs);
+        layer.style.pointerEvents = "none";
+        layer.style.transition = `opacity ${duration}ms ease`;
+        layer.style.opacity = "0";
+        await new Promise<void>((resolve) => {
+            let settled = false;
+            const finish = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                layer.removeEventListener("transitionend", finish);
+                resolve();
+            };
+            layer.addEventListener("transitionend", finish);
+            window.setTimeout(finish, duration + 50);
+        });
+    };
+    private releaseLoadingLayer = async () => {
+        this.loadingLayer?.removeLoadingLayer();
+        await this.loadingLayer?.dispose();
+        this.loadingLayer = undefined;
+    };
     private buildLoadingContent = async () => {
         const virtualDocument = await this.getFormattedVirtualDocument();
         const preprocesses = this.owner.getRenderer()?.documentPreprocesses ?? [];
@@ -175,7 +308,9 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         await this.layoutStatePreserver.waitUntilPageTransformStable();
         this.resetLayoutSizes();
         await this.restoreLayoutState(layoutState);
-        this.loadingLayer?.removeLoadingLayer();
+        if (!this.retainLoadingLayer) {
+            await this.releaseLoadingLayer();
+        }
         this.loadStatus = "success";
         this.visibilityCandidates = null;
         this.bindDocumentEvents();
@@ -466,6 +601,8 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.resizeObserver.unobserveIframeSize();
         this.callbacks?.splice(0);
         this.visibilityCandidates = null;
+        this.retainLoadingLayer = false;
+        await this.releaseLoadingLayer();
         const wrapperContainer = this.getWrapperContainer();
         wrapperContainer.classList.add(HtmlSettings.FileContentContainerHeightClassName);
         if (this.iframe && wrapperContainer.contains(this.iframe)) {

@@ -1,6 +1,7 @@
 import { EventNames, IDocument, IEventEmitter } from "../../../kernal";
 import logo from '../../logo-160x160.png';
 import { emptyElement } from "../../html/dom";
+import { Theme } from "../../Theme";
 import { IHtmlLoadLayer } from "./IHtmlLoadLayer";
 import { ILocale } from "../../i18n/ILocale";
 
@@ -91,11 +92,11 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
         if (this.state == 'unset') {
             this.state = 'delay';
         }
-        const displayLogo = this.state == 'show';
+        const displayChrome = this.state == 'show';
+        const nextLayer = this.createLoadingLayer(displayChrome, this.totalImageCount, this.processedImageCount);
         let layer = this.wrapperContainer.querySelector("div[data-type='loading-layer']");
         if (!layer) {
-            emptyElement(this.wrapperContainer);
-            this.wrapperContainer.appendChild(this.createLoadingLayer(displayLogo, this.totalImageCount, this.processedImageCount));
+            this.wrapperContainer.appendChild(nextLayer);
             if (this.timer) {
                 clearTimeout(this.timer);
             }
@@ -103,18 +104,22 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
                 this.state = 'show';
                 this.renderLoadingLayer();
             }, 2000);
+            return;
         }
-        else {
-            emptyElement(this.wrapperContainer);
-            this.wrapperContainer.appendChild(this.createLoadingLayer(displayLogo, this.totalImageCount, this.processedImageCount));
-        }
+        layer.replaceWith(nextLayer);
     };
 
-    protected createLoadingLayer(displayLogo: boolean, totalImageCount?: number, processedImageCount?: number) {
+    protected createLoadingLayer(displayChrome: boolean, totalImageCount?: number, processedImageCount?: number) {
         const doc = this.wrapperContainer.ownerDocument;
         const loadingLayer = doc.createElement("div");
         loadingLayer.setAttribute("data-type", "loading-layer");
-        loadingLayer.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;min-height: inherit;display: flex;justify-content: center;align-items: center;flex-direction:column";
+        loadingLayer.style.cssText = `position:absolute;top:0;left:0;width:100%;height:100%;min-height:inherit;z-index:2;background:var(${Theme.ContentBackground})`;
+        if (!displayChrome) {
+            return loadingLayer;
+        }
+
+        const viewportCover = doc.createElement("div");
+        viewportCover.style.cssText = "position:sticky;top:0;left:0;width:100%;height:var(--content-wrapper-min-height, 100%);min-height:inherit;display:flex;justify-content:center;align-items:center;flex-direction:column";
 
         const content = doc.createElement("div");
         content.style.cssText = `
@@ -130,12 +135,10 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
             padding: 20px;
             gap: 10px;`;
 
-        if (displayLogo) {
-            const img = doc.createElement("img");
-            img.src = logo;
-            img.style.cssText = "width:32px;height:32px;";
-            content.appendChild(img);
-        }
+        const img = doc.createElement("img");
+        img.src = logo;
+        img.style.cssText = "width:32px;height:32px;";
+        content.appendChild(img);
 
         const text = doc.createElement("div");
         text.style.cssText = "font-size: 14px;";
@@ -143,7 +146,8 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
             ? this.locale.getText("share_loading_image_size", "Calculating image size... {processedImageCount}/{totalImageCount}", { processedImageCount, totalImageCount })
             : "Loading...";
         content.appendChild(text);
-        loadingLayer.appendChild(content);
+        viewportCover.appendChild(content);
+        loadingLayer.appendChild(viewportCover);
         return loadingLayer;
     };
 }
