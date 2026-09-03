@@ -36,7 +36,7 @@ export type Mark = {
     pageNumber?: number;
     /** Convenience spine/document URL for reflowable marks; omit for fixed / media */
     url?: string;
-    /** First image in the mark range; used by bookmarks that include or are only an image */
+    /** The image url in chapter document(e.g. SVG image url or HTML image url) or full image url(eg. data:image/jpeg;base64,... or https://...) */
     imageUrl?: string;
     /** 150x150 JPEG data URL for list / personal-center preview */
     thumbnail?: string;
