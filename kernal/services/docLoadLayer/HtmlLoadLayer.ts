@@ -101,6 +101,9 @@ export class HtmlLoadLayer implements IHtmlLoadLayer {
                 clearTimeout(this.timer);
             }
             this.timer = setTimeout(() => {
+                if (!this.isVisible || this.doc?.getLoadStatus() == "success") {
+                    return;
+                }
                 this.state = 'show';
                 this.renderLoadingLayer();
             }, 2000);

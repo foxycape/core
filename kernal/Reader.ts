@@ -245,7 +245,7 @@ export class Reader implements LifecycleHooks {
                     };
                 },
                 afterParserReady: async () => {
-                    await this.loading?.show();
+                    await this.loading?.show(this.getParsingText());
                 },
                 isCancelled: () => this.currentIsCancelled,
             });
@@ -275,9 +275,14 @@ export class Reader implements LifecycleHooks {
         }
     }
 
+    private getParsingText = () => {
+        return this.locale.getText("share_parsing_text", "Parsing...");
+    };
+
     private createFileDownloadingCallback = (): NonNullable<OpenOptions["fileDownloadingCallback"]> => {
         return async (contentLength, receivedLength, done) => {
             if (done) {
+                await this.loading?.show(this.getParsingText());
                 return;
             }
             const totalBytes = contentLength > 0 ? contentLength : receivedLength;
@@ -330,6 +335,7 @@ export class Reader implements LifecycleHooks {
         this.readerContainer.setAttribute("data-viewport-mode", this.getHostViewport().mode);
 
         await this.onContainerCreated?.();
+        await this.loading?.show();
 
         const readerWrapperBackground = this.readerWrapper.style.getPropertyValue("background");
         if (readerWrapperBackground) {

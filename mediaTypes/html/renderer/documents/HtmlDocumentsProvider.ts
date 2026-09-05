@@ -30,7 +30,6 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     protected logger: ILogger;
     private isInit: boolean = false;
     private isFirstLoad: boolean = true;
-    private delayHideLoadingLayerTimer: any;
     private loadingDoc: IHtmlDocument;
     private readonly documentsIntersectionObserver: HtmlDocumentsIntersectionObserver;
     private readonly documentPreloader: IHtmlDocumentsPreloader;
@@ -154,15 +153,12 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         this.loadingDoc = doc;
         this.owner.context.redirectingDocUrl = doc.url;
         try {
-            this.delayHideLoadingLayerTimer = setTimeout(async () => {
-                await this.owner.loading?.hide();
-            }, 2000);
-
             this.owner.context.setUserChangedProgress(!isReload, location?.from);
 
             await this.gotoDoc(doc, location, isReload);
 
             if (this.isFirstLoad && !isReload) {
+                await this.owner.loading?.hide();
                 this.isFirstLoad = false;
             }
 
@@ -715,10 +711,6 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     }
 
     async dispose(): Promise<void> {
-        if (this.delayHideLoadingLayerTimer) {
-            clearTimeout(this.delayHideLoadingLayerTimer);
-            this.delayHideLoadingLayerTimer = null;
-        }
         await this.documentsIntersectionObserver.dispose();
         await this.documentPreloader.dispose();
         await super.dispose();

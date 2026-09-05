@@ -10,10 +10,16 @@ export class DefaultLoading implements ILoading {
     private readonly loadingTextMarginTop = 0;
     private loaderIds = new Map<HTMLElement, string>();
     private options?: LoadingOptions;
+    private hasDismissed = false;
+    private hasMounted = false;
+    private layer: HTMLElement | null = null;
     async initialize(container: HTMLElement,options: LoadingOptions): Promise<void> {
         this.options = options;
         this.container = container;
-        const loaderId = getRandomId(true);
+        this.hasDismissed = false;
+        this.hasMounted = false;
+        this.layer = null;
+        const loaderId = this.loaderIds.get(container) ?? getRandomId(true);
         this.loaderIds.set(container, loaderId)
         if (this.container) {
             if (!existsElement(container.ownerDocument, "loader-css")) {
@@ -26,45 +32,48 @@ export class DefaultLoading implements ILoading {
                 backgroundColor = options?.backgroundColor ?? "#fff";
                 iconColor = options?.iconColor ?? "#14ae5c";
             }
-            injectCssContent(container.ownerDocument, ".loader{background:" + backgroundColor + ";position:absolute;z-index:2;width:100%;height: 100%;box-sizing: border-box;display: flex;-ms-flex: 0 1 auto;flex: 0 1 auto;flex-direction: column;flex-grow: 1;flex-shrink: 0;flex-basis: 25%;-ms-flex-align: center;align-items: center;justify-content: center;}." + this.curentCssName + ">div{background-color:" + iconColor + " !important}", true, "loaders.min.css-content");
+            injectCssContent(container.ownerDocument, ".loader{background:" + backgroundColor + ";position:absolute;inset:0;z-index:9999;width:100%;height: 100%;box-sizing: border-box;display: flex;-ms-flex: 0 1 auto;flex: 0 1 auto;flex-direction: column;flex-grow: 1;flex-shrink: 0;flex-basis: 25%;-ms-flex-align: center;align-items: center;justify-content: center;}." + this.curentCssName + ">div{background-color:" + iconColor + " !important}", true, "loaders.min.css-content");
         }
     }
     async show(text?: string): Promise<void> {
-        if (!this.container)
+        if (!this.container || this.hasDismissed)
             return;
+        const loadingText = text ? text : this.getDefaultLoadingText();
+        if (this.layer?.isConnected) {
+            this.updateText(this.layer, loadingText);
+            this.container.appendChild(this.layer);
+            return;
+        }
+        if (this.hasMounted) {
+            return;
+        }
         const loaderId = this.loaderIds.get(this.container);
-        let loadingContainer = this.container.ownerDocument.getElementById(loaderId);
-        if (loadingContainer) {
-            const loadingText = text ? text : this.getDefaultLoadingText();
-            const textLayer = loadingContainer.querySelector(".loading-holder")
-            if (textLayer && loadingText) {
-                textLayer.textContent = loadingText
-            }
-            return;
+        let textColor = "#333";
+        if (!(this.options?.disableLoadingTheme)) {
+            textColor = this.options?.textColor ?? "#333";
         }
-        else {
-            let textColor = "#333";
-            if (!(this.options?.disableLoadingTheme)) {
-                textColor = this.options?.textColor ?? "#333";
-            }
-            const loadingText = text ? text : this.getDefaultLoadingText();
-            loadingContainer = createElement(this.container.ownerDocument, "div", loaderId, "loader");
-
-            const pulse = this.container.ownerDocument.createElement("div");
-            pulse.className = this.curentCssName;
-            for (let i = 0; i < 6; i++) {
-                pulse.appendChild(this.container.ownerDocument.createElement("div"));
-            }
-
-            const textLayer = this.container.ownerDocument.createElement("div");
-            textLayer.className = "loading-holder";
-            textLayer.style.cssText = `font-size: 15px;color: ${textColor};margin-block-start: ${this.loadingTextMarginTop}px;`;
-            textLayer.textContent = loadingText;
-
-            loadingContainer.append(pulse, textLayer);
-            this.container.insertAdjacentElement("afterbegin", loadingContainer);
+        const loadingContainer = createElement(this.container.ownerDocument, "div", loaderId, "loader");
+        const pulse = this.container.ownerDocument.createElement("div");
+        pulse.className = this.curentCssName;
+        for (let i = 0; i < 6; i++) {
+            pulse.appendChild(this.container.ownerDocument.createElement("div"));
         }
+        const textLayer = this.container.ownerDocument.createElement("div");
+        textLayer.className = "loading-holder";
+        textLayer.style.cssText = `font-size: 15px;color: ${textColor};margin-block-start: ${this.loadingTextMarginTop}px;`;
+        textLayer.textContent = loadingText;
+        loadingContainer.append(pulse, textLayer);
+        this.container.appendChild(loadingContainer);
+        this.layer = loadingContainer;
+        this.hasMounted = true;
     }
+
+    private updateText = (layer: HTMLElement, loadingText: string) => {
+        const textLayer = layer.querySelector(".loading-holder");
+        if (textLayer && loadingText) {
+            textLayer.textContent = loadingText;
+        }
+    };
 
     private getDefaultLoadingText = () => {
         let loadingText = "loading...";
@@ -75,12 +84,15 @@ export class DefaultLoading implements ILoading {
     }
 
     async hide(): Promise<void> {
-        if (!this.container)
-            return;
-        const loaderId = this.loaderIds.get(this.container);
-        const loadingContainer = this.container.ownerDocument.getElementById(loaderId);
+        this.hasDismissed = true;
+        const loadingContainer = this.layer?.isConnected
+            ? this.layer
+            : this.container
+                ? this.container.ownerDocument.getElementById(this.loaderIds.get(this.container) ?? "")
+                : null;
+        this.layer = null;
         if (loadingContainer) {
-            loadingContainer.parentElement.removeChild(loadingContainer);
+            loadingContainer.parentElement?.removeChild(loadingContainer);
         }
     }
 
