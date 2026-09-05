@@ -41,7 +41,9 @@ export class DefaultLoading implements ILoading {
         const loadingText = text ? text : this.getDefaultLoadingText();
         if (this.layer?.isConnected) {
             this.updateText(this.layer, loadingText);
-            this.container.appendChild(this.layer);
+            if (this.layer.parentElement !== this.container || this.container.lastElementChild !== this.layer) {
+                this.container.appendChild(this.layer);
+            }
             return;
         }
         if (this.hasMounted) {
