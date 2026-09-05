@@ -375,49 +375,165 @@ const computeTextItemBoundsInUserSpace = (textItem: TextItem): PdfAxisAlignedRec
     };
 };
 
+const estimatePdfDedupeCellSize = (entries: { item: TextItem; bounds: PdfAxisAlignedRect }[]): number => {
+    const heights: number[] = [];
+    for (const entry of entries) {
+        if (shouldSkipDedupeCandidate(entry.item)) {
+            continue;
+        }
+        const height = entry.bounds.y2 - entry.bounds.y1;
+        if (height > 0) {
+            heights.push(height);
+        }
+    }
+    if (heights.length === 0) {
+        return 12;
+    }
+    heights.sort((a, b) => a - b);
+    return Math.max(heights[heights.length >> 1]!, 1);
+};
+
+const visitPdfDedupeGridCells = (
+    bounds: PdfAxisAlignedRect,
+    cellSize: number,
+    visit: (col: number, row: number) => void,
+) => {
+    const colStart = Math.floor(bounds.x1 / cellSize);
+    const colEnd = Math.max(colStart, Math.ceil(bounds.x2 / cellSize) - 1);
+    const rowStart = Math.floor(bounds.y1 / cellSize);
+    const rowEnd = Math.max(rowStart, Math.ceil(bounds.y2 / cellSize) - 1);
+    for (let row = rowStart; row <= rowEnd; row++) {
+        for (let col = colStart; col <= colEnd; col++) {
+            visit(col, row);
+        }
+    }
+};
+
+const addPdfDedupeGridIndex = (
+    grid: Map<number, Map<number, number[]>>,
+    bounds: PdfAxisAlignedRect,
+    cellSize: number,
+    index: number,
+) => {
+    visitPdfDedupeGridCells(bounds, cellSize, (col, row) => {
+        let rows = grid.get(col);
+        if (!rows) {
+            rows = new Map();
+            grid.set(col, rows);
+        }
+        const bucket = rows.get(row);
+        if (bucket) {
+            bucket.push(index);
+            return;
+        }
+        rows.set(row, [index]);
+    });
+};
+
+const removePdfDedupeGridIndex = (
+    grid: Map<number, Map<number, number[]>>,
+    bounds: PdfAxisAlignedRect,
+    cellSize: number,
+    index: number,
+) => {
+    visitPdfDedupeGridCells(bounds, cellSize, (col, row) => {
+        const bucket = grid.get(col)?.get(row);
+        if (!bucket) {
+            return;
+        }
+        const position = bucket.indexOf(index);
+        if (position >= 0) {
+            bucket.splice(position, 1);
+        }
+    });
+};
+
+const collectPdfDedupeNeighborIndexes = (
+    grid: Map<number, Map<number, number[]>>,
+    bounds: PdfAxisAlignedRect,
+    cellSize: number,
+): number[] => {
+    const indexes: number[] = [];
+    const seen = new Set<number>();
+    visitPdfDedupeGridCells(bounds, cellSize, (col, row) => {
+        const bucket = grid.get(col)?.get(row);
+        if (!bucket) {
+            return;
+        }
+        for (const index of bucket) {
+            if (seen.has(index)) {
+                continue;
+            }
+            seen.add(index);
+            indexes.push(index);
+        }
+    });
+    indexes.sort((a, b) => a - b);
+    return indexes;
+};
+
+const isPdfDedupeDuplicatePair = (
+    existing: { item: TextItem; bounds: PdfAxisAlignedRect },
+    entry: { item: TextItem; bounds: PdfAxisAlignedRect },
+): boolean => {
+    return isCompatibleDuplicateText(existing.item.str, entry.item.str)
+        && overlapRatioOnSmaller(existing.bounds, entry.bounds) >= duplicateTextItemOverlapRatio;
+};
+
+const shouldPreferLaterPdfDedupeItem = (
+    entryArea: number,
+    existingArea: number,
+    entryTextLength: number,
+    existingTextLength: number,
+): boolean => {
+    return entryArea > existingArea * 1.01
+        || (Math.abs(entryArea - existingArea) <= existingArea * 0.01
+            && entryTextLength > existingTextLength);
+};
+
 /**
  * Drop heavily overlapping, text-compatible duplicate text items, keeping the first in reading order;
  * replace the earlier one if a later item has a clearly larger area or more complete text.
+ * Neighbors are found via a uniform grid so distant items are not compared.
  */
 const dedupeOverlappingTextItemsWithBounds = <T extends { item: TextItem; bounds: PdfAxisAlignedRect }>(
     entries: T[]
 ): T[] => {
     const kept: T[] = [];
+    const grid = new Map<number, Map<number, number[]>>();
+    const cellSize = estimatePdfDedupeCellSize(entries);
+
     for (const entry of entries) {
         if (shouldSkipDedupeCandidate(entry.item)) {
             kept.push(entry);
             continue;
         }
 
-        const entryArea = rectArea(entry.bounds);
         let duplicateIndex = -1;
-        for (let i = 0; i < kept.length; i++) {
-            const existing = kept[i]!;
-            if (shouldSkipDedupeCandidate(existing.item)) {
-                continue;
+        for (const index of collectPdfDedupeNeighborIndexes(grid, entry.bounds, cellSize)) {
+            const existing = kept[index]!;
+            if (isPdfDedupeDuplicatePair(existing, entry)) {
+                duplicateIndex = index;
+                break;
             }
-            if (!isCompatibleDuplicateText(existing.item.str, entry.item.str)) {
-                continue;
-            }
-            if (overlapRatioOnSmaller(existing.bounds, entry.bounds) < duplicateTextItemOverlapRatio) {
-                continue;
-            }
-            duplicateIndex = i;
-            break;
         }
 
         if (duplicateIndex < 0) {
+            addPdfDedupeGridIndex(grid, entry.bounds, cellSize, kept.length);
             kept.push(entry);
             continue;
         }
 
         const existing = kept[duplicateIndex]!;
-        const existingArea = rectArea(existing.bounds);
-        const preferNew = entryArea > existingArea * 1.01
-            || (Math.abs(entryArea - existingArea) <= existingArea * 0.01
-                && entry.item.str.length > existing.item.str.length);
-        if (preferNew) {
+        if (shouldPreferLaterPdfDedupeItem(
+            rectArea(entry.bounds),
+            rectArea(existing.bounds),
+            entry.item.str.length,
+            existing.item.str.length,
+        )) {
+            removePdfDedupeGridIndex(grid, existing.bounds, cellSize, duplicateIndex);
             kept[duplicateIndex] = entry;
+            addPdfDedupeGridIndex(grid, entry.bounds, cellSize, duplicateIndex);
         }
     }
     return kept;

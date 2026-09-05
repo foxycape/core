@@ -100,7 +100,7 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
 
         return data;
     }
-    private pdfDocs = new Map<string, pdfjsLib.PDFDocumentProxy>();
+    protected pdfDocs = new Map<string, pdfjsLib.PDFDocumentProxy>();
     async getPdfDocument(spineFile: SpineFile): Promise<pdfjsLib.PDFDocumentProxy> {
         let doc = this.pdfDocs.get(spineFile.url)
         if (doc && !doc.loadingTask.destroyed) {
