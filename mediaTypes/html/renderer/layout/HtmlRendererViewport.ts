@@ -8,6 +8,7 @@ import { HtmlContainerBuilder } from "../documents/HtmlContainerBuilder";
 import { injectCssContent } from "../../../../kernal/html/injector";
 import { HtmlSettings } from "../../HtmlSettings";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
+import { isHtmlElement } from "../../../../kernal/html/realm";
 import { resolveLayoutFlow, getPageTranslateCss } from "./resolveLayoutFlow";
 
 export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics>, IDisposable {
@@ -93,7 +94,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
             return;
         }
         const transformContainer = this.rendererContainer.querySelector("." + HtmlSettings.TransformContainerCssName);
-        if (!(transformContainer instanceof HTMLElement)) {
+        if (!isHtmlElement(transformContainer)) {
             return;
         }
         const target = transformContainer.getAttribute("data-target-transform");

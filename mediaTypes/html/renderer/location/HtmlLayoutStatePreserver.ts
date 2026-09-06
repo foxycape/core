@@ -1,6 +1,8 @@
 import { LocationState } from "../../../../kernal";
 import { parseNumber } from "../../../../kernal/common/number";
 import { getElementByNameAndIndex } from "../../../../kernal/html/finder";
+import { isHtmlElement } from "../../../../kernal/html/realm";
+import { resolveVisibleTranslationAnchor } from "../../../../kernal/html/translationAnchor";
 import { getTransformLength } from "../../../../kernal/html/style";
 import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { HtmlOptions } from "../../HtmlOptions";
@@ -188,13 +190,13 @@ export class HtmlLayoutStatePreserver {
             return null;
         }
         const target = getElementByNameAndIndex(contentContainer, currentLocation.tagName, currentLocation.tagIndex);
-        return target instanceof HTMLElement ? target : null;
+        return resolveVisibleTranslationAnchor(target);
     }
 
     private getTransformContainer(): HTMLElement | null {
         try {
             const el = this.viewport.getRendererContainer()?.querySelector("." + HtmlSettings.TransformContainerCssName);
-            return el instanceof HTMLElement ? el : null;
+            return isHtmlElement(el) ? el : null;
         }
         catch {
             return null;

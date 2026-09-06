@@ -1,3 +1,5 @@
+import { isDomDocument } from "./realm";
+
 /**
  * Watch element scroll.
  */
@@ -21,7 +23,7 @@ export const watchScroll = (
                 raf = null;
                 let currentX = 0;
                 let currentY = 0;
-                if (watchElement instanceof Document) {
+                if (isDomDocument(watchElement)) {
                     currentX = watchElement.documentElement.scrollLeft;
                     currentY = watchElement.documentElement.scrollTop;
                 } else {
@@ -47,7 +49,7 @@ export const watchScroll = (
     let currentX = 0;
     let currentY = 0;
     if (calcScrollDirection) {
-        if (watchElement instanceof Document) {
+        if (isDomDocument(watchElement)) {
             currentX = watchElement.documentElement.scrollLeft;
             currentY = watchElement.documentElement.scrollTop;
         } else {

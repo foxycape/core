@@ -32,6 +32,11 @@ export type Mark = {
     customColor?: string;
     /** Position source for restore / hit-test; format depends on media type */
     contentRange: ContentRange;
+    /**
+     * Source-text range when {@link contentRange} is on a translation `<mt>`.
+     * Used to restore / goto after full-text translation is turned off.
+     */
+    fallbackContentRange?: ContentRange;
     /** Convenience page for fixed-layout marks; omit for reflowable / media */
     pageNumber?: number;
     /** Convenience spine/document URL for reflowable marks; omit for fixed / media */
@@ -179,6 +184,11 @@ export const markMatchesPageNumber = (mark: Mark, pageNumber: number): boolean =
     (getFixedContentRange(mark)?.geometries.some((g) => g.pageNumber === pageNumber) ?? false);
 
 export const getReflowableContentRange = (
-    mark: Mark,
+    mark: Pick<Mark, "contentRange">,
 ): ReflowableContentRange | undefined =>
     mark.contentRange.kind === "reflowable" ? mark.contentRange : undefined;
+
+export const getReflowableFallbackContentRange = (
+    mark: Pick<Mark, "fallbackContentRange">,
+): ReflowableContentRange | undefined =>
+    mark.fallbackContentRange?.kind === "reflowable" ? mark.fallbackContentRange : undefined;

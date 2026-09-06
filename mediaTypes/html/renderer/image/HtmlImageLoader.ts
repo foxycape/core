@@ -771,7 +771,7 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             if (!currentWindow) {
                 continue;
             }
-            if (element instanceof currentWindow.HTMLImageElement || element instanceof currentWindow.SVGImageElement) {
+            if (element instanceof currentWindow.window.HTMLImageElement || element instanceof currentWindow.window.SVGImageElement) {
                 const originElement = this.queryOriginElement(element.ownerDocument, element);
                 if (originElement) {
                     await this.loadSingleImage(htmlDocument, originElement);

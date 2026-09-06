@@ -23,6 +23,7 @@ export type HighlightItem = {
     className?: string
     range?: Range
     contentRange?: ContentRange
+    fallbackContentRange?: ContentRange
     rects?: HighlightRect[]
     pageNumber?: number
     url?: string
@@ -50,6 +51,7 @@ export const markToHighlightItem = (mark: Mark): HighlightItem => ({
     styleName: mark.styleName,
     customColor: mark.customColor,
     contentRange: mark.contentRange,
+    fallbackContentRange: mark.fallbackContentRange,
     pageNumber: mark.pageNumber,
     url: mark.url,
 })

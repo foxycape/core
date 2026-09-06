@@ -222,7 +222,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         if (loadState == "loaded" || loadState == "fail") {
             return true;
         }
-        const ImageCtor = image.ownerDocument.defaultView?.HTMLImageElement;
+        const ImageCtor = image.ownerDocument.defaultView?.window.HTMLImageElement;
         if (!ImageCtor || !(image instanceof ImageCtor)) {
             return false;
         }
