@@ -16,7 +16,7 @@ const isElementDisplayed = (el: Element): boolean => {
     return style.display !== "none" && style.visibility !== "hidden";
 };
 
-const isVisiblyPresent = (el: Element): boolean => {
+export const isVisiblyPresent = (el: Element): boolean => {
     let current: Element | null = el;
     while (current) {
         if (!isElementDisplayed(current)) {
@@ -25,6 +25,30 @@ const isVisiblyPresent = (el: Element): boolean => {
         current = current.parentElement;
     }
     return true;
+};
+
+export const isNodeVisiblyPresent = (node: Node | null): boolean => {
+    if (!node) {
+        return false;
+    }
+    const el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+    return !!el && isVisiblyPresent(el);
+};
+
+const hasVisibleText = (el: Element): boolean => {
+    const doc = el.ownerDocument;
+    if (!doc) {
+        return isVisiblyPresent(el);
+    }
+    const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode() as Text | null;
+    while (node) {
+        if (node.data.trim() && isNodeVisiblyPresent(node)) {
+            return true;
+        }
+        node = walker.nextNode() as Text | null;
+    }
+    return false;
 };
 
 const findAncestorByTag = (el: Element, tag: string): Element | null => {
@@ -66,7 +90,7 @@ export const resolveVisibleTranslationAnchor = (el: Element | null): HTMLElement
     if (!el) {
         return null;
     }
-    if (isHtmlElement(el) && isVisiblyPresent(el)) {
+    if (isHtmlElement(el) && isVisiblyPresent(el) && hasVisibleText(el)) {
         return el;
     }
     const st = findAncestorByTag(el, STTAG) ?? (compareTagName(el.tagName, STTAG) ? el : null);
@@ -85,7 +109,11 @@ export const resolveVisibleTranslationAnchor = (el: Element | null): HTMLElement
             return visible;
         }
     }
-    const ownInitial = el.getAttribute(ElementInitialNumberName);
+    let indexed: Element | null = el;
+    while (indexed && !indexed.getAttribute(ElementInitialNumberName)?.trim()) {
+        indexed = indexed.parentElement;
+    }
+    const ownInitial = indexed?.getAttribute(ElementInitialNumberName) ?? el.getAttribute(ElementInitialNumberName);
     if (ownInitial) {
         const visible = asVisibleHtml(queryPaired(el, ElementMtInitialNumberName, ownInitial));
         if (visible) {

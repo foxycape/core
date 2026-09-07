@@ -1,6 +1,33 @@
-import { ElementInitialNumberName } from "../Constants";
+import { ElementInitialNumberName, MTTAG } from "../Constants";
 import { parseNumber } from "../common/number";
 import type { ElementRangeType } from "./types";
+
+export type ElementLookupOptions = {
+    ignoreMtDescendants?: boolean
+}
+
+export const hasMtAncestor = (el: Element): boolean => {
+    let current = el.parentElement
+    while (current) {
+        if (compareTagName(current.tagName, MTTAG)) {
+            return true
+        }
+        current = current.parentElement
+    }
+    return false
+}
+
+const collectNamedElements = (
+    root: Element | Document,
+    tagName: string,
+    options?: ElementLookupOptions,
+): Element[] => {
+    const tags = Array.from(root.getElementsByTagName(tagName))
+    if (!options?.ignoreMtDescendants || compareTagName(tagName, MTTAG)) {
+        return tags
+    }
+    return tags.filter((el) => !hasMtAncestor(el))
+}
 
 export const compareTagName = (sourceTagName: string, targetTagName: string) => {
     if (!sourceTagName || !targetTagName) {
@@ -29,25 +56,21 @@ export const getDocumentBody = (ownerDocument: Document) => {
     return body;
 };
 
-const getTagIndex = (tags: HTMLCollectionOf<Element>, tag: Element) => {
-    let i = 0;
-    for (i = 0; i < tags.length; i++) {
-        const currentTag = tags.item(i)
-        if (currentTag == tag) {
-            return i;
-        }
+const getTagIndex = (tags: ArrayLike<Element | null>, tag: Element) => {
+    const list = Array.from(tags).filter((item): item is Element => !!item)
+    const exact = list.indexOf(tag)
+    if (exact >= 0) {
+        return exact
     }
-    for (i = 0; i < tags.length; i++) {
-        const currentTag = tags.item(i)
-        if (currentTag.tagName == tag.tagName) {
-            const currentTagIndexNumber = currentTag.getAttribute(ElementInitialNumberName)
-            if (currentTagIndexNumber && currentTagIndexNumber == tag.getAttribute(ElementInitialNumberName)) {
-                return i;
-            }
-        }
+    const wanted = tag.getAttribute(ElementInitialNumberName)
+    if (!wanted) {
+        return -1
     }
-
-    return -1;
+    return list.findIndex(
+        (currentTag) =>
+            currentTag.tagName == tag.tagName &&
+            currentTag.getAttribute(ElementInitialNumberName) == wanted,
+    )
 };
 
 export const getAllNodes = (node: Node) => {
@@ -94,7 +117,12 @@ export const nodeContainsDescendant = (ancestor: Node, descendant: Node): boolea
 /**
  * Get the index of an element among matching tags.
  */
-export const getElementIndex = (rootElement: Document | Element, element: Element, range?: ElementRangeType) => {
+export const getElementIndex = (
+    rootElement: Document | Element,
+    element: Element,
+    range?: ElementRangeType,
+    options?: ElementLookupOptions,
+) => {
     const rootElementType = rootElement.ownerDocument ? (compareTagName((rootElement as Element).tagName, "BODY") ? 'body' : 'element') : 'document';
     const rootElementOwnerDocument = rootElement.ownerDocument ?? rootElement as Document;
     const elementOwnerDocument = element.ownerDocument;
@@ -102,10 +130,10 @@ export const getElementIndex = (rootElement: Document | Element, element: Elemen
         const tagName = element.tagName;
         if (rootElementOwnerDocument != elementOwnerDocument) {
             const body = getDocumentBody(elementOwnerDocument);
-            return getTagIndex(body.getElementsByTagName(tagName), element)
+            return getTagIndex(collectNamedElements(body, tagName, options), element)
         }
         else {
-            return getTagIndex(rootElement.getElementsByTagName(tagName), element)
+            return getTagIndex(collectNamedElements(rootElement, tagName, options), element)
         }
 
     }
@@ -172,7 +200,12 @@ export const checkIsOtherNonWhiteSpaceSymbol = (elementName: string, nonWhiteSpa
     return nonWhiteSpaceSymbolTagNames.indexOf(elementName.toLowerCase()) >= 0
 };
 
-export const getElementByNameAndIndex = (rootElement: Document | Element, tagName: string, tagIndex: number) => {
+export const getElementByNameAndIndex = (
+    rootElement: Document | Element,
+    tagName: string,
+    tagIndex: number,
+    options?: ElementLookupOptions,
+) => {
     if (!tagName) {
         return null;
     }
@@ -181,12 +214,20 @@ export const getElementByNameAndIndex = (rootElement: Document | Element, tagNam
         return getDocumentBody(rootElementOwnerDocument);
     }
     let index = tagIndex ?? 0;
-    const tags = rootElement.getElementsByTagName(tagName);
+    const tags = collectNamedElements(rootElement, tagName, options);
+    if (tags.length === 0) {
+        return null;
+    }
+    if (index < 0) {
+        return null;
+    }
     if (index > tags.length - 1) {
+        if (options?.ignoreMtDescendants) {
+            return null;
+        }
         index = tags.length - 1;
     }
-    const tag = tags[index];
-    return tag;
+    return tags[index] ?? null;
 };
 
 export const getElementByElementNumber = (rootElement: Document | Element, elementNumber: number) => {
