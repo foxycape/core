@@ -45,6 +45,8 @@ export type Mark = {
     imageUrl?: string;
     /** 150x150 JPEG data URL for list / personal-center preview */
     thumbnail?: string;
+    /** OPFS path of the persisted full-size collected image */
+    filePath?: string;
     /** Document-wide progress (0~1) computed from the mark's content range */
     progress?: number;
     /** Chapter / TOC entry URL */

@@ -1,5 +1,10 @@
+import type { ContentRange } from "../ContentRange";
+
 /** Mark category */
-export type MarkType = "drawline" | "note" | "bookmark" | (string & {});
+export type MarkType = "drawline" | "note" | "bookmark" | "favorite" | (string & {});
+
+export const isNonPaintableMarkType = (type: string) =>
+    type === "bookmark" || type === "favorite";
 
 /** Drawline visual style */
 export type MarkStyleName =
@@ -42,6 +47,10 @@ export type CreateMarkOptions = {
     imageUrl?: string;
     /** 150x150 JPEG data URL for list / personal-center preview */
     thumbnail?: string;
+    /** OPFS path of the persisted full-size collected image */
+    filePath?: string;
+    /** Optional precomputed range (PDF collected images) */
+    contentRange?: ContentRange;
 };
 
 export type FindMarkTarget = {
