@@ -22,6 +22,7 @@ export type HighlightItem = {
     customColor?: string
     className?: string
     range?: Range
+    ranges?: Range[]
     contentRange?: ContentRange
     fallbackContentRange?: ContentRange
     rects?: HighlightRect[]
