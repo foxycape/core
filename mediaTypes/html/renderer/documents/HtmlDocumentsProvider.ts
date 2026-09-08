@@ -208,11 +208,24 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                 }
             }
             else {
-                if (isReload && redirectTarget && !isNullOrWhiteSpace(location.tagName)) {
-                    // Layout metrics changed: resolve page from element under a zeroed transform,
-                    // otherwise getBoundingClientRect is skewed by the previous page offset.
+                if (isReload) {
                     this.resetTransformContainer();
-                    pageNumber = await doc.getPageNumber(redirectTarget);
+                    if (redirectTarget && !isNullOrWhiteSpace(location.tagName)) {
+                        pageNumber = await doc.getPageNumber(redirectTarget);
+                    }
+                    else if (location.unit === "page" && location.current != null && location.current > 0) {
+                        pageNumber = location.current;
+                        const numberOfPages = await doc.getNumberOfPages();
+                        if (location.total > 1 && location.total != numberOfPages) {
+                            pageNumber = Math.ceil(numberOfPages * (location.current / location.total));
+                        }
+                    }
+                    else if (isDomRange(redirectTarget)) {
+                        pageNumber = await doc.getPageNumber(redirectTarget);
+                    }
+                    else if (!pageNumber && redirectTarget) {
+                        pageNumber = await doc.getPageNumber(redirectTarget);
+                    }
                 }
                 else if (location.unit === "page" && location.current != null && location.current > 0) {
                     pageNumber = location.current;
@@ -676,6 +689,28 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             return 1;
         const pageNumber = contentRootElement.getAttribute(HtmlSettings.HtmlDocumentCurrentPagePropertyName);
         return parseNumber(pageNumber, 1, 'parseInt');
+    }
+
+    async syncPageState(doc: IHtmlDocument): Promise<{ current: number; total: number }> {
+        const contentRoot = doc.getContentContainer()?.ownerDocument?.documentElement;
+        contentRoot?.removeAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName);
+        const total = Math.max(1, await doc.getNumberOfPages());
+        const flow = resolveLayoutFlow(this.htmlOptions);
+        const metrics = this.rendererViewport.getLayoutMetrics();
+        const step = Math.max(1, metrics.pageMoveLength);
+        const transformContainer = this.getTransformContainer();
+        const currentTransform = parseNumber(
+            transformContainer?.getAttribute('data-target-transform'),
+            0,
+            'parseFloat',
+        );
+        const offset = this.getDocumentPageStartOffset(doc, flow.pageAxis);
+        const current = Math.min(
+            total,
+            Math.max(1, Math.round(Math.abs(currentTransform - offset) / step) + 1),
+        );
+        this.setCurrentPageNumber(doc, current);
+        return { current, total };
     }
 
     private setDocumentVisible = (wrapperContainer: Element, isVisible: boolean) => {

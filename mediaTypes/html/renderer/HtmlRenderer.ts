@@ -181,6 +181,9 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
             this.rendererViewport.applyCssVariables();
             await yieldToMain();
             if (requireReload) {
+                for (const doc of this.getLoadedDocuments()) {
+                    await this.rendererLayout.applyDocStyles(doc, false);
+                }
                 if (!this.owner.context.userChangedProgress) {
                     await this.reload();
                 }

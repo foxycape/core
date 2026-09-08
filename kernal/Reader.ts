@@ -25,7 +25,6 @@ import { OptionsProvider } from "./OptionsProvider";
 import type { LifecycleHooks } from "./LifecycleHooks";
 import { IFileParser } from "./IFileParser";
 import { IDocumentsProvider } from "./IDocumentsProvider";
-
 export type ReaderServices = CoreServices & Partial<UiServiceMap>;
 
 export class Reader implements LifecycleHooks {

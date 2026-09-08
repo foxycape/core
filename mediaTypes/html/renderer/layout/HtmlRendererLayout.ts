@@ -29,10 +29,10 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
 
     }
 
-    async applyStyles(): Promise<void> {
+    async applyStyles(restoreLayoutState = true): Promise<void> {
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         for (const doc of loadedDocuments) {
-            await this.applyDocStyles(doc);
+            await this.applyDocStyles(doc, restoreLayoutState);
         }
     }
 

@@ -300,9 +300,12 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
     private getContentsShadowMargin(contentsContainerWidthNumber: number) {
         const contentsShadowMargin = this.htmlOptions.contentsShadowMargin ?? 20;
         const factor = this.getContentPaddingFactor();
-        const marginInline= contentsShadowMargin + Math.min(10, contentsContainerWidthNumber * factor);
+        const baseMargin = this.device.getDeviceType() == 'mobile'
+            ? Math.round(contentsShadowMargin * 0.6)
+            : contentsShadowMargin;
+        const marginInline= baseMargin + Math.min(10, contentsContainerWidthNumber * factor);
         return {
-            marginBlock:contentsShadowMargin,
+            marginBlock: baseMargin,
             marginInline
         }
     }

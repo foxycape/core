@@ -57,8 +57,7 @@ export class HtmlPagingNavigator implements IPagingNavigator {
         // this.logger.debug("url:", firstVisibleDocument.url, "gotoPage firstVisibleDocument");
         // await doc.load();
 
-        const isPastLastContent = direction == "next" && !this.documentsProvider.canAdvancePageTransform(doc);
-        if (pageNumber > numberOfPages || isPastLastContent) {
+        if (pageNumber > numberOfPages) {
             const docs = this.documentsProvider.getDocuments();
             const index = docs.indexOf(doc);
             if (index == docs.length - 1) {
@@ -86,35 +85,41 @@ export class HtmlPagingNavigator implements IPagingNavigator {
             // this.logger.warn(this.locale.getText("unsupportTurnPageWhenScrolling", "Page turning is not supported in scroll mode"));
             return false;
         }
-        let doc = this.documentsProvider.getFirstVisibleDocument();
-        // let doc = this.renderer.getLastVisibleDocument();
+        let doc = this.resolveCurrentDocument('next');
         if (!doc) {
             const documents = this.documentsProvider.getDocuments();
             doc = documents[documents.length - 1];
         }
         await doc.load();
-        const currentPageNumber = this.documentsProvider.getCurrentPageNumber(doc);
-        this.state = { doc, pageNumber: currentPageNumber }
-        const nextPageNumber = currentPageNumber + 1;
-        return await this.internalGotoPage(doc, nextPageNumber, 'next', extra);
+        const { current } = await this.documentsProvider.syncPageState(doc);
+        this.state = { doc, pageNumber: current }
+        return await this.internalGotoPage(doc, current + 1, 'next', extra);
     }
     async gotoPreviousPage(extra?: PagingExtra): Promise<boolean> {
         if (resolveLayoutFlow(this.options).flipMode == "scroll") {
             // this.logger.warn(this.locale.getText("unsupportTurnPageWhenScrolling", "Page turning is not supported in scroll mode"));
             return false;
         }
-        // let doc = this.renderer.getFirstVisibleDocument();
-        let doc = this.documentsProvider.getLastVisibleDocument();
+        let doc = this.resolveCurrentDocument('previous');
         if (!doc) {
             const documents = this.documentsProvider.getDocuments();
             doc = documents[0];
         }
         await doc.load();
-        const currentPageNumber = this.documentsProvider.getCurrentPageNumber(doc);
-        this.state = { doc, pageNumber: currentPageNumber }
-        const previousPageNumber = currentPageNumber - 1;
-        // this.logger.debug('gotoPreviousPage', 'doc', doc, 'previousPageNumber', previousPageNumber)
-        return await this.internalGotoPage(doc, previousPageNumber, 'previous', extra);
+        const { current } = await this.documentsProvider.syncPageState(doc);
+        this.state = { doc, pageNumber: current }
+        return await this.internalGotoPage(doc, current - 1, 'previous', extra);
+    }
+
+    private resolveCurrentDocument = (direction: 'next' | 'previous'): IHtmlDocument | null => {
+        const currentUrl = this.owner.context.currentLocation?.url;
+        const fromLocation = currentUrl ? this.documentsProvider.getDocument(currentUrl) : null;
+        if (fromLocation?.getLoadStatus() === 'success') {
+            return fromLocation;
+        }
+        return direction === 'next'
+            ? this.documentsProvider.getFirstVisibleDocument()
+            : this.documentsProvider.getLastVisibleDocument();
     }
 
     private notify = async (doc: IHtmlDocument, pageNumber: number, extra?: PagingExtra) => {

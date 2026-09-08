@@ -277,5 +277,6 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
     private delayUpdateProgress = debounce(this.updateProgress, 300);
 
     async dispose(): Promise<void> {
+        await this.updateProgress();
     }
 }
