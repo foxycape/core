@@ -390,21 +390,26 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         }
         this.clearInlineContentBox(contentRootElement, body);
         this.iframe.style.removeProperty("min-width");
+        this.iframe.style.removeProperty("min-height");
         this.iframe.style.setProperty(
             "width",
             this.options.forceScroll
                 ? "100%"
                 : `var(${ViewportCssVariableNames.ContentContainerWidth})`
         );
+        this.iframe.style.height = "auto";
+        void this.iframe.offsetHeight;
+        const iframeMinHeight = Math.max(
+            1,
+            contentRootElement.scrollHeight,
+            body?.scrollHeight ?? 0,
+        );
         this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
-        // Do not remove min-height first: collapsing it changes which elements
-        // are visible and makes the subsequent location reload inaccurate.
-        const iframeMinHeight = contentRootElement.getBoundingClientRect().height;
         this.iframe.style.minHeight = Math.round(iframeMinHeight) + "px";
     }
 
     /**
-     * Grow the iframe to the columned content size.
+     * Grow or shrink the iframe to the columned content size.
      * Old min-width/min-height must be cleared and the iframe locked to the
      * current page box first; otherwise scrollWidth/Height stays at the previous
      * iframe size and later documents get the wrong offset for transformPage.
@@ -413,31 +418,82 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.clearInlineContentBox(rootContent, body);
         this.iframe.style.removeProperty("min-width");
         this.iframe.style.removeProperty("min-height");
-        this.iframe.style.setProperty("width", `var(${ViewportCssVariableNames.ContentContainerWidth})`);
-        this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
+        const pageBox = this.getPageBoxSize();
+        this.lockIframeToPageBox(pageBox);
+        const parent = this.iframe.parentElement;
+        const originParentWidth = parent?.style.width ?? "";
+        const originParentMinWidth = parent?.style.minWidth ?? "";
+        const pageWidth = pageBox.width;
+        if (parent && axis == "x" && pageWidth > 0) {
+            parent.style.width = `${pageWidth}px`;
+            parent.style.minWidth = `${pageWidth}px`;
+        }
         const restoreMeasureStyles = this.beginColumnOverflowMeasure(rootContent, body, axis);
         try {
             if (axis == "y") {
                 void this.iframe.offsetHeight;
                 void rootContent.offsetHeight;
                 const grownHeight = Math.max(1, rootContent.scrollHeight, body?.scrollHeight ?? 0);
-                this.iframe.style.height = "auto";
+                this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
                 this.iframe.style.minHeight = grownHeight + "px";
                 return;
             }
             void this.iframe.offsetWidth;
             void rootContent.offsetWidth;
-            // const grownWidth = Math.max(1, rootContent.scrollWidth, body?.scrollWidth ?? 0);
-            const iframeMinWidth = rootContent.scrollWidth
-            const bodyWidth = getDocumentBody(rootContent.ownerDocument).getBoundingClientRect().width;
-            const grownWidth = Math.min(iframeMinWidth, bodyWidth);
-            // this.iframe.style.width = "auto";
+            const grownWidth = Math.max(1, rootContent.scrollWidth, body?.scrollWidth ?? 0);
             this.iframe.style.setProperty("width", `var(${ViewportCssVariableNames.ContentContainerWidth})`);
             this.iframe.style.minWidth = grownWidth + "px";
         }
         finally {
             restoreMeasureStyles();
+            if (parent) {
+                if (originParentWidth) {
+                    parent.style.width = originParentWidth;
+                }
+                else {
+                    parent.style.removeProperty("width");
+                }
+                if (originParentMinWidth) {
+                    parent.style.minWidth = originParentMinWidth;
+                }
+                else {
+                    parent.style.removeProperty("min-width");
+                }
+            }
         }
+    }
+
+    /**
+     * Pin the iframe to the current page box in pixels so a max-content parent
+     * can shrink after font-size / column count drops. width:100% + max-content
+     * otherwise keeps the previous (larger) used width.
+     */
+    private getPageBoxSize() {
+        const renderer = this.owner.getRenderer()?.getRendererContainer();
+        const width = parseFloat(renderer?.getAttribute("data-column-width") ?? "")
+            || Math.round(this.iframe.getBoundingClientRect().width);
+        const height = parseFloat(renderer?.getAttribute("data-page-height") ?? "")
+            || Math.round(this.iframe.getBoundingClientRect().height);
+        return {
+            width: Number.isFinite(width) ? Math.round(width) : 0,
+            height: Number.isFinite(height) ? Math.round(height) : 0,
+        };
+    }
+
+    private lockIframeToPageBox(pageBox = this.getPageBoxSize()) {
+        if (pageBox.width > 0) {
+            this.iframe.style.width = `${pageBox.width}px`;
+        }
+        else {
+            this.iframe.style.setProperty("width", `var(${ViewportCssVariableNames.ContentContainerWidth})`);
+        }
+        if (pageBox.height > 0) {
+            this.iframe.style.height = `${pageBox.height}px`;
+        }
+        else {
+            this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
+        }
+        void this.iframe.offsetWidth;
     }
 
     /**

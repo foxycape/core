@@ -1,4 +1,4 @@
-﻿import { getRandomId } from "../../../kernal/common/uuid";
+import { getRandomId } from "../../../kernal/common/uuid";
 import { EventNames, FileLocation, ICoreNavigator, IFileParser, isOptionKey, IPagingNavigator, WritingMode, IStyleProvider, INavPointNavigator, INavPointProvider, Theme, Direction, yieldToMain } from "../../../kernal";
 import type { Reader } from "../../../kernal/Reader";
 import { watchScroll } from "../../../kernal/html/events";
