@@ -700,7 +700,11 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         if (isNullOrWhiteSpace(nodeName)) {
             return false;
         }
-        return this.htmlOptions.htmlInlineTags.indexOf(nodeName.toLowerCase()) >= 0;
+        const tagName = nodeName.toLowerCase();
+        if (tagName == "img" || tagName == "image") {
+            return true;
+        }
+        return this.htmlOptions.htmlInlineTags.indexOf(tagName) >= 0;
     }
 
     private isInlineImage(element: ImageElement): boolean {
