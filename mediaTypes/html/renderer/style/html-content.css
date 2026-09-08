@@ -282,7 +282,7 @@ pre {
 
 /** center image */
 .lhx-text-empty:has(> img:only-child),
-.lhx-text-empty:has(> img:only-of-type, img:only-of-type + a),
+.lhx-text-empty:has(> img:only-of-type, > img:only-of-type + a),
 :not(.lhx-text-empty):has(> img:first-child) {
     text-align: center;
 }
@@ -294,8 +294,8 @@ pre {
 }
 
 /** only one child div, p or img, then no text indent */
-.lhx-text-empty:has(> div:only-child, p:only-child, canvas:only-child, object:only-child, svg:only-child, audio:only-child, video:only-child, iframe:only-child, img:only-child),
-:not(.lhx-text-empty):has(> div:first-child, p:first-child, canvas:first-child, object:first-child, svg:first-child, audio:first-child, video:first-child, iframe:first-child, img:first-child),
+.lhx-text-empty:has(> div:only-child, > p:only-child, > canvas:only-child, > object:only-child, > svg:only-child, > audio:only-child, > video:only-child, > iframe:only-child, > img:only-child),
+:not(.lhx-text-empty):has(> div:first-child, > p:first-child, > canvas:first-child, > object:first-child, > svg:first-child, > audio:first-child, > video:first-child, > iframe:first-child, > img:first-child),
 img:only-child,
 canvas:only-child,
 svg:only-child,

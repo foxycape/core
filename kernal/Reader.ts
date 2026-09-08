@@ -311,8 +311,9 @@ export class Reader implements LifecycleHooks {
             const iframe = this.createTopIFrame();
             this.readerWrapper.appendChild(iframe);
             if (BrowserCapabilities.isFirefox()) {
-                iframe.contentDocument.open();
-                iframe.contentDocument.close();
+                iframe.srcdoc = "<!DOCTYPE html><html><head></head><body></body></html>";
+                // iframe.contentDocument.open();
+                // iframe.contentDocument.close();
             }
             const iframeDocument = iframe.contentDocument!;
             this.readerContainer = createElement(iframeDocument, "div", getRandomId(true), { "style": this.getReaderContainerBoxStyle(extension) });
