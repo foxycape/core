@@ -90,11 +90,14 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
     }
 
     private syncPageTransformSign(flow: ReturnType<typeof resolveLayoutFlow>) {
-        if (flow.flipMode != "page") {
-            return;
-        }
         const transformContainer = this.rendererContainer.querySelector("." + HtmlSettings.TransformContainerCssName);
         if (!isHtmlElement(transformContainer)) {
+            return;
+        }
+        if (flow.flipMode != "page") {
+            transformContainer.style.removeProperty("transition");
+            transformContainer.style.removeProperty("transform");
+            transformContainer.removeAttribute("data-target-transform");
             return;
         }
         const target = transformContainer.getAttribute("data-target-transform");

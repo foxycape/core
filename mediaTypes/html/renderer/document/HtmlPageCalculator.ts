@@ -36,34 +36,15 @@ export class HtmlPageCalculator {
         const documentViewport = this.layout.getLayoutMetrics();
         const iframe = this.getIframe();
         const axis = flow.pageAxis;
-        let totalLength = 0;
-        let htmlScrollLength = axis == "y" ? documentElement.scrollHeight : documentElement.scrollWidth;
-        if (htmlScrollLength < 1)
-            htmlScrollLength = 1;
-        let translateLength = getTransformLength(documentElement, axis);
+        // html.scrollWidth is often --page-width (a full screen). Progress
+        // should follow the iframe's occupied columns, not that forced box.
+        const occupiedLength = axis == "y"
+            ? (iframe?.offsetHeight || documentElement.scrollHeight)
+            : (iframe?.offsetWidth || documentElement.scrollWidth);
+        let totalLength = Math.max(1, occupiedLength);
+        const translateLength = getTransformLength(documentElement, axis);
         if (Math.abs(translateLength) > 0) {
-            if (iframe) {
-                const iframeScrollLength = axis == "y" ? iframe.scrollHeight : iframe.scrollWidth;
-                if (htmlScrollLength == iframeScrollLength) {
-                    this.transformCurrentDocument(this.getContentRootElement(), translateLength - 2, axis);
-                    const newHtmlScrollLength = axis == "y" ? documentElement.scrollHeight : documentElement.scrollWidth;
-                    if (htmlScrollLength == newHtmlScrollLength) {
-                        this.transformCurrentDocument(this.getContentRootElement(), 0, axis);
-                        translateLength = 0;
-                        htmlScrollLength = axis == "y" ? documentElement.scrollHeight : documentElement.scrollWidth;
-                    }
-                    else {
-                        this.transformCurrentDocument(this.getContentRootElement(), translateLength, axis);
-                    }
-                }
-            }
-        }
-        totalLength = translateLength + htmlScrollLength;
-        if (axis == "y") {
-            totalLength = Math.max(totalLength, iframe?.scrollHeight ?? 0);
-        }
-        else {
-            totalLength = Math.max(totalLength, iframe?.scrollWidth ?? 0);
+            totalLength = translateLength + totalLength;
         }
         numberOfPages = Math.floor(totalLength / documentViewport.pageMoveLength);
         if (totalLength % documentViewport.pageMoveLength > documentViewport.columnGap) {
@@ -113,23 +94,5 @@ export class HtmlPageCalculator {
 
     private getIframe(): HTMLIFrameElement | undefined {
         return this.doc.getContentContainer()?.ownerDocument?.defaultView?.frameElement as HTMLIFrameElement | undefined;
-    }
-
-    private getContentRootElement(): HTMLElement {
-        if (this.doc.inIframe) {
-            return this.doc.getContentContainer()?.ownerDocument?.documentElement;
-        }
-        return this.doc.getWrapperContainer();
-    }
-
-    private transformCurrentDocument(rootElement: HTMLElement, translateLegnth: number, axis: 'x' | 'y') {
-        if (!axis || !rootElement)
-            return;
-        if (axis == "x") {
-            rootElement.style.transform = "translateX(-" + parseFloat(translateLegnth.toFixed(10)) + "px)";
-        }
-        else {
-            rootElement.style.transform = "translateY(-" + parseFloat(translateLegnth.toFixed(10)) + "px)";
-        }
     }
 }

@@ -39,7 +39,7 @@ export class HtmlLayoutStatePreserver {
                 : (wrapper?.offsetHeight ?? 0),
             transformLeft: transformContainer ? getTransformLength(transformContainer, "x") : 0,
             transformTop: transformContainer ? getTransformLength(transformContainer, "y") : 0,
-            firstVisibleDocument: renderer?.getFirstVisibleDocument(),
+            firstVisibleDocument: this.resolveCompensationAnchor() ?? renderer?.getFirstVisibleDocument(),
             offsetLeft: anchor?.offsetLeft ?? 0,
             offsetTop: anchor?.offsetTop ?? 0,
             foundElement: !!anchor
@@ -65,6 +65,7 @@ export class HtmlLayoutStatePreserver {
             this.restorePageTransform(locationState, currentIndex === firstVisibleDocumentIndex, flow.pageAxis);
             return;
         }
+        this.clearPageTransformIfNeeded();
         this.restoreScroll(locationState, currentIndex === firstVisibleDocumentIndex, flow.blockAxis);
     }
 
@@ -183,6 +184,28 @@ export class HtmlLayoutStatePreserver {
         }
     }
 
+    /**
+     * Absolute jumps (TOC) set redirectingDocUrl to the destination. Use that
+     * as the size-compensation anchor so preceding chapters that load later
+     * shift the transform instead of pushing the target off-screen.
+     * Relative page turns keep the live first-visible document.
+     */
+    private resolveCompensationAnchor() {
+        const renderer = this.doc.owner.getRenderer();
+        if (!renderer) {
+            return undefined;
+        }
+        const location = this.doc.owner.context.currentLocation;
+        if (location?.direction == "next" || location?.direction == "previous") {
+            return renderer.getFirstVisibleDocument();
+        }
+        const redirectUrl = this.doc.owner.context.redirectingDocUrl;
+        if (redirectUrl) {
+            return renderer.getDocument(redirectUrl) ?? renderer.getFirstVisibleDocument();
+        }
+        return renderer.getFirstVisibleDocument();
+    }
+
     private findLocationAnchor(): HTMLElement | null {
         const currentLocation = this.doc.owner.context.currentLocation;
         const contentContainer = this.doc.getContentContainer();
@@ -191,6 +214,16 @@ export class HtmlLayoutStatePreserver {
         }
         const target = getElementByNameAndIndex(contentContainer, currentLocation.tagName, currentLocation.tagIndex);
         return resolveVisibleTranslationAnchor(target);
+    }
+
+    private clearPageTransformIfNeeded() {
+        const transformContainer = this.getTransformContainer();
+        if (!transformContainer) {
+            return;
+        }
+        transformContainer.style.removeProperty("transition");
+        transformContainer.style.removeProperty("transform");
+        transformContainer.removeAttribute("data-target-transform");
     }
 
     private getTransformContainer(): HTMLElement | null {

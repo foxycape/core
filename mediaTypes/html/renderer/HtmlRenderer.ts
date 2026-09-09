@@ -155,9 +155,12 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     };
 
     private onDocumentSizeChange = async () => {
-        if (!this.owner.context.userChangedProgress && !this.owner.context.skipDocumentSizeChangeReload) {
-            await this.reload();
+        // Page turns set userChangedProgress. Do not snap transform back to the
+        // still-stale currentLocation (progress updates are debounced 300ms).
+        if (this.owner.context.userChangedProgress) {
+            return;
         }
+        await this.delayRestoreReadingPosition();
     };
 
     private onOptionsChange = async (path: string) => {
@@ -182,7 +185,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
             await yieldToMain();
             if (requireReload) {
                 for (const doc of this.getLoadedDocuments()) {
-                    await this.rendererLayout.applyDocStyles(doc, false);
+                    await this.rendererLayout.applyDocStyles(doc);
                 }
                 if (!this.owner.context.userChangedProgress) {
                     await this.reload();

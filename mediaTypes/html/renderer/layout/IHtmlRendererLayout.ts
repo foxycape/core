@@ -3,9 +3,9 @@ import { IHtmlDocument } from "../IHtmlDocument";
 
 export interface IHtmlRendererLayout {
     /**Apply styles to the renderer and documents */
-    applyStyles(restoreLayoutState?: boolean): Promise<void>;
+    applyStyles(): Promise<void>;
     /**Apply styles to a document */
-    applyDocStyles(doc: IHtmlDocument, restoreLayoutState?: boolean): Promise<void>;
+    applyDocStyles(doc: IHtmlDocument): Promise<void>;
     /**Change layout options (only provided fields are applied) */
     changeLayout(options: HtmlChangeLayoutOptions): Promise<void>;
 }

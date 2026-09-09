@@ -154,6 +154,9 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         this.owner.context.redirectingDocUrl = doc.url;
         try {
             this.owner.context.setUserChangedProgress(!isReload, location?.from);
+            if (!isReload && location?.url) {
+                this.owner.context.currentLocation = location;
+            }
 
             await this.gotoDoc(doc, location, isReload);
 
@@ -163,6 +166,9 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             }
 
             await this.documentPreloader.preloadDocuments();
+            if (this.shouldRealignAfterPreload(location, isReload)) {
+                await this.gotoDoc(doc, location, true);
+            }
         } finally {
             setTimeout(() => {
                 this.loadingDoc = null;
@@ -209,7 +215,6 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             }
             else {
                 if (isReload) {
-                    this.resetTransformContainer();
                     if (redirectTarget && !isNullOrWhiteSpace(location.tagName)) {
                         pageNumber = await doc.getPageNumber(redirectTarget);
                     }
@@ -412,10 +417,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     }
 
     /**
-     * Relative next/previous must snap against the live style transform and only
-     * correct column-phase drift for those directions. Absolute goto (reload /
-     * resize remap) uses offset + pageNumber so a stale grid after viewport
-     * resize cannot skip writing the new translate.
+     * Packed columns are a continuous strip. Next/previous only slide the
+     * viewport by one screen. Document offset / pageNumber must not phase-correct
+     * those turns — leftover columns of the previous chapter are not drift.
+     * Absolute goto (TOC / search / font remap) still uses offset + pageNumber.
      */
     private resolveRelativePageTransform(
         doc: IHtmlDocument,
@@ -437,47 +442,31 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             currentTransformedLength = styleTransformedLength;
         }
         const documentViewport = this.rendererViewport.getLayoutMetrics();
-        const offset = this.getDocumentPageStartOffset(doc, axis);
-        const columnTransformLength = axis == "y"
-            ? documentViewport.pageMoveLength
-            : documentViewport.columnWidth + documentViewport.columnGap;
-
-        const currentDocumentTransformedLength = Math.abs(offset - currentTransformedLength);
-        const diff = currentDocumentTransformedLength == 0 ? 0 : currentDocumentTransformedLength % columnTransformLength;
-
-        let fixedCurrentTransformedLength = currentTransformedLength;
-        if (diff > 0 && (direction == 'previous' || direction == 'next')) {
-            if (direction == 'previous') {
-                fixedCurrentTransformedLength = currentTransformedLength - diff;
-            } else {
-                fixedCurrentTransformedLength = currentTransformedLength + columnTransformLength - diff;
-            }
-        }
-        let newTransformLength = fixedCurrentTransformedLength;
+        const pageStep = Math.max(1, documentViewport.pageMoveLength);
 
         if (direction == 'previous') {
-            const previousSpaceIsEnough = fixedCurrentTransformedLength - documentViewport.pageMoveLength >= 0;
-            const readyToTransformLength = offset + (pageNumber - 1) * documentViewport.pageMoveLength;
-            if (previousSpaceIsEnough) {
-                newTransformLength = fixedCurrentTransformedLength - documentViewport.pageMoveLength;
-            }
-            else if (fixedCurrentTransformedLength <= documentViewport.pageMoveLength) {
-                newTransformLength = 0;
-            }
-            else {
-                newTransformLength = readyToTransformLength;
-            }
+            return {
+                transformContainer,
+                newTransformLength: Math.max(0, currentTransformedLength - pageStep),
+            };
         }
-        else if (direction == 'next') {
-            newTransformLength = fixedCurrentTransformedLength + documentViewport.pageMoveLength;
+        if (direction == 'next') {
+            const newTransformLength = currentTransformedLength + pageStep;
             if (this.wouldExceedLastContent(newTransformLength, axis, transformContainer)) {
                 return null;
             }
-        }
-        else {
-            newTransformLength = offset + (pageNumber - 1) * documentViewport.pageMoveLength;
+            return { transformContainer, newTransformLength };
         }
 
+        const offset = this.getDocumentPageStartOffset(doc, axis);
+        let newTransformLength = offset + (pageNumber - 1) * documentViewport.pageMoveLength;
+        const contentLength = axis == "y"
+            ? (doc.getWrapperContainer()?.scrollHeight ?? 0)
+            : this.getDocumentPageBox(doc).contentWidth;
+        const maxTransform = Math.max(0, offset + contentLength - documentViewport.pageMoveLength);
+        if (newTransformLength > maxTransform) {
+            newTransformLength = maxTransform;
+        }
         if (newTransformLength < 0) {
             newTransformLength = 0;
         }
@@ -556,10 +545,8 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         const wrapperContainer = doc.getWrapperContainer();
         const documentElement = doc.getContentContainer()?.ownerDocument?.documentElement;
         const iframe = documentElement?.ownerDocument?.defaultView?.frameElement as HTMLElement | undefined;
-        const contentWidth = Math.max(
-            iframe?.offsetWidth ?? 0,
-            documentElement?.scrollWidth ?? 0
-        ) || (wrapperContainer?.clientWidth ?? 0);
+        const contentWidth = iframe?.offsetWidth
+            || (wrapperContainer?.clientWidth ?? 0);
         const transformContainer = this.getTransformContainer();
         const offsetLeft = iframe && transformContainer
             ? this.getLayoutOffsetLeft(iframe, transformContainer)
@@ -600,8 +587,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         const nextTransformCss = getPageTranslateCss(length, axis, flow.pageSign);
         const expectedSignedLength = axis == "y" ? -length : -flow.pageSign * length;
         const currentSignedLength = getTransformLength(transformContainer, axis, true);
-        transformContainer.setAttribute('data-target-transform', `${newTransformLegnth}`);
-        if (Math.abs(expectedSignedLength - currentSignedLength) <= 0.5) {
+        transformContainer.setAttribute('data-target-transform', `${length}`);
+        // Relative turns skip a no-op write. Absolute goto (font / layout remap)
+        // must always write — a stale translate past shrunken content is blank.
+        if (direction && Math.abs(expectedSignedLength - currentSignedLength) <= 0.5) {
             return;
         }
         if (!transformContainer.style.transition && this.htmlOptions.flipPageStyle == 'slide' && (direction == 'next' || direction == 'previous')) {
@@ -691,6 +680,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         return parseNumber(pageNumber, 1, 'parseInt');
     }
 
+    /**
+     * Map the live transform to a document-local page for progress UI.
+     * Left/right turns must not use this to snap the viewport.
+     */
     async syncPageState(doc: IHtmlDocument): Promise<{ current: number; total: number }> {
         const contentRoot = doc.getContentContainer()?.ownerDocument?.documentElement;
         contentRoot?.removeAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName);
@@ -730,6 +723,37 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         await this.load(location, true);
     }
 
+    /**
+     * TOC / search jumps size the target before preceding chapters finish
+     * loading. Those chapters then expand and push the target off-screen.
+     * Re-apply the absolute transform after preload. Relative page turns keep
+     * their packed column phase and must not snap.
+     */
+    private shouldRealignAfterPreload(location: FileLocation | undefined, isReload?: boolean) {
+        if (isReload || location?.direction == "next" || location?.direction == "previous") {
+            return false;
+        }
+        return resolveLayoutFlow(this.htmlOptions).flipMode == "page";
+    }
+
+    /**
+     * Content reflow (font, translation, images): reposition to currentLocation
+     * without a viewport reload.
+     */
+    restoreReadingPosition = async (): Promise<void> => {
+        const location = this.owner.context.currentLocation;
+        if (isNullOrWhiteSpace(location?.url)) {
+            return;
+        }
+        const doc = this.getDocument(location.url) ?? this.getFirstVisibleDocument();
+        if (!doc) {
+            return;
+        }
+        await this.gotoDoc(doc, location, true);
+    }
+
+    delayRestoreReadingPosition = asyncDebounce(this.restoreReadingPosition, 100);
+
     protected readonly delayReloadTime = 300;
     protected delayReload = asyncDebounce(this.reload, this.delayReloadTime);
 
@@ -737,12 +761,20 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         this.getRendererContainer().classList.add(HtmlSettings.TransformPagesClassName);
     }
 
+    private clearPageTransform() {
+        const transformContainer = this.getTransformContainer();
+        if (!transformContainer) {
+            return;
+        }
+        transformContainer.style.removeProperty('transition');
+        transformContainer.style.removeProperty('transform');
+        transformContainer.removeAttribute('data-target-transform');
+        void transformContainer.offsetWidth;
+    }
+
     private removePageStyles() {
         this.getRendererContainer().classList.remove(HtmlSettings.TransformPagesClassName);
-        const transformContainer = this.getTransformContainer();
-        if (transformContainer) {
-            transformContainer.style.removeProperty('transform');
-        }
+        this.clearPageTransform();
     }
 
     async dispose(): Promise<void> {

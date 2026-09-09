@@ -836,21 +836,55 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         if (compareTagName(element.tagName, "IMG")) {
             const imgElement = element as HTMLImageElement;
             imgElement.src = imageUrl;
-            if (imgElement.decode) {
-                try {
-                    await imgElement.decode();
-                } catch (e) {
-                    this.logger.error("image decode failed", "imageUrl", imageUrl, e);
-                    this.revokeObjectURL(imageUrl, doc);
-                    this.retryLoadAfterDecodeFailure(doc, imgElement, originUrl);
-                    return;
-                }
+            const ready = await this.waitForImageReady(imgElement);
+            if (!ready) {
+                this.revokeObjectURL(imageUrl, doc);
+                this.retryLoadAfterDecodeFailure(doc, imgElement, originUrl);
+                return;
             }
             this.applyOnlyOneImageStyles(element.ownerDocument);
             return;
         }
         this.setImageSource(element, imageUrl);
         this.applyOnlyOneImageStyles(element.ownerDocument);
+    }
+
+    /**
+     * iframe + blob: URLs often reject HTMLImageElement.decode() with EncodingError
+     * even when the bitmap is valid and load/onload will succeed. Treat decode
+     * failure as fatal only when the image never became usable.
+     */
+    private waitForImageReady(imgElement: HTMLImageElement): Promise<boolean> {
+        if (imgElement.complete) {
+            return Promise.resolve(this.isImageUsable(imgElement));
+        }
+        return new Promise((resolve) => {
+            let settled = false;
+            const finish = (ok: boolean) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                imgElement.removeEventListener("load", onLoad);
+                imgElement.removeEventListener("error", onError);
+                resolve(ok);
+            };
+            const onLoad = () => finish(true);
+            const onError = () => finish(this.isImageUsable(imgElement));
+            imgElement.addEventListener("load", onLoad);
+            imgElement.addEventListener("error", onError);
+            if (typeof imgElement.decode == "function") {
+                void imgElement.decode().then(() => finish(true)).catch(() => {
+                    if (this.isImageUsable(imgElement)) {
+                        finish(true);
+                    }
+                });
+            }
+        });
+    }
+
+    private isImageUsable(imgElement: HTMLImageElement): boolean {
+        return imgElement.complete && imgElement.naturalWidth > 0;
     }
 
     private retryLoadAfterDecodeFailure(doc: IHtmlDocument, imgElement: HTMLImageElement, originUrl: string) {

@@ -44,14 +44,16 @@ export class HtmlPagingNavigator implements IPagingNavigator {
                 return false;
             }
             const previousDocument = docs[index - 1];
-            // this.logger.debug("url:", previousDocument.url, "previousDocument")
             await previousDocument.load();
             const previousDocumentNumberOfPages = await previousDocument.getNumberOfPages();
+            // Keep direction=previous so the strip slides one screen.
+            // Do not absolute-goto this chapter's last page — leftover columns
+            // of the previous chapter sit on the same visual page as this one.
             location = new FileLocation(previousDocument.url, previousDocumentNumberOfPages, 'page');
             location.current = previousDocumentNumberOfPages;
             location.direction = 'previous';
             await this.htmlCoreNavigator.goto(location);
-            await this.notify(previousDocument, previousDocumentNumberOfPages,extra);
+            await this.notify(previousDocument, previousDocumentNumberOfPages, extra);
             return true;
         }
         // this.logger.debug("url:", firstVisibleDocument.url, "gotoPage firstVisibleDocument");

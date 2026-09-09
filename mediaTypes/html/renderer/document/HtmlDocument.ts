@@ -2,7 +2,7 @@ import { getDocumentBody } from "../../../../kernal/html/finder";
 import { getOrderedElementsIntersectingRect, resolveVisibleViewportInContentWindow } from "../../../../kernal/html/geometry";
 import { emptyElement, setElementHtml } from "../../../../kernal/html/dom";
 import { getUuid } from "../../../../kernal/common/uuid";
-import { EventNames, FlipMode, IFileParser, ILogger, LocationState, TextFormatOptions, SpineFile, readerPrefixName, yieldToMain, BrowserCapabilities } from "../../../../kernal";
+import { EventNames, FlipMode, IFileParser, ILogger, LastElementAttributeName, LocationState, TextFormatOptions, SpineFile, readerPrefixName, yieldToMain, BrowserCapabilities } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
 import { HtmlSettings } from "../../HtmlSettings";
 import { IHtmlDocument } from "../IHtmlDocument";
@@ -433,14 +433,14 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             if (axis == "y") {
                 void this.iframe.offsetHeight;
                 void rootContent.offsetHeight;
-                const grownHeight = Math.max(1, rootContent.scrollHeight, body?.scrollHeight ?? 0);
+                const grownHeight = this.measureOccupiedColumnLength(rootContent, body, "y", pageBox.height);
                 this.iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
                 this.iframe.style.minHeight = grownHeight + "px";
                 return;
             }
             void this.iframe.offsetWidth;
             void rootContent.offsetWidth;
-            const grownWidth = Math.max(1, rootContent.scrollWidth, body?.scrollWidth ?? 0);
+            const grownWidth = this.measureOccupiedColumnLength(rootContent, body, "x", pageBox.width);
             this.iframe.style.setProperty("width", `var(${ViewportCssVariableNames.ContentContainerWidth})`);
             this.iframe.style.minWidth = grownWidth + "px";
         }
@@ -461,6 +461,61 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                 }
             }
         }
+    }
+
+    /**
+     * html.scrollWidth stays at --page-width even when the chapter only fills one
+     * column. Size the iframe by the last content box, snapped to the column grid.
+     */
+    private measureOccupiedColumnLength(
+        rootContent: HTMLElement,
+        body: HTMLElement | null,
+        axis: "x" | "y",
+        columnLength: number
+    ) {
+        const column = columnLength > 0 ? columnLength : 1;
+        const gap = this.getColumnGap();
+        const stride = column + gap;
+        const used = this.measureContentExtent(rootContent, body, axis);
+        const safeUsed = used > 1 ? used : column;
+        const columns = Math.max(1, Math.floor((safeUsed - 1) / stride) + 1);
+        return Math.round(columns * column + Math.max(0, columns - 1) * gap);
+    }
+
+    private measureContentExtent(rootContent: HTMLElement, body: HTMLElement | null, axis: "x" | "y") {
+        const rootRect = rootContent.getBoundingClientRect();
+        const last = this.getLastContentElement(body);
+        if (last) {
+            const lastRect = last.getBoundingClientRect();
+            const fromLast = axis == "y"
+                ? lastRect.bottom - rootRect.top
+                : lastRect.right - rootRect.left;
+            if (fromLast > 1) {
+                return fromLast;
+            }
+        }
+        if (body) {
+            const bodyRect = body.getBoundingClientRect();
+            return axis == "y" ? bodyRect.height : bodyRect.width;
+        }
+        return axis == "y" ? rootContent.scrollHeight : rootContent.scrollWidth;
+    }
+
+    private getLastContentElement(body: HTMLElement | null) {
+        if (!body) {
+            return null;
+        }
+        const marked = body.querySelector(`[${LastElementAttributeName}="true"]`);
+        if (marked instanceof HTMLElement) {
+            return marked;
+        }
+        return body.lastElementChild instanceof HTMLElement ? body.lastElementChild : null;
+    }
+
+    private getColumnGap() {
+        const renderer = this.owner.getRenderer()?.getRendererContainer();
+        const gap = parseFloat(renderer?.getAttribute("data-column-gap") ?? "");
+        return Number.isFinite(gap) && gap > 0 ? gap : 0;
     }
 
     /**

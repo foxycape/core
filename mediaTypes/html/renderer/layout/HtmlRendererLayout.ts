@@ -29,14 +29,14 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
 
     }
 
-    async applyStyles(restoreLayoutState = true): Promise<void> {
+    async applyStyles(): Promise<void> {
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         for (const doc of loadedDocuments) {
-            await this.applyDocStyles(doc, restoreLayoutState);
+            await this.applyDocStyles(doc);
         }
     }
 
-    async applyDocStyles(doc: IHtmlDocument, restoreLayoutState = true): Promise<void> {
+    async applyDocStyles(doc: IHtmlDocument): Promise<void> {
         const contentContainer = doc.getContentContainer() ?? await doc.getVirtualContentContainer();
         const documentElement = contentContainer.ownerDocument.documentElement;
         const flow = resolveLayoutFlow(this.htmlOptions);
@@ -59,12 +59,8 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
 
         this.toggleColumnLayout(documentElement, flow);
         documentElement.removeAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName);
-        const layoutState = restoreLayoutState ? doc.captureLayoutState() : undefined;
         doc.resetLayoutSizes();
         await yieldToMain();
-        if (restoreLayoutState && layoutState) {
-            await doc.restoreLayoutState(layoutState);
-        }
     }
 
     private async getCssVariables(theme: Theme, metrics: HtmlLayoutMetrics, flow: ReturnType<typeof resolveLayoutFlow>) {
@@ -212,7 +208,7 @@ export class HtmlRendererLayout implements IHtmlRendererLayout {
         this.renererviewport.applyCssVariables();
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         for (const doc of loadedDocuments) {
-            await this.applyDocStyles(doc, false);
+            await this.applyDocStyles(doc);
         }
         this.owner.events.emit(EventNames.LayoutChange, payload);
         if (this.pageReloadLocation) {

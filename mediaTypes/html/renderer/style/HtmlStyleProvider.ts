@@ -100,15 +100,14 @@ export class HtmlStyleProvider implements IStyleProvider {
         for (const document of otherDocuments) {
             this.applyVariablesToDocument(document, variableNameValues);
         }
-        const layout = 'layout' in this.documentsProvider
-            ? (this.documentsProvider as { layout?: { applyDocStyles: (doc: IHtmlDocument, restore?: boolean) => Promise<void> } }).layout
-            : undefined
-        if (layout) {
-            for (const document of loadedDocuments) {
-                await layout.applyDocStyles(document, false);
-            }
+        for (const document of loadedDocuments) {
+            document.resetLayoutSizes();
         }
-        await this.documentsProvider.reload();
+        const restorePosition = (this.documentsProvider as { restoreReadingPosition?: () => Promise<void> })
+            .restoreReadingPosition;
+        if (restorePosition) {
+            await restorePosition();
+        }
     }
 
     async changeStyle(variableName: string, variableValue: string): Promise<void> {
