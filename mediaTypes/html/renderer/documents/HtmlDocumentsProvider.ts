@@ -463,7 +463,16 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         const contentLength = axis == "y"
             ? (doc.getWrapperContainer()?.scrollHeight ?? 0)
             : this.getDocumentPageBox(doc).contentWidth;
-        const maxTransform = Math.max(0, offset + contentLength - documentViewport.pageMoveLength);
+        // Columns have no trailing gap, so contentWidth is n * step - gap.
+        // Clipping by pageMoveLength (page + gap) undershoots the last page by
+        // one gap — e.g. 315px page / 355px step lands 40px short of alignment.
+        const viewportLength = axis == "y"
+            ? documentViewport.pageHeight
+            : documentViewport.pageWidth;
+        const clipLength = Number.isFinite(viewportLength) && viewportLength > 0
+            ? viewportLength
+            : documentViewport.pageMoveLength;
+        const maxTransform = Math.max(0, offset + contentLength - clipLength);
         if (newTransformLength > maxTransform) {
             newTransformLength = maxTransform;
         }
