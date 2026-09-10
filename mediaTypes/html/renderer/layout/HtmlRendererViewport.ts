@@ -100,6 +100,9 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
             transformContainer.removeAttribute("data-target-transform");
             return;
         }
+        if (transformContainer.hasAttribute(HtmlSettings.PageMovingAttributeName)) {
+            return;
+        }
         const target = transformContainer.getAttribute("data-target-transform");
         if (target == null || target === "") {
             return;

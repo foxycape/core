@@ -1,5 +1,6 @@
 import { EventNames } from "../../../../kernal/EventNames";
 import { HtmlOptions } from "../../HtmlOptions";
+import { HtmlSettings } from "../../HtmlSettings";
 import { asyncDebounce, IDocument, IDocumentsProvider, IEventEmitter, yieldToMain } from "../../../../kernal";
 import { IHtmlDocumentsPreloader } from "./IHtmlDocumentsPreloader";
 
@@ -44,10 +45,12 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
     }
 
     private onDocumentVisibleChange = () => {
+        this.abortPreloadIfPageMoving();
         void this.delayPreloadDocuments();
     }
 
     private onReaderScroll = () => {
+        this.abortPreloadIfPageMoving();
         void this.delayPreloadDocuments();
     }
 
@@ -57,6 +60,10 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
     }
 
     preloadDocuments = async (): Promise<void> => {
+        if (this.isPageMoving()) {
+            this.preloadToken++;
+            return;
+        }
         const token = ++this.preloadToken;
         try {
             const visibleDocuments = this.resolveVisibleDocuments();
@@ -64,12 +71,12 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
                 return;
             }
             for (const doc of visibleDocuments) {
-                if (token !== this.preloadToken) {
+                if (this.shouldAbortPreload(token)) {
                     return;
                 }
                 await doc.load();
             }
-            if (token !== this.preloadToken) {
+            if (this.shouldAbortPreload(token)) {
                 return;
             }
             await this.preloadRelatedDocuments(
@@ -155,7 +162,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
         }
 
         for (let i = 0; i < prepareDocuments.length; i++) {
-            if (token !== this.preloadToken) {
+            if (this.shouldAbortPreload(token)) {
                 return;
             }
             const doc = prepareDocuments[i];
@@ -170,7 +177,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
         if (this.htmlOptions.flipMode == 'page') {
             let previousDocumentsLength = 0;
             for (let i = startIndex - 1; i >= 0; i--) {
-                if (token !== this.preloadToken) {
+                if (this.shouldAbortPreload(token)) {
                     return;
                 }
                 const doc = documents[i];
@@ -186,7 +193,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
             }
             let nextDocumentsLength = 0;
             for (let i = endIndex + 1; i < total - 1; i++) {
-                if (token !== this.preloadToken) {
+                if (this.shouldAbortPreload(token)) {
                     return;
                 }
                 const doc = documents[i];
@@ -212,7 +219,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
                 reservedDocuments.push(doc);
             }
         }
-        if (token !== this.preloadToken) {
+        if (this.shouldAbortPreload(token)) {
             return;
         }
         await this.removeUnnecessaryDocuments(reservedDocuments, token);
@@ -225,7 +232,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
         }
         const loadedDocuments = this.documentsProvider.getLoadedDocuments();
         for (const doc of loadedDocuments) {
-            if (token !== this.preloadToken) {
+            if (this.shouldAbortPreload(token)) {
                 return;
             }
             if (!reservedDocuments.includes(doc)) {
@@ -233,6 +240,30 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
                 await yieldToMain();
             }
         }
+    }
+
+    private isPageMoving = () => {
+        const renderer = this.documentsProvider.getRendererContainer();
+        const transform = renderer?.querySelector?.(`.${HtmlSettings.TransformContainerCssName}`);
+        return !!transform?.hasAttribute(HtmlSettings.PageMovingAttributeName);
+    }
+
+    private abortPreloadIfPageMoving = () => {
+        if (!this.isPageMoving()) {
+            return;
+        }
+        this.preloadToken++;
+    }
+
+    private shouldAbortPreload = (token: number) => {
+        if (token !== this.preloadToken) {
+            return true;
+        }
+        if (!this.isPageMoving()) {
+            return false;
+        }
+        this.preloadToken++;
+        return true;
     }
 
     private checkContainFullscreenElement = (doc: IDocument) => {
