@@ -56,9 +56,6 @@ export class DefaultFileUrlParser implements IFileUrlParser {
             result.requireCalculateFileSymbolCount = parseResult.requireCalculateFileSymbolCount
             result.base = parseResult.base
             result.mainUrl = parseResult.mainUrl
-            if (options?.metadata) {
-                result.metadata = options.metadata;
-            }
         }
         return result
     }

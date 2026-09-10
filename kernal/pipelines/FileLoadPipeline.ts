@@ -1,5 +1,5 @@
 import { Context, ContextInit } from "../Context";
-import { Metadata } from "../Metadata";
+import { fillMetadata, Metadata } from "../Metadata";
 import { IEventEmitter } from "../IEventEmitter";
 import { IFileParser } from "../IFileParser";
 import type { LifecycleHooks } from "../LifecycleHooks";
@@ -144,7 +144,12 @@ export class FileLoadPipeline {
 
         await pipelineOptions?.afterParserReady?.(formatted.extension);
 
-        const metadata = formatMetadata(await fileParser.getMetadata(), formatted.url, formatted.extension);
+        const fileMeta = formatMetadata(await fileParser.getMetadata(), formatted.url, formatted.extension);
+        const overlay = formatted.openOptions?.metadata;
+        const metadata = fillMetadata(fileMeta, overlay);
+        if (overlay?.fileName && typeof overlay.fileName === "string" && overlay.fileName.trim()) {
+            metadata.fileName = overlay.fileName.trim();
+        }
         context.metadata = metadata;
 
         await lifecycle.onFileParsed?.(fileParser);

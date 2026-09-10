@@ -299,7 +299,8 @@ export class InputFormatter {
         else {
             parserUrl = url;
         }
-        parserUrl = Object.assign(parserUrl, openOptions);
+        const { metadata: _overlayMetadata, ...parserOpenOptions } = openOptions;
+        parserUrl = Object.assign(parserUrl, parserOpenOptions);
         let abortController: AbortController = undefined;
         if (typeof url === "string" || (url?.fileUrl && typeof url.fileUrl === "string" && checkIsHttpUrl(url.fileUrl))) {
             abortController = new AbortController();

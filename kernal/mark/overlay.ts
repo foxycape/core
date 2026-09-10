@@ -179,6 +179,80 @@ export const findOverlayIdAtClientPoint = (
 
 export type OverlayWritingAxis = 'horizontal' | 'vertical'
 
+const textOffsetsInRange = (range: Range, text: Text) => {
+    const start = range.startContainer === text ? range.startOffset : 0
+    const end = range.endContainer === text ? range.endOffset : text.data.length
+    return { start, end }
+}
+
+/**
+ * Line boxes of text inside a Range. Avoids Range#getClientRects adding the
+ * border box of a fully enclosed middle paragraph (including a one-line p).
+ */
+export const rangeTextClientRects = (range: Range): DOMRect[] => {
+    const doc = range.startContainer.ownerDocument
+    if (!doc) {
+        return Array.from(range.getClientRects())
+    }
+    const ancestor = range.commonAncestorContainer
+    if (ancestor.nodeType === Node.TEXT_NODE) {
+        return Array.from(range.getClientRects())
+    }
+    const walker = doc.createTreeWalker(ancestor, NodeFilter.SHOW_TEXT)
+    const rects: DOMRect[] = []
+    let node = walker.nextNode()
+    while (node) {
+        const text = node as Text
+        if (text.data.length > 0 && range.intersectsNode(text)) {
+            const { start, end } = textOffsetsInRange(range, text)
+            if (end > start) {
+                const sub = doc.createRange()
+                sub.setStart(text, start)
+                sub.setEnd(text, end)
+                rects.push(...Array.from(sub.getClientRects()))
+            }
+        }
+        node = walker.nextNode()
+    }
+    return rects.length > 0 ? rects : Array.from(range.getClientRects())
+}
+
+const containsRect = (outer: OverlayRect, inner: OverlayRect, slop = 1) =>
+    outer.x <= inner.x + slop &&
+    outer.y <= inner.y + slop &&
+    outer.x + outer.width >= inner.x + inner.width - slop &&
+    outer.y + outer.height >= inner.y + inner.height - slop
+
+const blockSizeOf = (rect: OverlayRect, writingAxis: OverlayWritingAxis) =>
+    writingAxis === 'vertical' ? rect.width : rect.height
+
+/**
+ * Drop block-element border boxes that Range#getClientRects adds when a
+ * middle paragraph is fully enclosed by a multi-paragraph selection.
+ * Keep line boxes that merely wrap a same-height inline span.
+ */
+export const dropContainingRects = (
+    rects: OverlayRect[],
+    writingAxis: OverlayWritingAxis = 'horizontal',
+): OverlayRect[] => {
+    if (rects.length <= 1) {
+        return rects
+    }
+    return rects.filter((rect, i) => {
+        const outerBlock = blockSizeOf(rect, writingAxis)
+        return !rects.some((inner, j) => {
+            if (i === j) {
+                return false
+            }
+            if (!containsRect(rect, inner)) {
+                return false
+            }
+            const innerBlock = blockSizeOf(inner, writingAxis)
+            return outerBlock > innerBlock + Math.max(4, innerBlock * 0.25)
+        })
+    })
+}
+
 /** Merge adjacent boxes on the same line to cut overlay node count. */
 export const mergeOverlayRects = (
     rects: OverlayRect[],
@@ -245,5 +319,5 @@ export const clientRectsToOverlayRects = (
             height: rect.height,
         })
     }
-    return mergeOverlayRects(rects, 1, writingAxis)
+    return mergeOverlayRects(dropContainingRects(rects, writingAxis), 1, writingAxis)
 }
