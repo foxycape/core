@@ -34,6 +34,7 @@ export * from './device/WebBrowser';
 export * from './IDocument';
 export * from './shape/SimpleMatrix';
 export * from './progress/Progress';
+export * from './progress/userChangedProgress';
 export * from './i18n/ILocale';
 export * from './i18n/textDirection';
 export * from './plugins/PluginCore';

@@ -367,7 +367,7 @@ export class Reader implements LifecycleHooks {
         const percentage = result.percentage;
         const location = result.location;
         if (!isNaN(percentage) && percentage <= 1 && percentage >= 0) {
-            await this.renderer.navigator.gotoPercentage(percentage);
+            await this.renderer.navigator.gotoPercentage(percentage, { from: 'restore' });
         }
         else {
             await this.renderer.load(location);

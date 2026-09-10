@@ -1,4 +1,4 @@
-import { IPagingNavigator, FileLocation, ICoreNavigator, EventNames, PagingExtra, PageChangeOptions, ILogger, ILocale, IDocumentsProvider } from "../../../../kernal";
+import { IPagingNavigator, FileLocation, ICoreNavigator, EventNames, PagingExtra, PageChangeOptions, ILogger, ILocale, IDocumentsProvider, applyPagingLocationFrom } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { HtmlOptions } from "../../HtmlOptions";
@@ -36,6 +36,7 @@ export class HtmlPagingNavigator implements IPagingNavigator {
         let location = new FileLocation(doc.url, numberOfPages, 'page');
         location.current = pageNumber;
         location.direction = direction;
+        applyPagingLocationFrom(location, extra);
         if (pageNumber <= 0) {
             const docs = this.documentsProvider.getDocuments();
             const index = docs.indexOf(doc);
@@ -52,6 +53,7 @@ export class HtmlPagingNavigator implements IPagingNavigator {
             location = new FileLocation(previousDocument.url, previousDocumentNumberOfPages, 'page');
             location.current = previousDocumentNumberOfPages;
             location.direction = 'previous';
+            applyPagingLocationFrom(location, extra);
             await this.htmlCoreNavigator.goto(location);
             await this.notify(previousDocument, previousDocumentNumberOfPages, extra);
             return true;
@@ -72,6 +74,7 @@ export class HtmlPagingNavigator implements IPagingNavigator {
             location = new FileLocation(nextDocument.url, nexDocumentNumberOfPages, 'page');
             location.current = 1;
             location.direction = 'next';
+            applyPagingLocationFrom(location, extra);
             await this.htmlCoreNavigator.goto(location);
             await this.notify(nextDocument, 1,extra);
             return true;

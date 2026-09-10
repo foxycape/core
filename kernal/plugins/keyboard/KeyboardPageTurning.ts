@@ -211,17 +211,17 @@ export class KeyboardPageTurning extends PluginCore {
 
     private delayGotoPreviousPage = asyncDebounce(async (renderer: any) => {
         if (renderer?.pagingNavigator) {
-            await renderer.pagingNavigator.gotoPreviousPage({ trigger: "user", triggerType: "key" });
+            await renderer.pagingNavigator.gotoPreviousPage({ trigger: "user", triggerType: "keyboard" });
             return;
         }
-        await renderer?.gotoPreviousPage?.({ trigger: "user", triggerType: "key" });
+        await renderer?.gotoPreviousPage?.({ trigger: "user", triggerType: "keyboard" });
     }, 64);
 
     private delayGotoNextPage = asyncDebounce(async (renderer: any) => {
         if (renderer?.pagingNavigator) {
-            await renderer.pagingNavigator.gotoNextPage({ trigger: "user", triggerType: "key" });
+            await renderer.pagingNavigator.gotoNextPage({ trigger: "user", triggerType: "keyboard" });
             return;
         }
-        await renderer?.gotoNextPage?.({ trigger: "user", triggerType: "key" });
+        await renderer?.gotoNextPage?.({ trigger: "user", triggerType: "keyboard" });
     }, 64);
 }

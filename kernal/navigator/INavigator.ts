@@ -1,4 +1,4 @@
-import { FileLocation, SymbolType } from "..";
+import { FileLocation, LocationFrom, SymbolType } from "..";
 
 /**
  * core navigator
@@ -27,5 +27,6 @@ export interface ICoreNavigator {
 }
 
 export class GotoPercentegeOptions {
-    percentageSymbolType: SymbolType;
+    percentageSymbolType?: SymbolType;
+    from?: LocationFrom;
 }

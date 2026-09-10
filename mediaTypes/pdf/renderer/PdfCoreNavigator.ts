@@ -13,6 +13,7 @@ export class PdfCoreNavigator implements ICoreNavigator {
     async gotoUrl(url: string): Promise<void> {
         const location = new FileLocation(url, 1, 'ratio');
         location.storeCurrent = true;
+        location.from = 'toc';
         await this.goto(location);
     }
 
@@ -21,7 +22,7 @@ export class PdfCoreNavigator implements ICoreNavigator {
         location.current = percentage;
         location.storeCurrent = true
         location.symbolType = options?.percentageSymbolType ?? 'custom';
-        location.from = 'drag'
+        location.from = options?.from ?? 'drag'
         await this.goto(location);
     }
 }

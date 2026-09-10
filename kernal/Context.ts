@@ -4,6 +4,7 @@ import { Metadata } from "./Metadata";
 import { OpenOptions } from "./OpenOptions";
 import { Options } from "./Options";
 import { FileLocation, LocationFrom, Progress } from "./progress/Progress";
+import { isAppLocationFrom } from "./progress/userChangedProgress";
 
 /** Fields that can be batch-assigned on Context. */
 export type ContextInit = {
@@ -75,6 +76,10 @@ export class Context {
     }
 
     setUserChangedProgress(value: boolean, from?: LocationFrom) {
+        if (value && isAppLocationFrom(from)) {
+            this.currentUserChangedProgress = false;
+            return;
+        }
         if (value) {
             this.events.emit(EventNames.UserChangedProgress, from);
             if (from != "toc") {

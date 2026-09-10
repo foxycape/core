@@ -1,4 +1,4 @@
-import { FileLocation, IDocument, ILocale, INotifier, IPagingNavigator, PagingExtra } from "../../../kernal";
+import { applyPagingLocationFrom, FileLocation, IDocument, ILocale, INotifier, IPagingNavigator, PagingExtra } from "../../../kernal";
 import { IPdfDocumentsProvider } from "./documents/IPdfDocumentsProvider";
 
 /**
@@ -17,14 +17,15 @@ export class PdfPagingNavigator implements IPagingNavigator {
         //
     }
 
-    async gotoPage(_doc: IDocument, pageNumber: number, _extra?: PagingExtra): Promise<boolean> {
+    async gotoPage(_doc: IDocument, pageNumber: number, extra?: PagingExtra): Promise<boolean> {
         const location = new FileLocation(pageNumber.toString(), this.documentsProvider.numberOfPages, "page");
         location.current = pageNumber;
+        applyPagingLocationFrom(location, extra);
         await this.documentsProvider.load(location);
         return true;
     }
 
-    async gotoNextPage(_extra?: PagingExtra): Promise<boolean> {
+    async gotoNextPage(extra?: PagingExtra): Promise<boolean> {
         const currentPageNumber = this.documentsProvider.currentPage;
         const numberOfPages = this.documentsProvider.numberOfPages;
         const isSpread = this.documentsProvider.isSpreadMode;
@@ -38,11 +39,12 @@ export class PdfPagingNavigator implements IPagingNavigator {
         }
         const location = new FileLocation(goingPageNumber.toString(), numberOfPages, "page");
         location.current = goingPageNumber;
+        applyPagingLocationFrom(location, extra);
         await this.documentsProvider.load(location);
         return true;
     }
 
-    async gotoPreviousPage(_extra?: PagingExtra): Promise<boolean> {
+    async gotoPreviousPage(extra?: PagingExtra): Promise<boolean> {
         const currentPageNumber = this.documentsProvider.currentPage;
         const isSpread = this.documentsProvider.isSpreadMode;
         if (currentPageNumber <= 1 || (isSpread && currentPageNumber < 2)) {
@@ -55,6 +57,7 @@ export class PdfPagingNavigator implements IPagingNavigator {
         }
         const location = new FileLocation(goingPageNumber.toString(), this.documentsProvider.numberOfPages, "page");
         location.current = goingPageNumber;
+        applyPagingLocationFrom(location, extra);
         await this.documentsProvider.load(location);
         return true;
     }

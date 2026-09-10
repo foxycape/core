@@ -12,6 +12,7 @@ export class HtmlCoreNavigator implements ICoreNavigator {
     async gotoUrl(url: string): Promise<void> {
         const location = new FileLocation(url, 1, 'ratio');
         location.storeCurrent = true;
+        location.from = 'toc';
         await this.goto(location);
     }
 
@@ -31,7 +32,7 @@ export class HtmlCoreNavigator implements ICoreNavigator {
             }
         }
         location.storeCurrent = true;
-        location.from = 'drag'
+        location.from = options?.from ?? 'drag'
         await this.goto(location);
     }
 

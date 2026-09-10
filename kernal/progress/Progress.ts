@@ -117,4 +117,4 @@ export class FileLocation extends ReadingLocation {
 
 }
 
-export type LocationFrom = 'toc' | 'mark' | 'internal-link' | 'search' | 'drag' | 'wheel' | 'keyboard'|'mouse'|'touch' | (string & {})
+export type LocationFrom = 'toc' | 'mark' | 'internal-link' | 'search' | 'drag' | 'wheel' | 'keyboard' | 'mouse' | 'touch' | 'tts' | 'restore' | (string & {})

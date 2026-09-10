@@ -1,16 +1,20 @@
 import {
     EventNames,
     IEventEmitter,
+    type LocationFrom,
     PageChangeOptions,
 } from "../../../../kernal";
 import type { MultiPDFViewer } from "../MultiPdfViewer";
 import * as pdfjsViewer from "../../../../pdfjs/legacy/web/pdf_viewer.mjs";
 import { IPdfRenderer } from "../IPdfRenderer";
 
+const USER_PROGRESS_EVENTS = ["wheel", "keydown", "mousedown", "touchstart"] as const;
+
 /**
  * Bridges pdf.js EventBus events to reader IEventEmitter (and related side effects).
  */
 export class PdfViewerEvents {
+    private readonly userProgressListenerOpts: AddEventListenerOptions = { passive: true, capture: true };
 
     constructor(private readonly events: IEventEmitter,
         private readonly eventBus: pdfjsViewer.EventBus,
@@ -29,6 +33,7 @@ export class PdfViewerEvents {
         this.eventBus.on("scalechanging", this.onScaleChanging);
         this.eventBus.on("scalechanged", this.onScaleChanged);
         this.eventBus.on("updateviewarea", this.onUpdateViewArea);
+        this.bindUserProgressInput();
     }
 
     unbind() {
@@ -41,7 +46,40 @@ export class PdfViewerEvents {
         this.eventBus.off("scalechanging", this.onScaleChanging);
         this.eventBus.off("scalechanged", this.onScaleChanged);
         this.eventBus.off("updateviewarea", this.onUpdateViewArea);
+        this.unbindUserProgressInput();
     }
+
+    private bindUserProgressInput() {
+        const container = this.renderer.getRendererContainer();
+        if (!container) {
+            return;
+        }
+        for (const type of USER_PROGRESS_EVENTS) {
+            container.addEventListener(type, this.onUserProgressInput, this.userProgressListenerOpts);
+        }
+    }
+
+    private unbindUserProgressInput() {
+        const container = this.renderer.getRendererContainer();
+        if (!container) {
+            return;
+        }
+        for (const type of USER_PROGRESS_EVENTS) {
+            container.removeEventListener(type, this.onUserProgressInput, this.userProgressListenerOpts);
+        }
+    }
+
+    private onUserProgressInput = (event: Event) => {
+        let from: LocationFrom = "mouse";
+        if (event.type === "keydown") {
+            from = "keyboard";
+        } else if (event.type === "wheel") {
+            from = "wheel";
+        } else if (event.type === "touchstart") {
+            from = "touch";
+        }
+        this.renderer.owner.context.setUserChangedProgress(true, from);
+    };
 
     private onPagesLoaded = async () => {
         this.events.emit(EventNames.PdfPagesLoaded, this.pdfViewer);
