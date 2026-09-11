@@ -15,7 +15,7 @@ export const isUsablePdfWorkerSrc = (src: string | undefined | null): src is str
   if (src.startsWith('app:')) {
     return false
   }
-  if (/^(blob:|https?:|file:|data:)/i.test(src)) {
+  if (/^(blob:|https?:|file:|data:|chrome-extension:|extension:|edge-extension:|moz-extension:)/i.test(src)) {
     return true
   }
   // Vite dev / relative asset paths
