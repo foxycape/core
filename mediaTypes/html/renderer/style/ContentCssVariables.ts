@@ -27,7 +27,24 @@ export class ContentCssVariables {
         return family !== ContentCssVariables.FallbackFontFamily;
     }
 
+    static initializeDefaultVariables(
+        overrides?: Map<string, string> | Record<string, string>,
+    ): Map<string, string> {
+        const defaults = this.ensureBuiltinDefaults();
+        if (overrides) {
+            const entries = overrides instanceof Map ? overrides.entries() : Object.entries(overrides);
+            for (const [key, value] of entries) {
+                defaults.set(key, value);
+            }
+        }
+        return defaults;
+    }
+
     static getDefaultVariables(): Map<string, string> {
+        return this.initializeDefaultVariables();
+    }
+
+    private static ensureBuiltinDefaults(): Map<string, string> {
         if (!this.defaultValues) {
             this.defaultValues = new Map<string, string>();
             this.defaultValues.set(ContentCssVariables.FontSize, "20px")
