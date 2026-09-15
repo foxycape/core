@@ -65,7 +65,7 @@ export class HtmlPagingNavigator implements IPagingNavigator {
             const docs = this.documentsProvider.getDocuments();
             const index = docs.indexOf(doc);
             if (index == docs.length - 1) {
-                this.owner.notifier.info(this.locale.getText("navigotor_alreadyislastpage", 'Already at the last page'));
+                this.owner.notifier.info(this.locale.getText("navigotor_alreadyislastpage", 'You have reached the end of the book.'));
                 return false;
             }
             const nextDocument = docs[index + 1];

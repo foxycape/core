@@ -577,7 +577,7 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
 
         if (pageNumber > this.numberOfPages) {
             this.owner.notifier.info(
-                locale.getText("navigotor_alreadyislastpage", "Already at the last page"),
+                locale.getText("navigotor_alreadyislastpage", "You have reached the end of the book."),
             );
             return false;
         }

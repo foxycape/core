@@ -44,7 +44,7 @@ export class PdfNavPointNavigator implements INavPointNavigator {
                 return;
             const numberOfPages = this.documentsProvider.getDocuments().length;
             if (index == flattingNavPoints.length - 1 || navPoint?.url == numberOfPages.toString()) {
-                this.owner.notifier.info(this.locale.getText("navigator_alreadyislastnavPoint", 'Already at the last chapter'));
+                this.owner.notifier.info(this.locale.getText("navigator_alreadyislastnavPoint", 'You have finished this chapter.'));
                 return;
             }
             const nextNavPoint = await this.getNextNavPoint(navPoint, index, flattingNavPoints);
@@ -60,7 +60,7 @@ export class PdfNavPointNavigator implements INavPointNavigator {
                     }
                 }
 
-                this.owner.notifier.info(this.locale.getText("navigator_alreadyislastnavPoint", 'Already at the last chapter'));
+                this.owner.notifier.info(this.locale.getText("navigator_alreadyislastnavPoint", 'You have finished this chapter.'));
                 return;
             }
         }
@@ -71,7 +71,7 @@ export class PdfNavPointNavigator implements INavPointNavigator {
             const proxies = this.documentsProvider.getDocuments();
             const index = proxies.indexOf(lastVisibleDocument);
             if (index == proxies.length - 1) {
-                this.owner.notifier.info(this.locale.getText("navigator_alreadyislastnavPoint", 'Already at the last chapter'));
+                this.owner.notifier.info(this.locale.getText("navigator_alreadyislastnavPoint", 'You have finished this chapter.'));
                 return;
             }
             await this.pdfCoreNavigator.gotoUrl(proxies[index + 1].url);

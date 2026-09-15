@@ -45,14 +45,14 @@ export class HtmlNavPointNavigator implements INavPointNavigator {
                 return;
 
             if (index == flattingNavPoints.length - 1) {
-                this.notifier.info(this.locale?.getText("navigator_alreadyislastnavPoint", 'Already at the last chapter'));
+                this.notifier.info(this.locale?.getText("navigator_alreadyislastnavPoint", 'You have finished this chapter.'));
                 return;
             }
             const nextNavPoint = await this.getNextNavPoint(navPoint, index, flattingNavPoints);
             if (nextNavPoint) {
                 await this.gotoNavPoint(nextNavPoint);
             } else {
-                this.notifier.info(this.locale?.getText("navigator_alreadyislastnavPoint", 'Already at the last chapter'));
+                this.notifier.info(this.locale?.getText("navigator_alreadyislastnavPoint", 'You have finished this chapter.'));
                 return;
             }
         }
@@ -63,7 +63,7 @@ export class HtmlNavPointNavigator implements INavPointNavigator {
             const proxies = this.documentsProvider.getDocuments();
             const index = proxies.indexOf(lastVisibleDocument);
             if (index == proxies.length - 1) {
-                this.notifier.info(this.locale?.getText("navigator_alreadyislastnavPoint", 'Already at the last chapter'));
+                this.notifier.info(this.locale?.getText("navigator_alreadyislastnavPoint", 'You have finished this chapter.'));
                 return;
             }
             await this.htmlCoreNavigator.gotoUrl(proxies[index + 1].url);

@@ -30,7 +30,7 @@ export class PdfPagingNavigator implements IPagingNavigator {
         const numberOfPages = this.documentsProvider.numberOfPages;
         const isSpread = this.documentsProvider.isSpreadMode;
         if (currentPageNumber >= numberOfPages || (isSpread && currentPageNumber >= numberOfPages - 1)) {
-            this.notifier.info(this.locale?.getText("navigotor_alreadyislastpage", "Already at the last page"));
+            this.notifier.info(this.locale?.getText("navigotor_alreadyislastpage", "You have reached the end of the book."));
             return false;
         }
         let goingPageNumber = isSpread ? currentPageNumber + 2 : currentPageNumber + 1;
