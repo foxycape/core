@@ -17,24 +17,8 @@ export class Options {
     /** whether to open debug mode, after opening, the log information will be output */
     debug: boolean = true;
 
-    /** default header height */
-    defaultHeaderHeight = 40;
-    /** current header height */
-    headerHeight: number = this.defaultHeaderHeight;
-    /** whether to show header */
-    enableHeader: boolean = true;
-
-    /** offset when redirecting objects on the page, based on headerHeight */
+    /** offset when redirecting objects on the page */
     redirectPositionOffset: number = 5;
-
-    /** default footer height */
-    defaultFooterHeight = 30;
-    /** minimum footer height */
-    minFooterHeight = 30;
-    /** current footer height */
-    footerHeight: number = this.defaultFooterHeight;
-    /** whether to show footer */
-    enableFooter: boolean = true;
 
     /** whether to use zen mode */
     zenMode?: boolean;
@@ -61,8 +45,6 @@ export class Options {
     /** scrollbar border */
     scrollbarBorder: string = "1px";
 
-    static readonly HeaderHeight = toCssVariableName("headerHeight" satisfies OptionsCssKey);
-    static readonly FooterHeight = toCssVariableName("footerHeight" satisfies OptionsCssKey);
     static readonly ScrollbarSize = toCssVariableName("scrollbarSize" satisfies OptionsCssKey);
     static readonly ScrollbarRadius = toCssVariableName("scrollbarRadius" satisfies OptionsCssKey);
     static readonly ScrollbarBorder = toCssVariableName("scrollbarBorder" satisfies OptionsCssKey);
@@ -70,11 +52,9 @@ export class Options {
 
 /**
  * The properties that will be injected as CSS variables in Options.
- * Naming rule: camelCase → --kebab-case (e.g.: headerHeight → --header-height)
+ * Naming rule: camelCase → --kebab-case (e.g.: scrollbarSize → --scrollbar-size)
  */
 export const OptionsCssKeys = [
-    "headerHeight",
-    "footerHeight",
     "scrollbarSize",
     "scrollbarRadius",
     "scrollbarBorder",
@@ -87,10 +67,6 @@ export const isOptionsCssKey = (path: string): path is OptionsCssKey =>
 
 /** common property names in Options, for comparing with OptionsChange etc. */
 export const OptionKeys = [
-    "headerHeight",
-    "enableHeader",
-    "footerHeight",
-    "enableFooter",
     "zenMode",
     "scrollbarSize",
     "scrollbarRadius",

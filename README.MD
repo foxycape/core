@@ -124,8 +124,6 @@ import { Options, Reader } from '@foxycape/core'
 // registerPdfMediaType(reader) — see samples/pdf/registerPdfMediaType.ts
 
 const options = new Options()
-options.enableHeader = false
-options.enableFooter = false
 
 const reader = new Reader(options)
 // registerPdfMediaType(reader)

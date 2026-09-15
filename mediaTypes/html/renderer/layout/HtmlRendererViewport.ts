@@ -331,9 +331,6 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         if (flipMode == "page") {
             contentWrapperPaddingBottomNumber += paddingTopOrBottomNumber
         }
-        if (flipMode == "scroll" && contentWrapperPaddingBottomNumber < this.options.minFooterHeight) {
-            contentWrapperPaddingBottomNumber = this.options.minFooterHeight
-        }
 
         const contentWrapperPaddingBottom = contentWrapperPaddingBottomNumber + 'px';
         const contentWrapperPaddingLeft = flipMode == 'scroll' ? `${paddingLeftOrRightNumber}px` : '0'

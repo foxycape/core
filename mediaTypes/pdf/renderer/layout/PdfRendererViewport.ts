@@ -1,4 +1,4 @@
-import { Options, Theme } from "../../../../kernal";
+import { Theme } from "../../../../kernal";
 import { createElement, injectCssContent } from "../../../../kernal/html/injector";
 import { getRandomId } from "../../../../kernal/common/uuid";
 import { IRendererViewport, LayoutMetrics } from "../../../../kernal/IRendererViewport";
@@ -129,8 +129,6 @@ export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
         viewerContainer: HTMLDivElement;
     } {
         let rendererCss = `.${this.rendererClassName}{`;
-        rendererCss += `margin-block-start:var(${Options.HeaderHeight});`;
-        rendererCss += `margin-block-end:var(${Options.FooterHeight});`;
         rendererCss += `position:absolute;inset:0;overflow:auto;outline:none;`;
         rendererCss += `}`;
 

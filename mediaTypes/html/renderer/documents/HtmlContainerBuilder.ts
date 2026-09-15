@@ -1,6 +1,6 @@
 ﻿import { createElement } from "../../../../kernal/html/injector";
 import { getRandomId } from "../../../../kernal/common/uuid";
-import { Options, Theme } from "../../../../kernal";
+import { Theme } from "../../../../kernal";
 import { HtmlSettings } from "../../HtmlSettings";
 import { HtmlOptions } from "../../HtmlOptions";
 import { ViewportCssVariableNames } from "../layout/ViewportCssVariableNames";
@@ -21,12 +21,11 @@ export class HtmlContainerBuilder {
 
     private createRendererContainer() {
         const rendererClassName = "renderer";
-        let rendererCss = `.${rendererClassName}{margin-block-start:var(${Options.HeaderHeight});`
-        rendererCss += `margin-block-end:var(${Options.FooterHeight});`
+        let rendererCss = `.${rendererClassName}{`
         rendererCss += `padding-block-start:var(${ViewportCssVariableNames.ContentWrapperMarginTop});`
         rendererCss += `padding-block-end:var(${ViewportCssVariableNames.ContentWrapperMarginBottom});`
         rendererCss += `overflow:auto;outline:none;width:100%;`
-        rendererCss += `height:calc(100% - var(${Options.HeaderHeight}) - var(${Options.FooterHeight}));`;
+        rendererCss += `height:100%;`;
         rendererCss += `overflow-y:var(${ViewportCssVariableNames.ScrollElementOverflow});`;
         rendererCss += `overflow-x:var(${ViewportCssVariableNames.ScrollElementOverflowX}, hidden);`;
         rendererCss += `}`;

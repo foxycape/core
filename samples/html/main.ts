@@ -223,8 +223,6 @@ const layoutPresets: Record<string, StylePreset> = {
 const options = new Options()
 options.debug = true
 options.themeName = 'default'
-options.enableFooter = false
-options.enableHeader = false
 
 const reader = new Reader(options, { device: new WebBrowser() })
 

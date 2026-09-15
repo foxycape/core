@@ -293,7 +293,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         const redirectElementRect = getLocateClientRect(redirectTarget);
         let scrollTopOffset = 0;
         if (!location?.ignoreOverlayHeader) {
-            scrollTopOffset = this.owner.optionsProvider.getHeaderHeight() + this.owner.options.redirectPositionOffset;
+            scrollTopOffset = this.owner.options.redirectPositionOffset;
 
             if (redirectElementRect.height == 0 && (!redirectElement || redirectElement.clientHeight == 0)) {
                 scrollTopOffset += 50;

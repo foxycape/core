@@ -72,10 +72,9 @@ export class PdfDocument extends BaseDocument implements IPdfDocument {
         }
 
         const scrollRect = scrollElement.getBoundingClientRect();
-        const topInset = this.owner.optionsProvider.getHeaderHeight();
         const viewport = {
             left: scrollRect.left,
-            top: scrollRect.top + topInset,
+            top: scrollRect.top,
             right: scrollRect.right,
             bottom: scrollRect.bottom,
         };

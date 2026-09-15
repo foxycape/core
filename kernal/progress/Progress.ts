@@ -100,7 +100,7 @@ export class FileLocation extends ReadingLocation {
     /** Visually displayed page number (for PDF) */
     visualPage?: number
 
-    /** Whether to ignore the header overlay height (if ignored, header height will not be added automatically) */
+    /** @deprecated Chrome no longer overlays the viewport; kept to skip automatic redirect offset on progress restore. */
     ignoreOverlayHeader?: boolean;
 
     /** Whether to use an absolute scroll offset */

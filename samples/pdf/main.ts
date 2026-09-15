@@ -65,8 +65,6 @@ type OpenTarget = {
 
 const options = new Options()
 options.debug = true
-options.enableFooter=false
-options.enableHeader=false
 
 const reader = new Reader(options, { device: new WebBrowser() })
 
