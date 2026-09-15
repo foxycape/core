@@ -1,4 +1,4 @@
-import { appendUrlParameter, checkIsAbsoluteUrl } from "../../common/url";
+import { appendUrlParameter, checkIsAbsoluteUrl, isLocalFilesystemRef } from "../../common/url";
 import { IInternalUrlBuilder } from "./IInternalUrlBuilder";
 
 export class DefaultInternalUrlBuilder implements IInternalUrlBuilder {
@@ -23,7 +23,7 @@ export class DefaultInternalUrlBuilder implements IInternalUrlBuilder {
         if (!relativeUrl)
             return "";
 
-        if (checkIsAbsoluteUrl(relativeUrl)) {
+        if (checkIsAbsoluteUrl(relativeUrl) || isLocalFilesystemRef(relativeUrl)) {
             return relativeUrl;
         }
         // Do not strip a leading slash: it denotes a path from the root.

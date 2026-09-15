@@ -10,7 +10,7 @@ export const baseHolderUrl = "https://a.com/";
 const ABSOLUTE_URL_FALLBACK_RE =
     /^(?:[a-z][a-z0-9+.-]*:\/\/\S+|(?:blob|data|mailto|about|javascript|filesystem):)/i;
 
-const isWindowsDrivePath = (url: string) => /^[a-zA-Z]:[\\/]/.test(url);
+export const isWindowsDrivePath = (url: string) => /^[a-zA-Z]:[\\/]/.test(url);
 
 const isBareScheme = (url: string) => /^[a-z][a-z0-9+.-]*:$/i.test(url);
 
@@ -282,4 +282,12 @@ export const checkIsFileUrl = (url: string) => {
         return false;
     }
     return startsWith(url, "file:", true);
+};
+
+/** Windows drive path or `file:` URL that must not be resolved against a web base. */
+export const isLocalFilesystemRef = (url: string) => {
+    if (!url || typeof url !== "string") {
+        return false;
+    }
+    return checkIsFileUrl(url) || isWindowsDrivePath(url);
 };
