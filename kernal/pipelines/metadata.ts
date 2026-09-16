@@ -6,17 +6,42 @@ import { FilePackage } from "../IFileParser";
 const asTrimmedString = (value: unknown): string =>
     typeof value === "string" ? unescapeHtml(value) : "";
 
-export const formatMetadata = (metadata: Metadata, url: any, extension: string): Metadata => {
+/** SAF document IDs and raw file URLs are not display titles. */
+export const isUriLikeBookTitle = (title?: string): boolean => {
+    const text = typeof title === "string" ? title.trim() : "";
+    if (!text) {
+        return false;
+    }
+    if (/^(content|file):\/\//i.test(text)) {
+        return true;
+    }
+    if (/%2F|%3A/i.test(text)) {
+        return true;
+    }
+    if (/^primary[:%]/i.test(text)) {
+        return true;
+    }
+    return false;
+};
+
+const asUsableName = (value?: string): string => {
+    const text = typeof value === "string" ? value.trim() : "";
+    return text && !isUriLikeBookTitle(text) ? text : "";
+};
+
+export const formatMetadata = (
+    metadata: Metadata,
+    url: any,
+    extension: string,
+    fallbackFileName?: string,
+): Metadata => {
     if (!metadata) {
         metadata = new Metadata();
     }
-    if (!metadata.title || typeof metadata.title !== 'string') {
-        if (typeof url === "string") {
-            metadata.title = getFileName(url)?.trim()
-        }
-        else {
-            metadata.title = "";
-        }
+    const usableFallback = asUsableName(fallbackFileName);
+    const urlName = typeof url === "string" ? asUsableName(getFileName(url)) : "";
+    if (!asUsableName(typeof metadata.title === "string" ? metadata.title : "")) {
+        metadata.title = usableFallback || urlName || "";
     }
     if (metadata.fileName && typeof metadata.fileName !== 'string') {
         metadata.fileName = "";
@@ -42,8 +67,10 @@ export const formatMetadata = (metadata: Metadata, url: any, extension: string):
     }
     metadata.extension = extension;
     try {
-        if (!metadata.fileName) {
-            if (typeof url === "string") {
+        if (!asUsableName(typeof metadata.fileName === "string" ? metadata.fileName : "")) {
+            if (usableFallback) {
+                metadata.fileName = usableFallback;
+            } else if (typeof url === "string") {
                 if (checkIsAbsoluteUrl(url)) {
                     metadata.fileName = getFileName(url)
                 }
@@ -72,6 +99,9 @@ export const formatMetadata = (metadata: Metadata, url: any, extension: string):
             else if (globalThis.FileSystemFileHandle && url instanceof globalThis.FileSystemFileHandle) {
                 metadata.fileName = url.name?.trim()
             }
+        }
+        if (isUriLikeBookTitle(metadata.fileName)) {
+            metadata.fileName = usableFallback;
         }
         if (metadata.fileName?.length > 1000) {
             metadata.fileName = '';

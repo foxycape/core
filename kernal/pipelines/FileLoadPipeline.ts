@@ -9,7 +9,7 @@ import { Options } from "../Options";
 import { FileLocation } from "../progress/Progress";
 import { CoreServiceMap, ServiceCollection } from "../services/ServiceCollection";
 import { InputFormatter } from "./InputFormatter";
-import { formatMetadata } from "./metadata";
+import { formatMetadata, isUriLikeBookTitle } from "./metadata";
 
 export type FileLoadPipelineDeps = {
     inputFormatter: InputFormatter;
@@ -144,11 +144,22 @@ export class FileLoadPipeline {
 
         await pipelineOptions?.afterParserReady?.(formatted.extension);
 
-        const fileMeta = formatMetadata(await fileParser.getMetadata(), formatted.url, formatted.extension);
+        const fallbackFileName =
+            typeof formatted.openOptions?.fileName === "string"
+                ? formatted.openOptions.fileName.trim()
+                : "";
+        const fileMeta = formatMetadata(
+            await fileParser.getMetadata(),
+            formatted.url,
+            formatted.extension,
+            fallbackFileName,
+        );
         const overlay = formatted.openOptions?.metadata;
         const metadata = fillMetadata(fileMeta, overlay);
         if (overlay?.fileName && typeof overlay.fileName === "string" && overlay.fileName.trim()) {
             metadata.fileName = overlay.fileName.trim();
+        } else if (fallbackFileName && !isUriLikeBookTitle(fallbackFileName)) {
+            metadata.fileName = fallbackFileName;
         }
         context.metadata = metadata;
 
