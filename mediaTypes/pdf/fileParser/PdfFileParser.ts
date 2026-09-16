@@ -1,5 +1,5 @@
 import { isNullOrWhiteSpace } from "../../../kernal/common/text";
-import { Nav, SpineFile, FileLocation, NavPoint, IFileDecrypter, Context, ILocale, IEventEmitter } from "../../../kernal";
+import { Nav, SpineFile, FileLocation, NavPoint, IFileDecrypter, Context, ILocale, IEventEmitter, FileLoadOptions } from "../../../kernal";
 import { IPdfFileParser, PdfFileParserOptions } from "./IPdfFileParser";
 import * as pdfjsLib from '../../../pdfjs/legacy/build/pdf.mjs';
 import { loadPdfDocument } from "../loadPdfDocument";
@@ -146,6 +146,14 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
 
         const data = await Array.from(this.pdfDocs.values())[0].getData();
         return await this.crypto.digest(data, 'MD5')
+    }
+
+    override async load(options?: FileLoadOptions): Promise<void> {
+        const result = await this.parseUrl(this.url, { requireDownload: true });
+        await this.initializeDatas(result);
+        if (options?.measureFilePercentage) {
+            await this.measureFilePercentage(this.spineFiles, this.urlParseResult?.requireCalculateFileSymbolCount)
+        }
     }
 
     protected override async parseUrl(url: any, options: FileUrlParserOptions): Promise<UrlParseResult> {
