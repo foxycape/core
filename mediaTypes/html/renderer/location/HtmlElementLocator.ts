@@ -10,6 +10,7 @@ import type { IHtmlSymbolMeasure } from "../../IHtmlSymbolMeasure";
 import { asHtmlFileParser } from "../../fileParser/IHtmlFileParser";
 import { ElementLocatorResult } from "./IHtmlElementLocator";
 import { IHtmlElementLocator } from "./IHtmlElementLocator";
+import { remapStoredPageNumber } from "./remapStoredPageNumber";
 
 export class HtmlElementLocator implements IHtmlElementLocator {
     constructor(public readonly documentsProvider: IDocumentsProvider) {
@@ -100,10 +101,7 @@ export class HtmlElementLocator implements IHtmlElementLocator {
         }
 
         const numberOfPages = await doc.getNumberOfPages();
-        let page = current;
-        if (location.total > 1 && location.total != numberOfPages) {
-            page = Math.ceil(numberOfPages * (location.current / location.total));
-        }
+        const page = remapStoredPageNumber(location, numberOfPages);
 
         if (flipMode == "page") {
             return { pageNumber: page, isDocumentStart: false };

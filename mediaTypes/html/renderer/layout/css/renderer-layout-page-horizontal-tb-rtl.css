@@ -1,0 +1,32 @@
+.renderer[data-viewport-mode="window"].layout-page-horizontal-tb-rtl {
+    height: var(--reader-viewport-height);
+}
+
+.renderer.layout-page-horizontal-tb-rtl .contents-container {
+    overflow: hidden;
+    background-color: var(--content-background);
+}
+
+.renderer.layout-page-horizontal-tb-rtl .transform-container {
+    direction: ltr;
+    flex-direction: row-reverse;
+    position: relative;
+    width: max-content;
+    min-width: max-content;
+    gap: calc(var(--content-column-gap) / 2);
+}
+
+.renderer.layout-page-horizontal-tb-rtl .file-content-container {
+    direction: rtl;
+    flex-shrink: 0;
+    padding-inline-end: calc(var(--content-column-gap) / 2 - 1px);
+    border-inline-end: 1px solid var(--column-rule-color);
+}
+
+.renderer.layout-page-horizontal-tb-rtl .file-content-container:last-child {
+    border: none;
+}
+
+.renderer.layout-page-horizontal-tb-rtl .contents-shadow {
+    overflow: hidden;
+}

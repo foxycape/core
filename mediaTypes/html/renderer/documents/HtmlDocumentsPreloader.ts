@@ -2,7 +2,9 @@ import { EventNames } from "../../../../kernal/EventNames";
 import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSettings } from "../../HtmlSettings";
 import { asyncDebounce, IDocument, IDocumentsProvider, IEventEmitter, yieldToMain } from "../../../../kernal";
+import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
 import { IHtmlDocumentsPreloader } from "./IHtmlDocumentsPreloader";
+import { collectPreloadNeighbors } from "./preloadNeighbors";
 
 type EdgeRect = {
     left: number;
@@ -37,21 +39,25 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
     private bindEvents() {
         this.events.on(EventNames.DocumentVisibleChange, this.onDocumentVisibleChange);
         this.events.on(EventNames.ReaderDebounceScroll, this.onReaderScroll);
+        this.events.on(EventNames.PageChange, this.onPageChange);
     }
 
     private unbindEvents() {
         this.events.off(EventNames.DocumentVisibleChange, this.onDocumentVisibleChange);
         this.events.off(EventNames.ReaderDebounceScroll, this.onReaderScroll);
+        this.events.off(EventNames.PageChange, this.onPageChange);
     }
 
     private onDocumentVisibleChange = () => {
-        this.abortPreloadIfPageMoving();
-        void this.delayPreloadDocuments();
+        this.schedulePreload();
     }
 
     private onReaderScroll = () => {
-        this.abortPreloadIfPageMoving();
-        void this.delayPreloadDocuments();
+        this.schedulePreload();
+    }
+
+    private onPageChange = () => {
+        this.schedulePreload();
     }
 
     async dispose(): Promise<void> {
@@ -62,6 +68,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
     preloadDocuments = async (): Promise<void> => {
         if (this.isPageMoving()) {
             this.preloadToken++;
+            this.delayPreloadAfterMove();
             return;
         }
         const token = ++this.preloadToken;
@@ -89,6 +96,16 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
     }
 
     private delayPreloadDocuments = asyncDebounce(() => this.preloadDocuments(), 500)
+    private delayPreloadAfterMove = asyncDebounce(() => this.preloadDocuments(), 80)
+
+    private schedulePreload = () => {
+        this.abortPreloadIfPageMoving();
+        if (this.isPageMoving()) {
+            this.delayPreloadAfterMove();
+            return;
+        }
+        this.delayPreloadDocuments();
+    }
 
     private resolveVisibleDocuments(): IDocument[] {
         const viewport = this.getViewportRect();
@@ -141,25 +158,13 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
                 reservedDocuments.push(doc);
             }
         }
-        const prepareDocuments: IDocument[] = [];
-        let preloadFileCount = this.htmlOptions.preloadFileCount;
-        if (preloadFileCount > 10)
-            preloadFileCount = 10;
-        if (preloadFileCount < 1) {
-            preloadFileCount = 1;
-        }
-
-        for (let i = 1; i <= preloadFileCount; i++) {
-            const nextIndex = endIndex + i;
-            if (nextIndex > 0 && nextIndex <= total - 1) {
-                prepareDocuments.push(documents[nextIndex]);
-            }
-
-            const previousIndex = startIndex - i;
-            if (previousIndex >= 0) {
-                prepareDocuments.push(documents[previousIndex]);
-            }
-        }
+        const prepareDocuments = collectPreloadNeighbors(
+            documents,
+            startIndex,
+            endIndex,
+            this.htmlOptions.preloadFileCount,
+            this.shouldPreloadPreviousFirst(),
+        );
 
         for (let i = 0; i < prepareDocuments.length; i++) {
             if (this.shouldAbortPreload(token)) {
@@ -173,8 +178,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
             await yieldToMain();
         }
         const rendererContainerClientWidth = this.documentsProvider.getRendererContainer().clientWidth;
-        // if the flip mode is page, continue to check the previous screen and the next screen for content
-        if (this.htmlOptions.flipMode == 'page') {
+        if (getLayoutGeometry(this.htmlOptions).flipMode == "page") {
             let previousDocumentsLength = 0;
             for (let i = startIndex - 1; i >= 0; i--) {
                 if (this.shouldAbortPreload(token)) {
@@ -192,7 +196,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
                 await yieldToMain();
             }
             let nextDocumentsLength = 0;
-            for (let i = endIndex + 1; i < total - 1; i++) {
+            for (let i = endIndex + 1; i < total; i++) {
                 if (this.shouldAbortPreload(token)) {
                     return;
                 }
@@ -240,6 +244,14 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
                 await yieldToMain();
             }
         }
+    }
+
+    private shouldPreloadPreviousFirst = () => {
+        const direction = this.documentsProvider.owner?.context?.currentLocation?.direction;
+        if (getLayoutGeometry(this.htmlOptions).flipMode == "page") {
+            return direction != "next";
+        }
+        return direction == "previous";
     }
 
     private isPageMoving = () => {

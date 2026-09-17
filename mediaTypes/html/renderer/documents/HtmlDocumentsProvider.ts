@@ -21,7 +21,9 @@ import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { HtmlRendererViewport } from "../layout/HtmlRendererViewport";
 import { IHtmlDocumentsPreloader } from "./IHtmlDocumentsPreloader";
 import { IHtmlElementLocator } from "../location/IHtmlElementLocator";
-import { getPageStartOffset, getPageTranslateCss, getPageTransformOffset, resolveLayoutFlow } from "../layout/resolveLayoutFlow";
+import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
+import { getLayoutOffsetLeft } from "../layout/geometry/getLayoutOffsetLeft";
+import { remapStoredPageNumber } from "../location/remapStoredPageNumber";
 
 /**
  * HTML documents provider.
@@ -144,7 +146,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             }
         }
 
-        if (resolveLayoutFlow(this.htmlOptions).flipMode == "page") {
+        if (getLayoutGeometry(this.htmlOptions).flipMode == "page") {
             this.appendPageStyles();
         }
         else {
@@ -181,7 +183,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         if (!location)
             return;
         isReload = isReload ?? false;
-        const flipMode = resolveLayoutFlow(this.htmlOptions).flipMode;
+        const flipMode = getLayoutGeometry(this.htmlOptions).flipMode;
         const htmlDoc = doc instanceof HtmlDocument ? doc : null;
         const retainLoadingLayer = !!htmlDoc
             && flipMode == "scroll"
@@ -219,11 +221,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                         pageNumber = await doc.getPageNumber(redirectTarget);
                     }
                     else if (location.unit === "page" && location.current != null && location.current > 0) {
-                        pageNumber = location.current;
-                        const numberOfPages = await doc.getNumberOfPages();
-                        if (location.total > 1 && location.total != numberOfPages) {
-                            pageNumber = Math.ceil(numberOfPages * (location.current / location.total));
-                        }
+                        pageNumber = remapStoredPageNumber(location, await doc.getNumberOfPages());
                     }
                     else if (isDomRange(redirectTarget)) {
                         pageNumber = await doc.getPageNumber(redirectTarget);
@@ -233,11 +231,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                     }
                 }
                 else if (location.unit === "page" && location.current != null && location.current > 0) {
-                    pageNumber = location.current;
-                    const numberOfPages = await doc.getNumberOfPages();
-                    if (location.total > 1 && location.total != numberOfPages) {
-                        pageNumber = Math.ceil(numberOfPages * (location.current / location.total));
-                    }
+                    pageNumber = remapStoredPageNumber(location, await doc.getNumberOfPages());
                 }
                 else if (isDomRange(redirectTarget)) {
                     // Character Range (search / mark textOffset): use hit geometry so
@@ -284,8 +278,8 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
      * Scroll mode positioning
      */
     private async gotoScroll(doc: IHtmlDocument, location: FileLocation, redirectTarget: LocateTarget, isDocumentStart: boolean): Promise<void> {
-        const flow = resolveLayoutFlow(this.htmlOptions);
-        if (flow.blockAxis == "x") {
+        const geometry = getLayoutGeometry(this.htmlOptions);
+        if (geometry.blockAxis == "x") {
             await this.gotoScrollX(doc, location, redirectTarget, isDocumentStart);
             return;
         }
@@ -388,8 +382,8 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
 
     private async transformPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous') {
         this.setCurrentVisibleDocument(doc);
-        const flow = resolveLayoutFlow(this.htmlOptions);
-        if (flow.pageAxis == "y") {
+        const geometry = getLayoutGeometry(this.htmlOptions);
+        if (geometry.pageAxis == "y") {
             this.transformVerticalPage(doc, pageNumber, direction);
             return;
         }
@@ -484,9 +478,9 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     }
 
     canAdvancePageTransform(doc: IHtmlDocument): boolean {
-        const flow = resolveLayoutFlow(this.htmlOptions);
+        const geometry = getLayoutGeometry(this.htmlOptions);
         const nextPageNumber = this.getCurrentPageNumber(doc) + 1;
-        return this.resolveRelativePageTransform(doc, nextPageNumber, "next", flow.pageAxis) != null;
+        return this.resolveRelativePageTransform(doc, nextPageNumber, "next", geometry.pageAxis) != null;
     }
 
     /**
@@ -503,14 +497,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         if (!lastWrapper) {
             return 0;
         }
-        if (axis == "y") {
-            return lastWrapper.offsetTop + lastWrapper.scrollHeight;
-        }
-        const flow = resolveLayoutFlow(this.htmlOptions);
-        if (flow.isRtlProgression) {
-            return transformContainer.offsetWidth || 0;
-        }
-        return lastWrapper.offsetLeft + lastWrapper.scrollWidth;
+        return getLayoutGeometry(this.htmlOptions).getLastContentExtent(lastWrapper, transformContainer);
     }
 
     private syncPageNumberWhenTransformBlocked(doc: IHtmlDocument, direction?: 'next' | 'previous') {
@@ -531,17 +518,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
      * Whole-area RTL places the first document on the right; offsetLeft is still
      * physical-left, so the start offset is measured from the container's right.
      */
-    private getDocumentPageStartOffset(doc: IHtmlDocument, axis: 'x' | 'y'): number {
+    private getDocumentPageStartOffset(doc: IHtmlDocument, _axis: 'x' | 'y'): number {
         const wrapperContainer = doc.getWrapperContainer();
-        if (axis == "y") {
-            return wrapperContainer?.offsetTop ?? 0;
-        }
-        const flow = resolveLayoutFlow(this.htmlOptions);
-        if (!flow.isRtlProgression) {
-            return wrapperContainer?.offsetLeft ?? 0;
-        }
         const pageBox = this.getDocumentPageBox(doc);
-        return pageBox.startOffset;
+        return getLayoutGeometry(this.htmlOptions).getDocumentPageStartOffset(wrapperContainer, pageBox);
     }
 
     /**
@@ -558,31 +538,16 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             || (wrapperContainer?.clientWidth ?? 0);
         const transformContainer = this.getTransformContainer();
         const offsetLeft = iframe && transformContainer
-            ? this.getLayoutOffsetLeft(iframe, transformContainer)
+            ? getLayoutOffsetLeft(iframe, transformContainer)
             : (wrapperContainer?.offsetLeft ?? 0);
         const containerWidth = transformContainer?.offsetWidth ?? 0;
-        const flow = resolveLayoutFlow(this.htmlOptions);
-        const startOffset = getPageStartOffset(
+        const geometry = getLayoutGeometry(this.htmlOptions);
+        const startOffset = geometry.getPageStartOffset({
             offsetLeft,
             contentWidth,
-            flow.isRtlProgression,
-            containerWidth
-        );
+            containerWidth,
+        });
         return { offsetLeft, contentWidth, startOffset, containerWidth };
-    }
-
-    private getLayoutOffsetLeft(element: HTMLElement, ancestor: HTMLElement): number {
-        let left = 0;
-        let current: HTMLElement | null = element;
-        while (current && current !== ancestor) {
-            left += current.offsetLeft;
-            const offsetParent = current.offsetParent as HTMLElement | null;
-            if (!offsetParent || offsetParent === current) {
-                break;
-            }
-            current = offsetParent;
-        }
-        return left;
     }
 
     private applyPageTransform(
@@ -591,10 +556,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         direction?: 'next' | 'previous',
         axis: 'x' | 'y' = "x"
     ) {
-        const flow = resolveLayoutFlow(this.htmlOptions);
+        const geometry = getLayoutGeometry(this.htmlOptions);
         const length = parseFloat(newTransformLegnth.toFixed(10));
-        const nextTransformCss = getPageTranslateCss(length, axis, flow.pageSign);
-        const expectedSignedLength = axis == "y" ? -length : -flow.pageSign * length;
+        const nextTransformCss = geometry.getPageTranslateCss(length);
+        const expectedSignedLength = geometry.getSignedTranslateLength(length);
         const currentSignedLength = getTransformLength(transformContainer, axis, true);
         transformContainer.setAttribute('data-target-transform', `${length}`);
         // Relative turns skip a no-op write. Absolute goto (font / layout remap)
@@ -644,31 +609,24 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
 
     private scrollWrapperIntoView = (doc: IHtmlDocument, forceScroll?: boolean) => {
         const wrapperContainer = doc.getWrapperContainer();
-        const flow = resolveLayoutFlow(this.htmlOptions);
-        if (flow.flipMode == 'page') {
+        const geometry = getLayoutGeometry(this.htmlOptions);
+        if (geometry.flipMode == 'page') {
             const metrics = this.rendererViewport.getLayoutMetrics();
             const transformContainer = this.getTransformContainer();
-            if (flow.pageAxis == "y") {
+            if (geometry.pageAxis == "y") {
                 const transform = Math.max(0, wrapperContainer.offsetTop);
-                transformContainer.style.transform = getPageTranslateCss(transform, "y");
+                transformContainer.style.transform = geometry.getPageTranslateCss(transform);
                 transformContainer.setAttribute("data-target-transform", `${transform}`);
             }
             else {
                 const pageBox = this.getDocumentPageBox(doc);
-                const transform = getPageTransformOffset(
-                    pageBox.offsetLeft,
-                    pageBox.contentWidth,
-                    1,
-                    metrics.pageMoveLength,
-                    flow.isRtlProgression,
-                    pageBox.containerWidth
-                );
-                transformContainer.style.transform = getPageTranslateCss(transform, "x", flow.pageSign);
+                const transform = geometry.getPageTransformOffset(pageBox, 1, metrics.pageMoveLength);
+                transformContainer.style.transform = geometry.getPageTranslateCss(transform);
                 transformContainer.setAttribute("data-target-transform", `${transform}`);
             }
         }
         else if (!wrapperContainer.isVisible || forceScroll) {
-            if (flow.blockAxis == "x" && flow.initialScroll == "end") {
+            if (geometry.blockAxis == "x" && geometry.initialScroll == "end") {
                 const scrollElement = this.getScrollElement();
                 const wrapperRect = wrapperContainer.getBoundingClientRect();
                 const scrollRect = scrollElement.getBoundingClientRect();
@@ -697,7 +655,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         const contentRoot = doc.getContentContainer()?.ownerDocument?.documentElement;
         contentRoot?.removeAttribute(HtmlSettings.HtmlDocumentNumperOfPagesPropertyName);
         const total = Math.max(1, await doc.getNumberOfPages());
-        const flow = resolveLayoutFlow(this.htmlOptions);
+        const geometry = getLayoutGeometry(this.htmlOptions);
         const metrics = this.rendererViewport.getLayoutMetrics();
         const step = Math.max(1, metrics.pageMoveLength);
         const transformContainer = this.getTransformContainer();
@@ -706,7 +664,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             0,
             'parseFloat',
         );
-        const offset = this.getDocumentPageStartOffset(doc, flow.pageAxis);
+        const offset = this.getDocumentPageStartOffset(doc, geometry.pageAxis);
         const current = Math.min(
             total,
             Math.max(1, Math.round(Math.abs(currentTransform - offset) / step) + 1),
@@ -742,7 +700,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         if (isReload || location?.direction == "next" || location?.direction == "previous") {
             return false;
         }
-        return resolveLayoutFlow(this.htmlOptions).flipMode == "page";
+        return getLayoutGeometry(this.htmlOptions).flipMode == "page";
     }
 
     /**
@@ -767,7 +725,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     protected delayReload = asyncDebounce(this.reload, this.delayReloadTime);
 
     private appendPageStyles() {
-        this.getRendererContainer().classList.add(HtmlSettings.TransformPagesClassName);
+        // Page-strip CSS lives on the exclusive renderer layout class.
     }
 
     private clearPageTransform() {

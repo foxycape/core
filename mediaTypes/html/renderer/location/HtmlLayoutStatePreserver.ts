@@ -9,7 +9,7 @@ import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSettings } from "../../HtmlSettings";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
-import { getPageTranslateCss, resolveLayoutFlow } from "../layout/resolveLayoutFlow";
+import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
 
 /**
  * Capture / restore viewport scroll and page-transform when a document's
@@ -28,15 +28,14 @@ export class HtmlLayoutStatePreserver {
         const scrollElement = this.viewport.getScrollElement() ?? renderer?.getScrollElement();
         const transformContainer = this.getTransformContainer();
         const wrapper = this.doc.getWrapperContainer();
-        const flow = resolveLayoutFlow(this.options);
+        const geometry = getLayoutGeometry(this.options);
         const anchor = this.findLocationAnchor();
+        const extent = wrapper ? geometry.getCaptureExtent(wrapper) : { width: 0, height: 0 };
         return {
             scrollLeft: scrollElement?.scrollLeft ?? 0,
             scrollTop: scrollElement?.scrollTop ?? 0,
-            width: wrapper?.scrollWidth ?? 0,
-            height: flow.flipMode == "page" && flow.pageAxis == "y"
-                ? (wrapper?.scrollHeight ?? 0)
-                : (wrapper?.offsetHeight ?? 0),
+            width: extent.width,
+            height: extent.height,
             transformLeft: transformContainer ? getTransformLength(transformContainer, "x") : 0,
             transformTop: transformContainer ? getTransformLength(transformContainer, "y") : 0,
             firstVisibleDocument: this.resolveCompensationAnchor() ?? renderer?.getFirstVisibleDocument(),
@@ -59,14 +58,14 @@ export class HtmlLayoutStatePreserver {
             return;
         }
 
-        const flow = resolveLayoutFlow(this.options);
-        if (flow.flipMode == "page") {
+        const geometry = getLayoutGeometry(this.options);
+        if (geometry.flipMode == "page") {
             await this.waitUntilPageTransformStable();
-            this.restorePageTransform(locationState, currentIndex === firstVisibleDocumentIndex, flow.pageAxis);
+            this.restorePageTransform(locationState, currentIndex === firstVisibleDocumentIndex, geometry.pageAxis);
             return;
         }
         this.clearPageTransformIfNeeded();
-        this.restoreScroll(locationState, currentIndex === firstVisibleDocumentIndex, flow.blockAxis);
+        this.restoreScroll(locationState, currentIndex === firstVisibleDocumentIndex, geometry.blockAxis);
     }
 
     /**
@@ -74,7 +73,7 @@ export class HtmlLayoutStatePreserver {
      * so subsequent size / column measurements are not taken mid-animation.
      */
     async waitUntilPageTransformStable(): Promise<void> {
-        if (resolveLayoutFlow(this.options).flipMode != "page") {
+        if (getLayoutGeometry(this.options).flipMode != "page") {
             return;
         }
         const transformContainer = this.getTransformContainer();
@@ -121,32 +120,28 @@ export class HtmlLayoutStatePreserver {
         }
 
         const wrapper = this.doc.getWrapperContainer();
-        const flow = resolveLayoutFlow(this.options);
+        const geometry = getLayoutGeometry(this.options);
         const sizeDelta = pageAxis == "y"
             ? (wrapper?.scrollHeight ?? 0) - locationState.height
             : (wrapper?.scrollWidth ?? 0) - locationState.width;
-        let newTransform = currentTransform + sizeDelta;
-
-        if (isFirstVisible) {
-            const anchor = this.findLocationAnchor();
-            if (anchor && locationState.foundElement) {
-                const offsetDelta = pageAxis == "y"
-                    ? anchor.offsetTop - locationState.offsetTop
-                    : anchor.offsetLeft - locationState.offsetLeft;
-                newTransform = pageAxis == "x" && flow.isRtlProgression
-                    ? currentTransform - offsetDelta
-                    : currentTransform + offsetDelta;
-            }
+        let offsetDelta = 0;
+        const anchor = isFirstVisible ? this.findLocationAnchor() : null;
+        if (anchor && locationState.foundElement) {
+            offsetDelta = pageAxis == "y"
+                ? anchor.offsetTop - locationState.offsetTop
+                : anchor.offsetLeft - locationState.offsetLeft;
         }
-
-        if (newTransform < 0) {
-            newTransform = 0;
-        }
+        const newTransform = geometry.restorePageTransform({
+            currentTransform,
+            sizeDelta,
+            offsetDelta,
+            isFirstVisible,
+            foundElement: !!(anchor && locationState.foundElement),
+        });
 
         transformContainer.style.removeProperty("transition");
         transformContainer.setAttribute("data-target-transform", `${newTransform}`);
-        const length = parseFloat(newTransform.toFixed(10));
-        transformContainer.style.transform = getPageTranslateCss(length, pageAxis, flow.pageSign);
+        transformContainer.style.transform = geometry.getPageTranslateCss(newTransform);
     }
 
     private restoreScroll(locationState: LocationState, isFirstVisible: boolean, blockAxis: "x" | "y") {

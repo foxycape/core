@@ -26,10 +26,11 @@ import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import errorImageUrl from "./error-image.png";
 import { IHtmlImageLoader, ImageElement, ImageSizeDescriptor } from "./IHtmlImageLoader";
 import { createHtmlPlaceholderImageUrl, isHtmlPlaceholderImageUrl } from "./htmlImagePlaceholderUrl";
+import { getImageFitStyles, getImageForcedHeightCss, getImageHeightRatioExpr } from "./htmlImageFitStyles";
 
 const SVG_STYLE_CLASS = "lhx-svg";
 const PRELOAD_IMAGE_COUNT = 5;
-const SVG_STYLE = `.${SVG_STYLE_CLASS} {width: 100% !important; height: auto !important; }`;
+const SVG_STYLE = `.${SVG_STYLE_CLASS} {max-width: var(${ContentLayoutCssVariableNames.ColumnBoxWidth}) !important; width: auto !important; height: auto !important; }`;
 const ONLY_ONE_IMAGE_STYLE = "*,p,div{text-align:center;margin-block:0 !important;margin-inline:auto !important;text-indent:0 !important;padding:0 !important;line-height:0 !important}";
 
 const isDefaultPlaceholderUrl = (url: string | null | undefined): boolean => {
@@ -442,22 +443,14 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         }
         targetElement.setAttribute("width", `${width}`);
         targetElement.setAttribute("height", `${height}`);
-        const widthValue = `calc(100% * var(${ContentLayoutCssVariableNames.MaxImageWidthRatio}))`;
-        const maxHeightValue = `min(${height}px,var(${ContentLayoutCssVariableNames.ColumnHeight}),calc(var(${ContentLayoutCssVariableNames.ColumnWidth}) / ${width} * ${height}))`;
-        applyStyles(targetElement, {
-            width: widthValue,
-            height: "auto",
-            "max-width": widthValue,
-            "max-height": maxHeightValue,
-            "aspect-ratio": `${width} / ${height}`,
-        });
+        applyStyles(targetElement, getImageFitStyles(width, height));
     }
 
     private resetImageWidthHeight(image: ImageElement, columnWidth: number, columnHeight: number) {
         applyStyles(image, {
             width: "auto",
-            "max-width": "100%",
-            "max-height": "100%",
+            "max-width": `var(${ContentLayoutCssVariableNames.ColumnBoxWidth})`,
+            "max-height": `var(${ContentLayoutCssVariableNames.ColumnBoxHeight})`,
         }, true);
         this.resetImageHeight(image, columnWidth, columnHeight, this.htmlOptions.maxImageHeightRatio);
     }
@@ -566,14 +559,14 @@ export class HtmlImageLoader implements IHtmlImageLoader {
             this.clearPercentageSizeAttributes(targetElement);
             applyStyles(element, {
                 width: "auto",
-                "max-width": "100%",
+                "max-width": `var(${ContentLayoutCssVariableNames.ColumnBoxWidth})`,
                 "max-height": columnHeight + "px",
                 display: "block",
             }, true);
         }
         applyStyles(targetElement, {
             width: "auto",
-            "max-width": "100%",
+            "max-width": `var(${ContentLayoutCssVariableNames.ColumnBoxWidth})`,
             display: "block",
         }, true);
         if (targetElement.parentElement) {
@@ -622,11 +615,8 @@ export class HtmlImageLoader implements IHtmlImageLoader {
         preferRatioNumber?: boolean
     ) {
         if (BrowserCapabilities.supportCssMinMaxFunction()) {
-            const ratio = preferRatioNumber && maxImageHeightRatio
-                ? `${maxImageHeightRatio}`
-                : `var(${ContentLayoutCssVariableNames.MaxImageHeightRatio})`;
-            const styleValue = `min(calc(${height}px * ${ratio}),calc(var(${ContentLayoutCssVariableNames.ColumnHeight}) * ${ratio}),calc(var(${ContentLayoutCssVariableNames.ColumnWidth}) / ${width} * ${height} * ${ratio}))`;
-            element.style.setProperty("height", styleValue, "important");
+            const ratio = getImageHeightRatioExpr(maxImageHeightRatio, preferRatioNumber);
+            element.style.setProperty("height", getImageForcedHeightCss(width, height, ratio), "important");
             return;
         }
         const actualHeight = this.calcImageHeight(columnWidth, columnHeight, width, height) * maxImageHeightRatio;

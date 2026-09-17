@@ -1,0 +1,18 @@
+html,
+body {
+    writing-mode: horizontal-tb !important;
+    direction: ltr !important;
+}
+
+html[class*="content-page-vertical-"] img,
+html[class*="content-page-vertical-"] svg,
+html[class*="content-page-vertical-"] video,
+html[class*="content-page-vertical-"] canvas,
+html[class*="content-scroll-vertical-"] img,
+html[class*="content-scroll-vertical-"] svg,
+html[class*="content-scroll-vertical-"] video,
+html[class*="content-scroll-vertical-"] canvas {
+    max-width: var(--column-box-width, var(--page-width)) !important;
+    max-height: var(--column-box-height, var(--page-height)) !important;
+    object-fit: contain;
+}

@@ -19,9 +19,10 @@ import { asHtmlFileParser } from "../../fileParser/IHtmlFileParser";
 import { HtmlSymbolCalclator } from "./HtmlSymbolCalclator";
 import { HtmlDocumentResizeObserver } from "./HtmlDocumentResizeObserver";
 import { collectContentUnitElements } from "../visibilityCandidates";
-import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
+import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
 import { ViewportCssVariableNames } from "../layout/ViewportCssVariableNames";
 import { HtmlLayoutStatePreserver } from "../location/HtmlLayoutStatePreserver";
+import { shouldKeepPageEndOnContentGrow } from "../location/remapStoredPageNumber";
 
 export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     private docContent: string;
@@ -72,7 +73,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                 if (this.inIframe) {
                     if (!this.iframe) {
                         const iframeId = readerPrefixName + getUuid(true);
-                        this.iframe = createIframe(this.wrapperContainer.ownerDocument, iframeId, this.options.forceScroll, resolveLayoutFlow(this.options));
+                        this.iframe = createIframe(this.wrapperContainer.ownerDocument, iframeId, this.options.forceScroll, getLayoutGeometry(this.options));
                         if (this.options.forceScroll) {
                             this.iframe.removeAttribute("scrolling");
                         }
@@ -321,9 +322,20 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.bindDocumentEvents();
         this.owner.events.emit(EventNames.DocumentLoad, this);
         this.resizeObserver.observeIframeSize(async () => {
+            const keepEnd = shouldKeepPageEndOnContentGrow(this.owner.context.currentLocation, this.url);
+            const layoutState = keepEnd ? this.captureLayoutState() : null;
             this.resetLayoutSizes();
             if (this.getFlipMode() == "page") {
                 this.pageCalculator.calcNumberOfPages(true);
+            }
+            if (keepEnd && layoutState) {
+                await this.restoreLayoutState(layoutState);
+                const pages = this.internalGetNumberOfPages();
+                const location = this.owner.context.currentLocation;
+                if (location?.url == this.url) {
+                    location.current = pages;
+                    location.total = pages;
+                }
             }
         });
         this.loadCompleted(true);
@@ -359,16 +371,16 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             return;
         }
 
-        const flow = resolveLayoutFlow(this.options);
+        const geometry = getLayoutGeometry(this.options);
         const body = getDocumentBody(contentRootElement.ownerDocument);
         this.iframe.style.removeProperty("transform");
         this.iframe.style.removeProperty("will-change");
-        if (flow.useColumnLayout) {
-            this.growIframeToColumnOverflow(contentRootElement, body, flow.pageAxis);
+        if (geometry.useColumnLayout) {
+            this.growIframeToColumnOverflow(contentRootElement, body, geometry.pageAxis);
             this.pageCalculator.calcNumberOfPages(true);
             return;
         }
-        if (flow.iframeGrow == "width") {
+        if (geometry.iframeGrow == "width") {
             this.iframe.style.removeProperty("min-height");
             this.iframe.style.removeProperty("min-width");
             const lockedHeight = this.getParentContentHeight(this.iframe.parentElement) || this.iframe.clientHeight;
@@ -560,7 +572,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         const originDirection = rootContent.style.direction;
         const originBodyDirection = body?.style.direction ?? "";
         const hadRtlClass = rootContent.classList.contains(HtmlSettings.RtlProgressionClassName);
-        const shouldMeasureAsLtr = axis == "x" && resolveLayoutFlow(this.options).isRtlProgression;
+        const shouldMeasureAsLtr = getLayoutGeometry(this.options).measureColumnsAsLtr;
         rootContent.style.setProperty("min-width", "0", "important");
         if (shouldMeasureAsLtr) {
             rootContent.style.setProperty("direction", "ltr", "important");
@@ -705,7 +717,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         }
 
         return getOrderedElementsIntersectingRect(this.visibilityCandidates, viewport, {
-            writingMode: resolveLayoutFlow(this.options).writingMode,
+            writingMode: getLayoutGeometry(this.options).writingMode,
             fullVisible: fullVisibleInWindow
         });
     }

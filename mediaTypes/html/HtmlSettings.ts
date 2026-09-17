@@ -27,7 +27,12 @@ export class HtmlSettings {
     static readonly FlipPageClassName = "flip-page";
     static readonly RtlProgressionClassName = "rtl-progression";
     static readonly HostViewportModeAttribute = "data-viewport-mode";
+    static readonly DocumentLayoutCssName = "document-layout";
+    static readonly DocumentPageModeCssName = "document-page-mode";
     static readonly DocumentVerticalPageModeCssName = "document-vertical-page-mode";
+    static readonly WritingVerticalScrollDocumentLayoutCssName = "vertical-document-layout";
+    static readonly RootDirLtrClassName = "dir-ltr";
+    static readonly RootDirRtlClassName = "dir-rtl";
 
     /** Attribute name for the original link value */
     static readonly LinkOriginHrefPropertyName = "foxycape-origin-data-url";
@@ -45,6 +50,7 @@ export class HtmlSettings {
     static readonly WithoutMarginBottomCssName = "without-margin-bottom";
 
     static readonly PageMovingAttributeName = "page-moving";
+    static readonly LayoutSwitchingAttributeName = "layout-switching";
 
     /** html class: user chose a font; force it over the book's own font-family */
     static readonly UserSpecifiedFontClassName = "foxycape-user-font";

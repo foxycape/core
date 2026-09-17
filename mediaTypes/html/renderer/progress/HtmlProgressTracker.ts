@@ -10,7 +10,8 @@ import { IHtmlDocumentsProvider } from "../IHtmlDocumentsProvider";
 import { HtmlOptions } from "../../HtmlOptions";
 import { asHtmlFileParser } from "../../fileParser/IHtmlFileParser";
 import { getAdjacentText } from "./adjacent";
-import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
+import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
+import type { WritingMode } from "../../../../kernal";
 
 export class HtmlProgressTracker implements IHtmlProgressTracker {
     private readonly logger: ILogger;
@@ -103,16 +104,16 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
         }
 
         const location = this.createElementLocation(firstVisibleDocument, firstVisibleElement);
-        const flow = resolveLayoutFlow(this.options);
+        const geometry = getLayoutGeometry(this.options);
         const isFullscreen = !!fullscreenElement;
         const textAnchor = isFullscreen
             ? undefined
-            : this.findVisibleTextAnchor(firstVisibleElement, firstVisibleDocument, flow.writingMode);
+            : this.findVisibleTextAnchor(firstVisibleElement, firstVisibleDocument, geometry.writingMode);
         if (textAnchor) {
             location.textOffset = textAnchor.textOffset;
         }
         const offsetRect = textAnchor?.rect ?? firstVisibleElementRect;
-        if (flow.blockAxis == "x") {
+        if (geometry.blockAxis == "x") {
             location.offsetLeft = this.calcVisibleRectOffset(offsetRect, firstVisibleDocument, isFullscreen, "x");
         }
         else {
@@ -122,7 +123,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
         location.ignoreOverlayHeader = true;
         location.scrollBehavior = "smooth";
         location.text = getAdjacentText(this.documentsProvider, this.options.htmlBlockTags, firstVisibleDocument.extension, firstVisibleElement);
-        if (flow.flipMode === "page" && location.textOffset == null) {
+        if (geometry.flipMode === "page" && location.textOffset == null) {
             const pageNumber = this.documentsProvider.getCurrentPageNumber(firstVisibleDocument);
             const numberOfPages = await firstVisibleDocument.getNumberOfPages();
             location.unit = "page";
@@ -153,7 +154,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
         return location;
     }
 
-    private findVisibleTextAnchor(element: Element, doc: IHtmlDocument, writingMode: ReturnType<typeof resolveLayoutFlow>["writingMode"]) {
+    private findVisibleTextAnchor(element: Element, doc: IHtmlDocument, writingMode: WritingMode) {
         const contentWindow = element.ownerDocument?.defaultView ?? doc.getContentContainer()?.ownerDocument?.defaultView;
         if (!contentWindow) {
             return undefined;
@@ -178,7 +179,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
 
         const iframe = doc.getContentContainer()?.ownerDocument?.defaultView?.frameElement as HTMLElement | null;
         const iframeRect = iframe?.getBoundingClientRect();
-        const isScroll = resolveLayoutFlow(this.options).flipMode === "scroll";
+        const isScroll = getLayoutGeometry(this.options).flipMode === "scroll";
         let offset = axis == "x"
             ? (isScroll ? rect.left + (iframeRect?.left ?? 0) : rect.left)
             : (isScroll ? rect.top + (iframeRect?.top ?? 0) : rect.top);
@@ -227,7 +228,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
             if (target < 1) {
                 return target;
             }
-            if (resolveLayoutFlow(this.options).flipMode === "scroll") {
+            if (getLayoutGeometry(this.options).flipMode === "scroll") {
                 return target <= 1 ? target : 0;
             }
             await doc.load();

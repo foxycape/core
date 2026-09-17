@@ -1,0 +1,6 @@
+.renderer[data-viewport-mode="window"].layout-scroll-horizontal-tb-rtl {
+    height: auto;
+    overflow: visible;
+    overflow-x: visible;
+    overflow-y: visible;
+}

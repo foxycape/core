@@ -39,3 +39,23 @@ describe('HtmlElementLocator symbol unit', () => {
         expect(location.textOffset).not.toBe(999)
     })
 })
+
+describe('HtmlElementLocator page unit', () => {
+    const locator = new HtmlElementLocator({
+        fileParser: { symbolMeasure: defaultHtmlSymbolMeasure },
+    } as never)
+
+    it('maps a previous-chapter 1/1 location to the last page after the chapter grows', async () => {
+        const parsed = new DOMParser().parseFromString('<body><p>chapter</p></body>', 'text/html')
+        const doc = {
+            getContentContainer: () => parsed.body,
+            getNumberOfPages: async () => 8,
+            getPageNumber: async () => 1,
+        } as unknown as IHtmlDocument
+        const location = new FileLocation('chapter-2.xhtml', 1, 'page')
+        location.current = 1
+        location.direction = 'previous'
+        const result = await locator.locateElement(doc, location, { flipMode: 'page' } as HtmlOptions)
+        expect(result.pageNumber).toBe(8)
+    })
+})

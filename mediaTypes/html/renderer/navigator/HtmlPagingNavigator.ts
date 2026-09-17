@@ -3,7 +3,7 @@ import type { Reader } from "../../../../kernal/Reader";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { HtmlOptions } from "../../HtmlOptions";
 import { IHtmlDocumentsProvider } from "../IHtmlDocumentsProvider";
-import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
+import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
 
 export class HtmlPagingNavigator implements IPagingNavigator {
     protected logger: ILogger;
@@ -23,7 +23,7 @@ export class HtmlPagingNavigator implements IPagingNavigator {
     }
 
     private async internalGotoPage(doc: IHtmlDocument, pageNumber: number, direction?: 'next' | 'previous', extra?: PagingExtra): Promise<boolean> {
-        if (resolveLayoutFlow(this.options).flipMode == "scroll") {
+        if (getLayoutGeometry(this.options).flipMode == "scroll") {
             this.logger.warn(this.locale?.getText("unsupportTurnPageWhenScrolling", "Page turning is not supported in scroll mode"));
             return false;
         }
@@ -86,7 +86,7 @@ export class HtmlPagingNavigator implements IPagingNavigator {
     }
 
     async gotoNextPage(extra?: PagingExtra): Promise<boolean> {
-        if (resolveLayoutFlow(this.options).flipMode == "scroll") {
+        if (getLayoutGeometry(this.options).flipMode == "scroll") {
             // this.logger.warn(this.locale.getText("unsupportTurnPageWhenScrolling", "Page turning is not supported in scroll mode"));
             return false;
         }
@@ -101,7 +101,7 @@ export class HtmlPagingNavigator implements IPagingNavigator {
         return await this.internalGotoPage(doc, current + 1, 'next', extra);
     }
     async gotoPreviousPage(extra?: PagingExtra): Promise<boolean> {
-        if (resolveLayoutFlow(this.options).flipMode == "scroll") {
+        if (getLayoutGeometry(this.options).flipMode == "scroll") {
             // this.logger.warn(this.locale.getText("unsupportTurnPageWhenScrolling", "Page turning is not supported in scroll mode"));
             return false;
         }

@@ -1,0 +1,30 @@
+html.content-page-horizontal-tb-rtl,
+html.content-page-horizontal-tb-rtl body {
+    writing-mode: horizontal-tb !important;
+    direction: rtl !important;
+}
+
+html.content-page-horizontal-tb-rtl {
+    width: var(--page-width) !important;
+    height: var(--page-height) !important;
+    column-width: var(--column-width) !important;
+    column-rule: 1px solid var(--column-rule-color) !important;
+    column-fill: auto;
+    column-gap: var(--column-gap) !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    transition-property: transform;
+    overflow: hidden !important;
+    overflow-wrap: break-word !important;
+    position: static !important;
+    border: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-height: none !important;
+    max-width: none !important;
+    min-width: 100% !important;
+}
+
+html.content-page-horizontal-tb-rtl .without-margin-bottom {
+    margin-block-end: 0 !important;
+}

@@ -1,0 +1,5 @@
+html.content-scroll-horizontal-tb-rtl,
+html.content-scroll-horizontal-tb-rtl body {
+    writing-mode: horizontal-tb !important;
+    direction: rtl !important;
+}

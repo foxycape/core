@@ -1,0 +1,45 @@
+.renderer[data-viewport-mode="window"].layout-page-vertical-rl-ltr {
+    height: var(--reader-viewport-height);
+}
+
+.renderer.layout-page-vertical-rl-ltr .contents-container,
+.renderer.layout-page-vertical-rl-ltr .contents-shadow {
+    height: 100%;
+    overflow: hidden;
+}
+
+.renderer.layout-page-vertical-rl-ltr .contents-container {
+    background-color: var(--content-background);
+}
+
+.renderer.layout-page-vertical-rl-ltr .transform-container {
+    flex-direction: column;
+    align-items: stretch;
+    position: relative;
+    transition-property: transform;
+    width: max-content;
+    min-width: max-content;
+    gap: calc(var(--content-column-gap) / 2);
+}
+
+.renderer.layout-page-vertical-rl-ltr .transform-container.slide {
+    transition-property: transform;
+}
+
+.renderer.layout-page-vertical-rl-ltr .file-content-container {
+    flex-shrink: 0;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    width: var(--content-wrapper-width);
+    padding-inline: 0;
+    margin-inline: 0;
+    padding-block-end: calc(var(--content-column-gap) / 2);
+    border: none;
+    transition-property: transform;
+}
+
+.renderer.layout-page-vertical-rl-ltr .file-content-container:last-child {
+    padding-block-end: 0;
+    border: none;
+}

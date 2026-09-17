@@ -14,7 +14,7 @@ import { HtmlOptions } from "../HtmlOptions";
 import { IHtmlProgressTracker } from "./progress/IHtmlIProgressTracker";
 import { IHtmlRendererLayout } from "./layout/IHtmlRendererLayout";
 import { HtmlRendererLayout } from "./layout/HtmlRendererLayout";
-import { resolveHtmlTextDirection } from "./layout/resolveLayoutFlow";
+import { resolveHtmlTextDirection } from "./layout/resolveLayoutRoute";
 import { HtmlStyleProvider } from "./style/HtmlStyleProvider";
 import { IHtmlDocument } from "./IHtmlDocument";
 import { HtmlThemeApplier } from "./style/HtmlThemeApplier";

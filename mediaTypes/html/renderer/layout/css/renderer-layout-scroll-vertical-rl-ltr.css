@@ -1,0 +1,19 @@
+.renderer[data-viewport-mode="window"].layout-scroll-vertical-rl-ltr {
+    height: auto;
+    overflow: visible;
+    overflow-x: visible;
+    overflow-y: visible;
+}
+
+.renderer.layout-scroll-vertical-rl-ltr .transform-container {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    flex-direction: row;
+}
+
+.renderer.layout-scroll-vertical-rl-ltr .file-content-container {
+    flex-shrink: 0;
+    width: auto;
+    height: var(--content-wrapper-height);
+}

@@ -5,7 +5,7 @@ import {
   resolveTextDirectionFromLanguage,
 } from '@/kernal/i18n/textDirection'
 import { HtmlOptions } from '@/mediaTypes/html/HtmlOptions'
-import { resolveHtmlTextDirection, resolveLayoutFlow } from '@/mediaTypes/html/renderer/layout/resolveLayoutFlow'
+import { getLayoutGeometry, resolveHtmlTextDirection } from '@/mediaTypes/html/renderer/layout/resolveLayoutRoute'
 
 describe('textDirection', () => {
   it('normalizes region tags to the primary subtag', () => {
@@ -35,7 +35,7 @@ describe('textDirection', () => {
       documentLanguage: 'ar',
     })
     expect(resolveHtmlTextDirection(htmlOptions)).toBe('ltr')
-    expect(resolveLayoutFlow(htmlOptions).direction).toBe('ltr')
+    expect(getLayoutGeometry(htmlOptions).direction).toBe('ltr')
   })
 
   it('infers rtl from document language when direction is unset', () => {
@@ -44,6 +44,7 @@ describe('textDirection', () => {
     })
     expect(htmlOptions.direction).toBeUndefined()
     expect(resolveHtmlTextDirection(htmlOptions)).toBe('rtl')
-    expect(resolveLayoutFlow(htmlOptions).isRtlProgression).toBe(true)
+    expect(getLayoutGeometry(htmlOptions).usesRtlPageStart).toBe(true)
+    expect(getLayoutGeometry(htmlOptions).id).toBe('scroll-horizontal-tb-rtl')
   })
 })

@@ -1,0 +1,9 @@
+html.content-scroll-vertical-rl-rtl,
+html.content-scroll-vertical-rl-rtl body {
+    writing-mode: vertical-rl !important;
+    direction: rtl !important;
+    height: 100% !important;
+    width: max-content !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+}

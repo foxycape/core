@@ -126,9 +126,9 @@ section {
     max-width: 100%;
 }
 
-/* when columns layout, element width cannot exceed each column width */
+/* Physical column box, not CSS column-width (vertical page remaps that to page height). */
 .columns-layout>body * {
-    max-width: var(--column-width, 100%);
+    max-width: var(--column-box-width, var(--column-width, 100%));
 }
 
 /* remove body margin, for some old mobile columns layout is not correct */
@@ -256,8 +256,12 @@ ul {
     text-indent: 0;
 }
 
-img {
-    max-width: 100%;
+img,
+svg,
+video,
+canvas {
+    max-width: var(--column-box-width, var(--page-width, 100%));
+    max-height: var(--column-box-height, var(--page-height, none));
     object-fit: contain;
 }
 

@@ -7,6 +7,10 @@ export class ContentLayoutCssVariableNames {
     static readonly ContentShadowWidth = "--content-shadow-width";
     static readonly ColumnWidthNumber = "--column-width-number";
     static readonly ColumnHeightNumber = "--column-height-number";
+    /** Physical column / page-box width. Unlike `--column-width`, this is never remapped to page height. */
+    static readonly ColumnBoxWidth = "--column-box-width";
+    /** Physical column / page-box height. */
+    static readonly ColumnBoxHeight = "--column-box-height";
 
     static readonly PageWidth = "--page-width";
     static readonly PageHeight = "--page-height";

@@ -7,7 +7,7 @@ import { IHtmlDocument } from "../IHtmlDocument";
 import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
 import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSettings } from "../../HtmlSettings";
-import { resolveLayoutFlow } from "../layout/resolveLayoutFlow";
+import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
 
 export class HtmlPageCalculator {
     constructor(
@@ -19,8 +19,8 @@ export class HtmlPageCalculator {
 
     calcNumberOfPages(update?: boolean) {
         let numberOfPages = 1;
-        const flow = resolveLayoutFlow(this.options);
-        if (flow.flipMode == "scroll") {
+        const geometry = getLayoutGeometry(this.options);
+        if (geometry.flipMode == "scroll") {
             return numberOfPages;
         }
         const ownerDocument = this.doc.getContentContainer()?.ownerDocument;
@@ -35,14 +35,9 @@ export class HtmlPageCalculator {
         }
         const documentViewport = this.layout.getLayoutMetrics();
         const iframe = this.getIframe();
-        const axis = flow.pageAxis;
-        // html.scrollWidth is often --page-width (a full screen). Progress
-        // should follow the iframe's occupied columns, not that forced box.
-        const occupiedLength = axis == "y"
-            ? (iframe?.offsetHeight || documentElement.scrollHeight)
-            : (iframe?.offsetWidth || documentElement.scrollWidth);
+        const occupiedLength = geometry.getOccupiedLength(iframe, documentElement);
         let totalLength = Math.max(1, occupiedLength);
-        const translateLength = getTransformLength(documentElement, axis);
+        const translateLength = getTransformLength(documentElement, geometry.pageAxis);
         if (Math.abs(translateLength) > 0) {
             totalLength = translateLength + totalLength;
         }
@@ -65,31 +60,21 @@ export class HtmlPageCalculator {
             return 1;
         }
         const documentViewport = this.layout.getLayoutMetrics();
-        const flow = resolveLayoutFlow(this.options);
+        const geometry = getLayoutGeometry(this.options);
         const elementRect = getLocateClientRect(target);
-        if (flow.pageAxis == "y") {
-            const translateY = getTransformLength(ownerDocument.documentElement, "y");
-            const top = (elementRect?.top ?? 0) + translateY;
-            let pageNumber = Math.floor(top / documentViewport.pageMoveLength);
-            if (top > documentViewport.pageHeight && top % documentViewport.pageMoveLength >= 0) {
-                pageNumber = pageNumber + 1;
-            }
-            return pageNumber == 0 ? 1 : pageNumber;
-        }
-        const translatex = getTransformLength(ownerDocument.documentElement, "x");
-        const left = (elementRect?.left ?? 0) + translatex;
-        let pageNumber = Math.floor(left / documentViewport.pageMoveLength);
-        if (left > documentViewport.pageWidth && left % documentViewport.pageMoveLength >= 0) {
-            pageNumber = pageNumber + 1;
-        }
-        if (pageNumber == 0)
-            pageNumber = 1;
-
-        if (flow.isRtlProgression) {
-            const numberOfPages = this.calcNumberOfPages();
-            pageNumber = Math.max(1, numberOfPages - pageNumber + 1);
-        }
-        return pageNumber;
+        const translateX = getTransformLength(ownerDocument.documentElement, "x");
+        const translateY = getTransformLength(ownerDocument.documentElement, "y");
+        const axisOffset = geometry.getLocateAxisOffset(
+            { left: elementRect?.left ?? 0, top: elementRect?.top ?? 0 },
+            translateX,
+            translateY
+        );
+        return geometry.getPageNumberFromPoint({
+            axisOffset,
+            pageMoveLength: documentViewport.pageMoveLength,
+            pageLength: geometry.getPageBoxLength(documentViewport),
+            numberOfPages: this.calcNumberOfPages(),
+        });
     }
 
     private getIframe(): HTMLIFrameElement | undefined {

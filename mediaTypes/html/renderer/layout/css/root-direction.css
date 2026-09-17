@@ -1,0 +1,7 @@
+.dir-ltr {
+    --reader-viewport-direction: unset;
+}
+
+.dir-rtl {
+    --reader-viewport-direction: rtl;
+}

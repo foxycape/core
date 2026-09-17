@@ -4,6 +4,7 @@ import { IRendererViewport } from "../../../../kernal/IRendererViewport";
 import { IHtmlRendererLayout } from "../layout/IHtmlRendererLayout";
 import { HtmlSettings } from "../../HtmlSettings";
 import { consumeDocumentHiddenRestore, isCollapsedSize, markDocumentHidden } from "./documentHiddenState";
+import { shouldIgnoreResizeAfterRouteChange } from "../layout/pageStripRouteChange";
 
 export class HtmlDocumentsResizeObserver implements IDisposable {
     private rendererContainerResizeObserver: ResizeObserver;
@@ -51,6 +52,9 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
             }
             this.rendererContainer.setAttribute("data-client-width", `${currentWidth}`)
             this.rendererContainer.setAttribute("data-client-height", `${currentHeight}`)
+            if (shouldIgnoreResizeAfterRouteChange(this.rendererContainer)) {
+                return;
+            }
             // this.logger.debug("onWindowResize", 'currentLocation', this.runtime.context.resource.currentLocation, 'json', JSON.stringify(this.runtime.context.resource.currentLocation));
 
             if (!this.context?.currentLocation?.precise) {
@@ -95,6 +99,9 @@ export class HtmlDocumentsResizeObserver implements IDisposable {
 
         // The container is hidden and then restored for the first time
         if (consumeDocumentHiddenRestore(this.rendererContainer)) {
+            return;
+        }
+        if (shouldIgnoreResizeAfterRouteChange(this.rendererContainer)) {
             return;
         }
         this.rendererViewport.applyCssVariables();
