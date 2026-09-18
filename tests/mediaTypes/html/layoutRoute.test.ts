@@ -124,6 +124,51 @@ describe('layout routes', () => {
     expect(root.classList.contains(next.rendererClass)).toBe(false)
   })
 
+  it('assigns scroll I/O policy on each of the 12 routes', () => {
+    const tb = getLayoutGeometry(routeOptions({
+      flipMode: 'scroll',
+      writingMode: 'horizontal-tb',
+      direction: 'ltr',
+    }))
+    expect(tb.preloadRangeMode).toBe('visible-span')
+    expect(tb.rewritesWrapperVisibility).toBe(false)
+    expect(tb.holdsAbsoluteLocate).toBe(false)
+    expect(tb.shouldApplyRestoredScroll(0, 500)).toBe(true)
+    expect(tb.skipsRestoreWhileSettling).toBe(false)
+    expect(tb.compensationAnchorMode).toBe('first-visible')
+
+    const rl = getLayoutGeometry(routeOptions({
+      flipMode: 'scroll',
+      writingMode: 'vertical-rl',
+      direction: 'ltr',
+    }))
+    expect(rl.preloadRangeMode).toBe('visual-edge')
+    expect(rl.rewritesWrapperVisibility).toBe(true)
+    expect(rl.holdsAbsoluteLocate).toBe(true)
+    expect(rl.compensationAnchorMode).toBe('visual-edge')
+
+    const page = getLayoutGeometry(routeOptions({
+      flipMode: 'page',
+      writingMode: 'horizontal-tb',
+      direction: 'ltr',
+    }))
+    expect(page.preloadRangeMode).toBe('page-fill')
+    expect(page.holdsAbsoluteLocate).toBe(false)
+  })
+
+  it('lets loaded vertical scroll wrappers shrink to content width', () => {
+    for (const writingMode of ['vertical-rl', 'vertical-lr'] as const) {
+      for (const direction of ['ltr', 'rtl'] as const) {
+        const geometry = getLayoutGeometry(routeOptions({
+          flipMode: 'scroll',
+          writingMode,
+          direction,
+        }))
+        expect(geometry.viewport.contentWrapperMinWidthMode).toBe('0')
+      }
+    }
+  })
+
   it('forces scroll when forceScroll is set', () => {
     const geometry = getLayoutGeometry(routeOptions({
       flipMode: 'page',

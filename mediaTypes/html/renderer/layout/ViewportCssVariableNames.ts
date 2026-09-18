@@ -11,6 +11,8 @@ export class ViewportCssVariableNames {
     static readonly ScrollElementOverflowX = "--scroll-element-overflow-x";
     static readonly ScrollElementVerticalScrollBarWidth = "--scroll-element-vertial-scrollbar-width";
     static readonly ScrollElementHorizontalScrollBarHeight = "--scroll-element-horizontal-scrollbar-height";
+    /** Resolved reading viewport width (host box or visual viewport) */
+    static readonly ReaderViewportWidth = "--reader-viewport-width";
     /** Resolved reading viewport height (host box or visual viewport) */
     static readonly ReaderViewportHeight = "--reader-viewport-height";
     /** Resolved reading viewport direction */

@@ -24,6 +24,7 @@ import { IHtmlElementLocator } from "../location/IHtmlElementLocator";
 import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
 import { getLayoutOffsetLeft } from "../layout/geometry/getLayoutOffsetLeft";
 import { remapStoredPageNumber } from "../location/remapStoredPageNumber";
+import { beginAbsoluteLocate, shouldBeginAbsoluteLocate } from "../location/scrollActivity";
 
 /**
  * HTML documents provider.
@@ -154,6 +155,9 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
         }
         this.loadingDoc = doc;
         this.owner.context.redirectingDocUrl = doc.url;
+        if (shouldBeginAbsoluteLocate(location?.direction, getLayoutGeometry(this.htmlOptions).holdsAbsoluteLocate)) {
+            beginAbsoluteLocate();
+        }
         try {
             this.owner.context.setUserChangedProgress(!isReload, location?.from);
             if (!isReload && location?.url) {
@@ -352,27 +356,27 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             return;
         }
 
-        const redirectElement = getLocateElement(redirectTarget);
         const redirectElementRect = getLocateClientRect(redirectTarget);
         const iframe = doc.getContentContainer().ownerDocument.defaultView?.frameElement as HTMLElement;
         const iframeX = iframe?.getBoundingClientRect()?.x ?? 0;
-        const distance = redirectElementRect.x + iframeX;
+        const scrollRect = scrollElement.getBoundingClientRect();
         const scrollLeftOffset = location.offsetLeft ?? 0;
+        const targetStart = redirectElementRect.x + iframeX - scrollLeftOffset;
+        const targetEnd = redirectElementRect.right + iframeX - scrollLeftOffset;
+        const delta = getLayoutGeometry(this.htmlOptions).getScrollLocateDelta({
+            targetStart,
+            viewportStart: scrollRect.left,
+            targetEnd,
+            viewportEnd: scrollRect.right,
+        });
 
         if (location.useAbsoluteScrollTop) {
-            scrollElement.scrollTo(scrollElement.scrollLeft + distance - scrollLeftOffset, scrollElement.scrollTop);
+            scrollElement.scrollTo(scrollElement.scrollLeft + delta, scrollElement.scrollTop);
             this.setDocumentVisible(doc.getWrapperContainer(), true);
             return;
         }
 
-        const delta = distance - scrollLeftOffset - scrollElement.getBoundingClientRect().left;
-        const toEndDistance = scrollElement.scrollWidth - scrollElement.scrollLeft - scrollElement.clientWidth;
-        if (delta > 0 && toEndDistance <= 0 && redirectElement) {
-            scrollElementIntoView(redirectElement, undefined, location?.scrollIntoViewIfNeeded, this.owner.getRootContainer()?.ownerDocument);
-        }
-        else {
-            scrollElement.scrollBy(delta, 0);
-        }
+        scrollElement.scrollBy(delta, 0);
         this.setDocumentVisible(doc.getWrapperContainer(), true);
     }
 
@@ -626,15 +630,11 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
             }
         }
         else if (!wrapperContainer.isVisible || forceScroll) {
-            if (geometry.blockAxis == "x" && geometry.initialScroll == "end") {
-                const scrollElement = this.getScrollElement();
-                const wrapperRect = wrapperContainer.getBoundingClientRect();
-                const scrollRect = scrollElement.getBoundingClientRect();
-                scrollElement.scrollBy(wrapperRect.right - scrollRect.right, 0);
-            }
-            else {
-                scrollElementIntoView(wrapperContainer, undefined, undefined, this.owner.getRootContainer()?.ownerDocument);
-            }
+            geometry.alignWrapperToViewport({
+                wrapper: wrapperContainer,
+                scrollElement: this.getScrollElement(),
+                rootDocument: this.owner.getRootContainer()?.ownerDocument,
+            });
         }
         this.setCurrentVisibleDocument(doc);
     }

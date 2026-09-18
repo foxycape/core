@@ -2,24 +2,19 @@ import { EventNames } from "../../../../kernal/EventNames";
 import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSettings } from "../../HtmlSettings";
 import { asyncDebounce, IDocument, IDocumentsProvider, IEventEmitter, yieldToMain } from "../../../../kernal";
+import { pickVisibleCompensationDocument } from "../layout/geometry/restoreLayoutState";
 import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
 import { IHtmlDocumentsPreloader } from "./IHtmlDocumentsPreloader";
+import { isProgrammaticScroll, isUserScrollSettling, markUserScroll, releaseAbsoluteLocate, USER_SCROLL_SETTLE_MS } from "../location/scrollActivity";
 import { collectPreloadNeighbors } from "./preloadNeighbors";
+import { isSubstantialWrapperRect, rectsIntersect, type EdgeRect } from "./wrapperVisibility";
 
-type EdgeRect = {
-    left: number;
-    top: number;
-    right: number;
-    bottom: number;
-};
+export const SCROLL_PRELOAD_SETTLE_MS = USER_SCROLL_SETTLE_MS;
 
 const isDocumentScroller = (scrollElement: HTMLElement, doc: Document) =>
     scrollElement === doc.scrollingElement
     || scrollElement === doc.documentElement
     || scrollElement === doc.body;
-
-const rectsIntersect = (a: EdgeRect, b: EdgeRect) =>
-    a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom;
 
 /**
  * HTML document preloading and unnecessary document release.
@@ -49,10 +44,18 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
     }
 
     private onDocumentVisibleChange = () => {
+        if (isProgrammaticScroll()) {
+            return;
+        }
         this.schedulePreload();
     }
 
-    private onReaderScroll = () => {
+    private onReaderScroll = (_state?: unknown, e?: Event) => {
+        if (isProgrammaticScroll() || (e && !e.isTrusted)) {
+            return;
+        }
+        markUserScroll();
+        releaseAbsoluteLocate();
         this.schedulePreload();
     }
 
@@ -74,10 +77,19 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
         const token = ++this.preloadToken;
         try {
             const visibleDocuments = this.resolveVisibleDocuments();
-            if (!visibleDocuments || visibleDocuments.length == 0) {
+            const geometry = getLayoutGeometry(this.htmlOptions);
+            const useVisualEdge = geometry.preloadRangeMode == "visual-edge";
+            const startDocument = useVisualEdge
+                ? this.resolvePreloadAnchor(visibleDocuments)
+                : visibleDocuments[0];
+            const endDocument = useVisualEdge
+                ? startDocument
+                : visibleDocuments[visibleDocuments.length - 1];
+            if (!startDocument || !endDocument) {
                 return;
             }
-            for (const doc of visibleDocuments) {
+            const loadDocuments = visibleDocuments.length > 0 ? visibleDocuments : [startDocument];
+            for (const doc of loadDocuments) {
                 if (this.shouldAbortPreload(token)) {
                     return;
                 }
@@ -86,11 +98,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
             if (this.shouldAbortPreload(token)) {
                 return;
             }
-            await this.preloadRelatedDocuments(
-                visibleDocuments[0],
-                visibleDocuments[visibleDocuments.length - 1],
-                token
-            );
+            await this.preloadRelatedDocuments(startDocument, endDocument, token);
         }
         catch (e) { /* empty */ }
     }
@@ -108,9 +116,25 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
     }
 
     private resolveVisibleDocuments(): IDocument[] {
+        const geometry = getLayoutGeometry(this.htmlOptions);
+        if (geometry.preloadRangeMode == "visible-span") {
+            return this.resolveIntersectingDocuments(false);
+        }
+        if (!geometry.rewritesWrapperVisibility) {
+            return this.documentsProvider.getVisibleDocuments();
+        }
+        return this.resolveIntersectingDocuments(true);
+    }
+
+    private resolveIntersectingDocuments(requireSubstantial: boolean): IDocument[] {
         const viewport = this.getViewportRect();
         if (!viewport) {
-            return this.documentsProvider.getVisibleDocuments();
+            const visible = this.documentsProvider.getVisibleDocuments();
+            return requireSubstantial
+                ? visible.filter((doc) =>
+                    isSubstantialWrapperRect(doc.getWrapperContainer()?.getBoundingClientRect())
+                )
+                : visible;
         }
         const visibleDocuments: IDocument[] = [];
         for (const doc of this.documentsProvider.getDocuments()) {
@@ -118,13 +142,31 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
             if (!wrapper) {
                 continue;
             }
-            const isVisible = rectsIntersect(wrapper.getBoundingClientRect(), viewport);
+            const rect = wrapper.getBoundingClientRect();
+            const isVisible = rectsIntersect(rect, viewport)
+                && (!requireSubstantial || isSubstantialWrapperRect(rect));
             wrapper.isVisible = isVisible;
             if (isVisible) {
                 visibleDocuments.push(doc);
             }
         }
         return visibleDocuments;
+    }
+
+    private resolvePreloadAnchor(visibleDocuments: IDocument[]): IDocument | undefined {
+        const geometry = getLayoutGeometry(this.htmlOptions);
+        const picked = pickVisibleCompensationDocument(
+            visibleDocuments,
+            geometry.compensationAnchorEdge,
+            (doc) => {
+                const rect = doc.getWrapperContainer()?.getBoundingClientRect();
+                if (!rect || !isSubstantialWrapperRect(rect)) {
+                    return undefined;
+                }
+                return geometry.getCompensationRect(rect);
+            },
+        );
+        return picked ?? this.documentsProvider.getDocuments()[0];
     }
 
     private getViewportRect(): EdgeRect | undefined {
@@ -178,7 +220,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
             await yieldToMain();
         }
         const rendererContainerClientWidth = this.documentsProvider.getRendererContainer().clientWidth;
-        if (getLayoutGeometry(this.htmlOptions).flipMode == "page") {
+        if (getLayoutGeometry(this.htmlOptions).preloadRangeMode == "page-fill") {
             let previousDocumentsLength = 0;
             for (let i = startIndex - 1; i >= 0; i--) {
                 if (this.shouldAbortPreload(token)) {
@@ -217,13 +259,25 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
         if (loadingDoc && !reservedDocuments.includes(loadingDoc)) {
             reservedDocuments.push(loadingDoc);
         }
-        const visibleDocuments = this.documentsProvider.getVisibleDocuments();
+        if (!reservedDocuments.includes(startDocument)) {
+            reservedDocuments.push(startDocument);
+        }
+        const geometry = getLayoutGeometry(this.htmlOptions);
+        const visibleDocuments = geometry.preloadRangeMode == "visual-edge"
+            ? this.documentsProvider.getVisibleDocuments().filter((doc) =>
+                isSubstantialWrapperRect(doc.getWrapperContainer()?.getBoundingClientRect())
+            )
+            : this.documentsProvider.getVisibleDocuments();
         for (const doc of visibleDocuments) {
             if (!reservedDocuments.includes(doc)) {
                 reservedDocuments.push(doc);
             }
         }
         if (this.shouldAbortPreload(token)) {
+            return;
+        }
+        if (this.isScrollSettling()) {
+            this.delayPreloadAfterMove();
             return;
         }
         await this.removeUnnecessaryDocuments(reservedDocuments, token);
@@ -248,7 +302,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
 
     private shouldPreloadPreviousFirst = () => {
         const direction = this.documentsProvider.owner?.context?.currentLocation?.direction;
-        if (getLayoutGeometry(this.htmlOptions).flipMode == "page") {
+        if (getLayoutGeometry(this.htmlOptions).preloadRangeMode == "page-fill") {
             return direction != "next";
         }
         return direction == "previous";
@@ -258,6 +312,13 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
         const renderer = this.documentsProvider.getRendererContainer();
         const transform = renderer?.querySelector?.(`.${HtmlSettings.TransformContainerCssName}`);
         return !!transform?.hasAttribute(HtmlSettings.PageMovingAttributeName);
+    }
+
+    private isScrollSettling = () => {
+        if (getLayoutGeometry(this.htmlOptions).flipMode != "scroll") {
+            return false;
+        }
+        return isUserScrollSettling();
     }
 
     private abortPreloadIfPageMoving = () => {

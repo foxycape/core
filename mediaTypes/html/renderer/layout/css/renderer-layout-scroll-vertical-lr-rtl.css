@@ -1,3 +1,7 @@
+.renderer.layout-scroll-vertical-lr-rtl {
+    overflow-anchor: none;
+}
+
 .renderer[data-viewport-mode="window"].layout-scroll-vertical-lr-rtl {
     height: auto;
     overflow: visible;
@@ -16,4 +20,8 @@
     flex-shrink: 0;
     width: auto;
     height: var(--content-wrapper-height);
+}
+
+.renderer.layout-scroll-vertical-lr-rtl .file-content-container.file-content-container-height {
+    min-width: var(--reader-viewport-width);
 }

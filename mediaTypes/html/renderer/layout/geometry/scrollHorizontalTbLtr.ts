@@ -1,5 +1,13 @@
 import type { ILayoutGeometry } from "./ILayoutGeometry";
 import { formatTranslate3d, signedTranslateLength } from "./formatTranslate3d";
+import {
+    alignWrapperNative,
+    alwaysApplyRestoredScroll,
+    compensationRectAlongY,
+    getScrollLocateDeltaAlongStart,
+    restorePageTransformAlongStart,
+    restoreScrollCapturedPlusSize,
+} from "./restoreLayoutState";
 
 export const scrollHorizontalTbLtr: ILayoutGeometry = {
     id: "scroll-horizontal-tb-ltr",
@@ -21,6 +29,12 @@ export const scrollHorizontalTbLtr: ILayoutGeometry = {
     isVerticalWriting: false,
     measureColumnsAsLtr: false,
     usesRtlPageStart: false,
+    compensationAnchorEdge: "start",
+    compensationAnchorMode: "first-visible",
+    preloadRangeMode: "visible-span",
+    rewritesWrapperVisibility: false,
+    holdsAbsoluteLocate: false,
+    skipsRestoreWhileSettling: false,
     viewport: {
         zeroWrapperMargins: false,
         contentsContainerWidthMode: "measured",
@@ -48,19 +62,12 @@ export const scrollHorizontalTbLtr: ILayoutGeometry = {
         width: wrapper.scrollWidth,
         height: wrapper.offsetHeight,
     }),
-    restorePageTransform: ({
-        currentTransform,
-        sizeDelta,
-        offsetDelta,
-        isFirstVisible,
-        foundElement,
-    }) => {
-        let next = currentTransform + sizeDelta;
-        if (isFirstVisible && foundElement) {
-            next = currentTransform + offsetDelta;
-        }
-        return Math.max(0, next);
-    },
+    restorePageTransform: restorePageTransformAlongStart,
+    restoreScroll: restoreScrollCapturedPlusSize,
+    getCompensationRect: compensationRectAlongY,
+    getScrollLocateDelta: getScrollLocateDeltaAlongStart,
+    alignWrapperToViewport: alignWrapperNative,
+    shouldApplyRestoredScroll: alwaysApplyRestoredScroll,
     getLocateAxisOffset: (rect, translateX, translateY) => rect.left + translateX,
     getPageBoxLength: (metrics) => metrics.pageWidth,
     getOccupiedLength: (iframe, documentElement) => (iframe?.offsetWidth || documentElement.scrollWidth),

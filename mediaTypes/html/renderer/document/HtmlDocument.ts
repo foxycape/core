@@ -299,7 +299,11 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         }
         contentContainer.setAttribute("data-url", this.url);
         const layoutState = this.captureLayoutState();
-        this.wrapperContainer.classList.remove(HtmlSettings.FileContentContainerHeightClassName);
+        const geometry = getLayoutGeometry(this.options);
+        const deferPlaceholderRemoval = geometry.iframeGrow == "width";
+        if (!deferPlaceholderRemoval) {
+            this.wrapperContainer.classList.remove(HtmlSettings.FileContentContainerHeightClassName);
+        }
         const postprocesses = this.owner.getRenderer()?.documentPostprocesses ?? [];
         for (const postprocess of postprocesses) {
             try {
@@ -313,6 +317,9 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
 
         await this.layoutStatePreserver.waitUntilPageTransformStable();
         this.resetLayoutSizes();
+        if (deferPlaceholderRemoval) {
+            this.wrapperContainer.classList.remove(HtmlSettings.FileContentContainerHeightClassName);
+        }
         await this.restoreLayoutState(layoutState);
         if (!this.retainLoadingLayer) {
             await this.releaseLoadingLayer();
@@ -733,6 +740,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         await this.releaseLoadingLayer();
         const wrapperContainer = this.getWrapperContainer();
         wrapperContainer.classList.add(HtmlSettings.FileContentContainerHeightClassName);
+        // Vertical-scroll unloaded slots keep one viewport width via this class + --reader-viewport-width.
         if (this.iframe && wrapperContainer.contains(this.iframe)) {
             wrapperContainer.removeChild(this.iframe);
         }

@@ -1,5 +1,13 @@
 import type { ILayoutGeometry } from "./ILayoutGeometry";
 import { formatTranslate3d, signedTranslateLength } from "./formatTranslate3d";
+import {
+    alignWrapperPassthrough,
+    alwaysApplyRestoredScroll,
+    compensationRectAlongX,
+    getScrollLocateDeltaAlongStart,
+    passthroughRestoreScroll,
+    restorePageTransformAlongStart,
+} from "./restoreLayoutState";
 
 export const pageVerticalRlLtr: ILayoutGeometry = {
     id: "page-vertical-rl-ltr",
@@ -21,6 +29,12 @@ export const pageVerticalRlLtr: ILayoutGeometry = {
     isVerticalWriting: true,
     measureColumnsAsLtr: false,
     usesRtlPageStart: false,
+    compensationAnchorEdge: "start",
+    compensationAnchorMode: "first-visible",
+    preloadRangeMode: "page-fill",
+    rewritesWrapperVisibility: false,
+    holdsAbsoluteLocate: false,
+    skipsRestoreWhileSettling: true,
     viewport: {
         zeroWrapperMargins: true,
         contentsContainerWidthMode: "measured",
@@ -48,19 +62,12 @@ export const pageVerticalRlLtr: ILayoutGeometry = {
         width: wrapper.scrollWidth,
         height: wrapper.scrollHeight,
     }),
-    restorePageTransform: ({
-        currentTransform,
-        sizeDelta,
-        offsetDelta,
-        isFirstVisible,
-        foundElement,
-    }) => {
-        let next = currentTransform + sizeDelta;
-        if (isFirstVisible && foundElement) {
-            next = currentTransform + offsetDelta;
-        }
-        return Math.max(0, next);
-    },
+    restorePageTransform: restorePageTransformAlongStart,
+    restoreScroll: passthroughRestoreScroll,
+    getCompensationRect: compensationRectAlongX,
+    getScrollLocateDelta: getScrollLocateDeltaAlongStart,
+    alignWrapperToViewport: alignWrapperPassthrough,
+    shouldApplyRestoredScroll: alwaysApplyRestoredScroll,
     getLocateAxisOffset: (rect, translateX, translateY) => rect.top + translateY,
     getPageBoxLength: (metrics) => metrics.pageHeight,
     getOccupiedLength: (iframe, documentElement) => (iframe?.offsetHeight || documentElement.scrollHeight),

@@ -26,6 +26,7 @@ import { ILanguageHighlighter } from "./style/ILanguageHighlighter";
 import { HtmlImageLoader } from "./image/HtmlImageLoader";
 import { HtmlImageObserver } from "./image/HtmlImageObserver";
 import { IHtmlImageLoader } from "./image/IHtmlImageLoader";
+import { isProgrammaticScroll, isUserScrollSettling, markUserScroll, releaseAbsoluteLocate } from "./location/scrollActivity";
 
 export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer {
     readonly progressTracker: IHtmlProgressTracker;
@@ -135,6 +136,9 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
                 this.progressTracker.notifyProgressChange();
             },
             (e: Event) => {
+                if (isProgrammaticScroll() || !e.isTrusted) {
+                    return;
+                }
                 if (this.owner.onProgressChangeGuard) {
                     if (this.owner.context?.progress?.current) {
                         const allowContinue = this.owner.onProgressChangeGuard(
@@ -145,6 +149,8 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
                         }
                     }
                 }
+                markUserScroll();
+                releaseAbsoluteLocate();
                 this.owner.events.emit(EventNames.ReaderOriginalScroll, e);
             },
         );
@@ -158,6 +164,9 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
         // Page turns set userChangedProgress. Do not snap transform back to the
         // still-stale currentLocation (progress updates are debounced 300ms).
         if (this.owner.context.userChangedProgress) {
+            return;
+        }
+        if (isProgrammaticScroll() || isUserScrollSettling()) {
             return;
         }
         await this.delayRestoreReadingPosition();

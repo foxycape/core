@@ -12,6 +12,7 @@ import { isHtmlElement } from "../../../../kernal/html/realm";
 import { applyRendererLayoutClass, applyRootDirectionClass } from "./applyLayoutClasses";
 import type { ILayoutGeometry } from "./geometry/ILayoutGeometry";
 import { getLayoutGeometry } from "./resolveLayoutRoute";
+import { resolveContentWrapperMinWidth } from "./resolveContentWrapperMinWidth";
 
 export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics>, IDisposable {
     private layout: HtmlLayoutMetrics;
@@ -172,6 +173,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         const vars = new Map<string, string>();
         vars.set(ViewportCssVariableNames.ScrollElementVerticalScrollBarWidth, scrollElementVerticalScrollBarWidth + "px");
         vars.set(ViewportCssVariableNames.ScrollElementHorizontalScrollBarHeight, scrollElementHorizontalScrollBarHeight + "px");
+        vars.set(ViewportCssVariableNames.ReaderViewportWidth, rendererWidth + "px");
         vars.set(ViewportCssVariableNames.ReaderViewportHeight, rendererHeight + "px");
 
         rootContainer.style.setProperty(ViewportCssVariableNames.ContentsContainerWidth, contentsContainerWidth)
@@ -229,13 +231,15 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
         this.rendererContainer.setAttribute("data-page-height", `${pageHeightNumber}`)
 
         vars.set(ViewportCssVariableNames.ContentWrapperWidth, geometry.viewport.contentWrapperWidthMode == "auto" ? "auto" : shadowWidth + 'px');
-        if (geometry.viewport.contentWrapperMinWidthMode == "0") {
-            vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, "0");
-        } else if (geometry.viewport.contentWrapperMinWidthMode == "shadow") {
-            vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, (shadowWidth) + 'px');
-        } else {
-            vars.set(ViewportCssVariableNames.ContentWrapperMinWidth, (columnWidth + columnGap / 2) + 'px');
-        }
+        vars.set(
+            ViewportCssVariableNames.ContentWrapperMinWidth,
+            resolveContentWrapperMinWidth(geometry.viewport.contentWrapperMinWidthMode, {
+                shadowWidth,
+                columnWidth,
+                columnGap,
+                viewportWidth: rendererWidth,
+            }),
+        );
         vars.set(ViewportCssVariableNames.ContentWrapperHeight, this.getContentWrapperHeight());
         vars.set(ViewportCssVariableNames.ContentWrapperMinHeight, rendererHeight + "px");
         vars.set(ViewportCssVariableNames.ContentWrapperMaxHeight, geometry.viewport.contentWrapperMaxHeightMode == "none" ? "none" : rendererHeight + "px");

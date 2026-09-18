@@ -24,7 +24,7 @@ export type ViewportProfile = {
     contentsContainerWidthMode: "max-content" | "measured";
     forceSingleColumn: boolean;
     contentWrapperWidthMode: "auto" | "shadow";
-    contentWrapperMinWidthMode: "0" | "shadow" | "column";
+    contentWrapperMinWidthMode: "0" | "shadow" | "column" | "viewport";
     contentWrapperHeightMode: "auto" | "viewport" | "host";
     contentWrapperMaxHeightMode: "none" | "viewport";
     contentContainerWidthMode: "auto" | "column" | "full";
@@ -37,6 +37,45 @@ export type RestorePageTransformInput = {
     offsetDelta: number;
     isFirstVisible: boolean;
     foundElement: boolean;
+};
+
+export type RestoreScrollInput = {
+    liveScroll: number;
+    capturedScroll: number;
+    sizeDelta: number;
+    offsetDelta: number;
+    foundElement: boolean;
+    currentIndex: number;
+    anchorIndex: number;
+};
+
+export type CompensationAnchorEdge = "start" | "end";
+export type PreloadRangeMode = "visible-span" | "visual-edge" | "page-fill";
+export type CompensationAnchorMode = "first-visible" | "visual-edge";
+
+export type CompensationRect = {
+    start: number;
+    end: number;
+};
+
+export type CompensationRectSource = {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+};
+
+export type ScrollLocateDeltaInput = {
+    targetStart: number;
+    viewportStart: number;
+    targetEnd: number;
+    viewportEnd: number;
+};
+
+export type AlignWrapperInput = {
+    wrapper: HTMLElement;
+    scrollElement: HTMLElement;
+    rootDocument?: Document;
 };
 
 export type PageNumberFromPointInput = {
@@ -79,6 +118,21 @@ export type ILayoutGeometry = {
     readonly measureColumnsAsLtr: boolean;
     /** Page 1 starts from the inline-end / right edge. */
     readonly usesRtlPageStart: boolean;
+    /** Which visible document is the size-compensation anchor. */
+    readonly compensationAnchorEdge: CompensationAnchorEdge;
+    /** `first-visible` uses getFirstVisibleDocument(); `visual-edge` uses live rects. */
+    readonly compensationAnchorMode: CompensationAnchorMode;
+    /** How far around the visible chapter(s) to keep loaded. */
+    readonly preloadRangeMode: PreloadRangeMode;
+    /** Rewrite wrapper `isVisible` from live rects (0-size placeholders are not visible). */
+    readonly rewritesWrapperVisibility: boolean;
+    /** Pin the TOC / absolute-locate chapter as the compensation anchor. */
+    readonly holdsAbsoluteLocate: boolean;
+    /**
+     * Skip writing restore while the user scroll settle window is open.
+     * horizontal-tb must stay false: upward scroll has to add preceding sizeDelta immediately.
+     */
+    readonly skipsRestoreWhileSettling: boolean;
     /** Viewport CSS sizing profile for this route. */
     readonly viewport: ViewportProfile;
 
@@ -105,6 +159,16 @@ export type ILayoutGeometry = {
     getCaptureExtent: (wrapper: HTMLElement) => { width: number; height: number };
     /** Adjust the current transform after a resize / relayout. */
     restorePageTransform: (input: RestorePageTransformInput) => number;
+    /** Adjust live scroll after a document wrapper grows or shrinks. */
+    restoreScroll: (input: RestoreScrollInput) => number;
+    /** Map a wrapper rect onto the compensation axis for this route. */
+    getCompensationRect: (rect: CompensationRectSource) => CompensationRect;
+    /** Locate delta that aligns a target to the reading-start or reading-end edge. */
+    getScrollLocateDelta: (input: ScrollLocateDeltaInput) => number;
+    /** Bring a document wrapper to this route's reading-start edge. */
+    alignWrapperToViewport: (input: AlignWrapperInput) => void;
+    /** Whether the restored scroll value may be written back. */
+    shouldApplyRestoredScroll: (nextScroll: number, liveScroll: number) => boolean;
     /** Target point on the page axis, including the current translate. */
     getLocateAxisOffset: (
         rect: { left: number; top: number },

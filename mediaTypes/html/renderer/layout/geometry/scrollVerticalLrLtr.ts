@@ -1,5 +1,13 @@
 import type { ILayoutGeometry } from "./ILayoutGeometry";
 import { formatTranslate3d, signedTranslateLength } from "./formatTranslate3d";
+import {
+    alignWrapperNative,
+    compensationRectAlongX,
+    getScrollLocateDeltaAlongStart,
+    rejectPinnedStartScroll,
+    restorePageTransformAlongStart,
+    restoreScrollAlongStart,
+} from "./restoreLayoutState";
 
 export const scrollVerticalLrLtr: ILayoutGeometry = {
     id: "scroll-vertical-lr-ltr",
@@ -21,6 +29,12 @@ export const scrollVerticalLrLtr: ILayoutGeometry = {
     isVerticalWriting: true,
     measureColumnsAsLtr: false,
     usesRtlPageStart: false,
+    compensationAnchorEdge: "start",
+    compensationAnchorMode: "visual-edge",
+    preloadRangeMode: "visual-edge",
+    rewritesWrapperVisibility: true,
+    holdsAbsoluteLocate: true,
+    skipsRestoreWhileSettling: true,
     viewport: {
         zeroWrapperMargins: true,
         contentsContainerWidthMode: "max-content",
@@ -48,19 +62,12 @@ export const scrollVerticalLrLtr: ILayoutGeometry = {
         width: wrapper.scrollWidth,
         height: wrapper.offsetHeight,
     }),
-    restorePageTransform: ({
-        currentTransform,
-        sizeDelta,
-        offsetDelta,
-        isFirstVisible,
-        foundElement,
-    }) => {
-        let next = currentTransform + sizeDelta;
-        if (isFirstVisible && foundElement) {
-            next = currentTransform + offsetDelta;
-        }
-        return Math.max(0, next);
-    },
+    restorePageTransform: restorePageTransformAlongStart,
+    restoreScroll: restoreScrollAlongStart,
+    getCompensationRect: compensationRectAlongX,
+    getScrollLocateDelta: getScrollLocateDeltaAlongStart,
+    alignWrapperToViewport: alignWrapperNative,
+    shouldApplyRestoredScroll: rejectPinnedStartScroll,
     getLocateAxisOffset: (rect, translateX, translateY) => rect.left + translateX,
     getPageBoxLength: (metrics) => metrics.pageWidth,
     getOccupiedLength: (iframe, documentElement) => (iframe?.offsetWidth || documentElement.scrollWidth),

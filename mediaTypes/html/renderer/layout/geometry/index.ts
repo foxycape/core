@@ -40,4 +40,42 @@ export { pageVerticalRlLtr } from "./pageVerticalRlLtr";
 export { pageVerticalRlRtl } from "./pageVerticalRlRtl";
 export { pageVerticalLrLtr } from "./pageVerticalLrLtr";
 export { pageVerticalLrRtl } from "./pageVerticalLrRtl";
-export type { ILayoutGeometry, LayoutAxis, LayoutSign, PageBox } from "./ILayoutGeometry";
+export type {
+    AlignWrapperInput,
+    CompensationAnchorEdge,
+    CompensationAnchorMode,
+    CompensationRect,
+    CompensationRectSource,
+    ILayoutGeometry,
+    InitialScroll,
+    LayoutAxis,
+    LayoutSign,
+    PageBox,
+    PreloadRangeMode,
+    RestoreScrollInput,
+    ScrollLocateDeltaInput,
+} from "./ILayoutGeometry";
+export {
+    alignWrapperNative,
+    alignWrapperPassthrough,
+    alignWrapperToVisualEnd,
+    alwaysApplyRestoredScroll,
+    compensationRectAlongX,
+    compensationRectAlongY,
+    getScrollLocateDelta,
+    getScrollLocateDeltaAlongEnd,
+    getScrollLocateDeltaAlongStart,
+    isAtReadingStartScroll,
+    passthroughRestoreScroll,
+    excludeResizingCompensationDocument,
+    pickAbsoluteCompensationUrl,
+    pickVisibleCompensationDocument,
+    resolveRestoreCompensationAnchor,
+    pinReadingStartScroll,
+    rejectPinnedStartScroll,
+    restorePageTransformAlongEnd,
+    restorePageTransformAlongStart,
+    restoreScrollAlongEnd,
+    restoreScrollAlongStart,
+    restoreScrollCapturedPlusSize,
+} from "./restoreLayoutState";

@@ -1,5 +1,13 @@
 import type { ILayoutGeometry } from "./ILayoutGeometry";
 import { formatTranslate3d, signedTranslateLength } from "./formatTranslate3d";
+import {
+    alignWrapperToVisualEnd,
+    alwaysApplyRestoredScroll,
+    compensationRectAlongX,
+    getScrollLocateDeltaAlongEnd,
+    restorePageTransformAlongEnd,
+    restoreScrollAlongEnd,
+} from "./restoreLayoutState";
 
 export const scrollVerticalRlLtr: ILayoutGeometry = {
     id: "scroll-vertical-rl-ltr",
@@ -21,6 +29,12 @@ export const scrollVerticalRlLtr: ILayoutGeometry = {
     isVerticalWriting: true,
     measureColumnsAsLtr: false,
     usesRtlPageStart: true,
+    compensationAnchorEdge: "end",
+    compensationAnchorMode: "visual-edge",
+    preloadRangeMode: "visual-edge",
+    rewritesWrapperVisibility: true,
+    holdsAbsoluteLocate: true,
+    skipsRestoreWhileSettling: true,
     viewport: {
         zeroWrapperMargins: true,
         contentsContainerWidthMode: "max-content",
@@ -51,19 +65,12 @@ export const scrollVerticalRlLtr: ILayoutGeometry = {
         width: wrapper.scrollWidth,
         height: wrapper.offsetHeight,
     }),
-    restorePageTransform: ({
-        currentTransform,
-        sizeDelta,
-        offsetDelta,
-        isFirstVisible,
-        foundElement,
-    }) => {
-        let next = currentTransform + sizeDelta;
-        if (isFirstVisible && foundElement) {
-            next = currentTransform - offsetDelta;
-        }
-        return Math.max(0, next);
-    },
+    restorePageTransform: restorePageTransformAlongEnd,
+    restoreScroll: restoreScrollAlongEnd,
+    getCompensationRect: compensationRectAlongX,
+    getScrollLocateDelta: getScrollLocateDeltaAlongEnd,
+    alignWrapperToViewport: alignWrapperToVisualEnd,
+    shouldApplyRestoredScroll: alwaysApplyRestoredScroll,
     getLocateAxisOffset: (rect, translateX, translateY) => rect.left + translateX,
     getPageBoxLength: (metrics) => metrics.pageWidth,
     getOccupiedLength: (iframe, documentElement) => (iframe?.offsetWidth || documentElement.scrollWidth),
