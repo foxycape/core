@@ -179,6 +179,17 @@ h6 {
     text-indent: 0;
 }
 
+/* Page columns only. Book `margin-top/-left: -N` maps to inline-start in
+   vertical/horizontal writing and leaks the box into the previous page. */
+html[class*="content-page-"] :is(
+    h1, h2, h3, h4, h5, h6,
+    div, p, section, article, header, footer, aside, nav, main,
+    table, figure, blockquote,
+    ul, ol
+) {
+    margin-inline-start: 0 !important;
+}
+
 a {
     text-decoration: none;
 }
