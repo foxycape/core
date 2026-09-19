@@ -46,7 +46,6 @@ export class DeviceInfo {
     availableResolutionX: number | undefined;
     availableResolutionY: number | undefined;
     deviceSize: string | undefined;
-    cpuType: string | undefined;
 }
 
 export type DeviceType = 'pad' | 'desktop' | 'androidPad' | 'ipad' | 'mobile' | 'mobileAndroid' | 'mobileIOS' | (string & {});

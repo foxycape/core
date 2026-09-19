@@ -51,7 +51,6 @@ export class WebBrowser implements IDevice {
             deviceInfo.browserName = BrowserCapabilities.getBrowserName();
             deviceInfo.browserVersion = BrowserCapabilities.getBrowserVersion();
             deviceInfo.language = this.getLanguage();
-            deviceInfo.cpuType = this.getArch();
             deviceInfo.availableResolutionX = screen.width;
             deviceInfo.availableResolutionY = screen.height;
             deviceInfo.deviceSize = deviceType.startsWith('mobile')
