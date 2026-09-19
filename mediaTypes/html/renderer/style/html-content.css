@@ -6,8 +6,12 @@ html {
     height: auto !important;
     font-size: var(--font-size) !important;
     color: var(--content-text-color);
-    font-weight: var(--font-weight) !important;
     --fallback-font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+html,
+html body * {
+    font-weight: var(--font-weight) !important;
 }
 
 html.foxycape-user-font,
