@@ -18,8 +18,8 @@ describe('DefaultInternalUrlBuilder', () => {
 
   it('still resolves relative web assets', async () => {
     const builder = new DefaultInternalUrlBuilder('http://localhost:5173/', '1')
-    await expect(builder.getAbsoluteUrl('config/appsettings.json', true)).resolves.toBe(
-      'http://localhost:5173/config/appsettings.json',
+    await expect(builder.getAbsoluteUrl('config/appconfig.json', true)).resolves.toBe(
+      'http://localhost:5173/config/appconfig.json',
     )
   })
 })
