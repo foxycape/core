@@ -152,7 +152,7 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
         const result = await this.parseUrl(this.url, { requireDownload: true });
         await this.initializeDatas(result);
         if (options?.measureFilePercentage) {
-            await this.measureFilePercentage(this.spineFiles, this.urlParseResult?.requireCalculateFileSymbolCount)
+            await this.measureFilePercentage(result.spineFiles ?? [], result.requireCalculateFileSymbolCount)
         }
     }
 
