@@ -27,10 +27,10 @@ export class DefaultLoading implements ILoading {
                 injectCssContent(container.ownerDocument, css, false, "loader-css");
             }
             let backgroundColor = "#fff"
-            let iconColor = "#14ae5c"   
+            let iconColor = "#163260"   
             if (!(options?.disableLoadingTheme)) {
                 backgroundColor = options?.backgroundColor ?? "#fff";
-                iconColor = options?.iconColor ?? "#14ae5c";
+                iconColor = options?.iconColor ?? "#163260";
             }
             injectCssContent(container.ownerDocument, ".loader{background:" + backgroundColor + ";position:absolute;inset:0;z-index:9999;width:100%;height: 100%;box-sizing: border-box;display: flex;-ms-flex: 0 1 auto;flex: 0 1 auto;flex-direction: column;flex-grow: 1;flex-shrink: 0;flex-basis: 25%;-ms-flex-align: center;align-items: center;justify-content: center;}." + this.curentCssName + ">div{background-color:" + iconColor + " !important}", true, "loaders.min.css-content");
         }

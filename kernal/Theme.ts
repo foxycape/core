@@ -29,7 +29,7 @@ export class Theme {
     selectionBackground: string = "rgba(255,213,0,0.35)";
     selectionColor: string = "inherit";
     columnRuleColor: string = "rgba(100, 100, 100, 0.1)";
-    textAccentColor: string = "#14ae5c";
+    textAccentColor: string = "#163260";
     textMutedColor: string = "#777";
     borderColor: string = "#e9e9e9";
 
