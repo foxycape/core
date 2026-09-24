@@ -220,31 +220,7 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                 }
             }
             else {
-                if (isReload) {
-                    if (redirectTarget && !isNullOrWhiteSpace(location.tagName)) {
-                        pageNumber = await doc.getPageNumber(redirectTarget);
-                    }
-                    else if (location.unit === "page" && location.current != null && location.current > 0) {
-                        pageNumber = remapStoredPageNumber(location, await doc.getNumberOfPages());
-                    }
-                    else if (isDomRange(redirectTarget)) {
-                        pageNumber = await doc.getPageNumber(redirectTarget);
-                    }
-                    else if (!pageNumber && redirectTarget) {
-                        pageNumber = await doc.getPageNumber(redirectTarget);
-                    }
-                }
-                else if (location.unit === "page" && location.current != null && location.current > 0) {
-                    pageNumber = remapStoredPageNumber(location, await doc.getNumberOfPages());
-                }
-                else if (isDomRange(redirectTarget)) {
-                    // Character Range (search / mark textOffset): use hit geometry so
-                    // a paragraph that spans CSS columns does not pin the previous column.
-                    pageNumber = await doc.getPageNumber(redirectTarget);
-                }
-                else if (!pageNumber && redirectTarget) {
-                    pageNumber = await doc.getPageNumber(redirectTarget);
-                }
+                pageNumber = await this.resolvePageNumber(doc, location, redirectTarget, pageNumber);
                 await this.transformPage(doc, pageNumber, isReload ? undefined : location.direction);
             }
         }
@@ -253,6 +229,34 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                 await htmlDoc.revealCoveredLoad();
             }
         }
+    }
+
+    /**
+     * Same layout (page count unchanged) restores the screen the reader left.
+     * A reflow changes the page count, so fall through to the visible character
+     * instead of the leading edge of an element that spans two columns.
+     */
+    private async resolvePageNumber(
+        doc: IHtmlDocument,
+        location: FileLocation,
+        redirectTarget: LocateTarget | undefined,
+        locatedPageNumber: number | undefined,
+    ): Promise<number | undefined> {
+        const numberOfPages = await doc.getNumberOfPages();
+        const hasStoredPage = location.unit === "page" && location.current != null && location.current > 0;
+        if (hasStoredPage && location.total === numberOfPages) {
+            return remapStoredPageNumber(location, numberOfPages);
+        }
+        if (isDomRange(redirectTarget)) {
+            return doc.getPageNumber(redirectTarget);
+        }
+        if (hasStoredPage) {
+            return remapStoredPageNumber(location, numberOfPages);
+        }
+        if (redirectTarget) {
+            return doc.getPageNumber(redirectTarget);
+        }
+        return locatedPageNumber;
     }
 
     /**

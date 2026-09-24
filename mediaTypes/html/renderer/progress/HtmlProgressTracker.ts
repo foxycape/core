@@ -123,7 +123,7 @@ export class HtmlProgressTracker implements IHtmlProgressTracker {
         location.ignoreOverlayHeader = true;
         location.scrollBehavior = "smooth";
         location.text = getAdjacentText(this.documentsProvider, this.options.htmlBlockTags, firstVisibleDocument.extension, firstVisibleElement);
-        if (geometry.flipMode === "page" && location.textOffset == null) {
+        if (geometry.flipMode === "page") {
             const pageNumber = this.documentsProvider.getCurrentPageNumber(firstVisibleDocument);
             const numberOfPages = await firstVisibleDocument.getNumberOfPages();
             location.unit = "page";

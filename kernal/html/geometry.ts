@@ -758,10 +758,32 @@ const isZeroSizeRect = (rect: { width: number; height: number }) =>
 const isNodeInsideElement = (element: Element, node: Node) =>
     element === node || element.contains(node);
 
+const rectIntersectsViewport = (rect: DOMRect, viewport: EdgeRect, writingMode?: WritingMode) => {
+    if (isZeroSizeRect(rect)) {
+        return false;
+    }
+    const edge = toEdgeRect(rect);
+    return intersectRect(viewport, edge) && !isCompletelyBeforeViewport(edge, viewport, writingMode);
+};
+
+/** Column fragments: use the rect on the current screen, not the leading fragment. */
+const getViewportClientRect = (range: Range, viewport: EdgeRect, writingMode?: WritingMode): DOMRect | undefined => {
+    const rects = range.getClientRects();
+    for (let i = 0; i < rects.length; i++) {
+        const rect = rects[i];
+        if (rectIntersectsViewport(rect, viewport, writingMode)) {
+            return rect;
+        }
+    }
+    return undefined;
+};
+
 const resolveTextOffsetAnchor = (
     element: Element,
     textOffset: number,
-    textLength: number
+    textLength: number,
+    viewport: EdgeRect,
+    writingMode?: WritingMode
 ): VisibleTextAnchor | undefined => {
     const end = Math.min(textOffset + 1, textLength);
     if (textOffset < 0 || textOffset >= textLength) {
@@ -771,7 +793,27 @@ const resolveTextOffsetAnchor = (
     if (!range) {
         return undefined;
     }
-    return { textOffset, rect: getFirstClientRect(range) };
+    const rect = getViewportClientRect(range, viewport, writingMode);
+    if (!rect) {
+        return undefined;
+    }
+    return { textOffset, rect };
+};
+
+const isOffsetBeforeViewport = (
+    element: Element,
+    textOffset: number,
+    textLength: number,
+    viewport: EdgeRect,
+    writingMode?: WritingMode
+) => {
+    const end = Math.min(textOffset + 1, textLength);
+    const range = createRange(element, element, textOffset, end);
+    if (!range) {
+        return true;
+    }
+    const rect = getFirstClientRect(range);
+    return isZeroSizeRect(rect) || isCompletelyBeforeViewport(toEdgeRect(rect), viewport, writingMode);
 };
 
 /**
@@ -799,12 +841,9 @@ export const findFirstVisibleTextOffset = (
     const pointRange = getRangeFromPoint(ownerDocument, point.x, point.y);
     if (pointRange && isNodeInsideElement(element, pointRange.startContainer)) {
         const textOffset = getTextOffsetInElement(element, pointRange.startContainer, pointRange.startOffset);
-        const anchor = resolveTextOffsetAnchor(element, textOffset, textLength);
-        if (anchor && !isZeroSizeRect(anchor.rect)) {
-            const edge = toEdgeRect(anchor.rect);
-            if (!isCompletelyBeforeViewport(edge, viewport, writingMode) && intersectRect(viewport, edge)) {
-                return anchor;
-            }
+        const anchor = resolveTextOffsetAnchor(element, textOffset, textLength, viewport, writingMode);
+        if (anchor) {
+            return anchor;
         }
     }
 
@@ -813,12 +852,16 @@ export const findFirstVisibleTextOffset = (
     let found: VisibleTextAnchor | undefined;
     while (low <= high) {
         const mid = (low + high) >> 1;
-        const anchor = resolveTextOffsetAnchor(element, mid, textLength);
-        if (!anchor || isZeroSizeRect(anchor.rect) || isCompletelyBeforeViewport(toEdgeRect(anchor.rect), viewport, writingMode)) {
+        const anchor = resolveTextOffsetAnchor(element, mid, textLength, viewport, writingMode);
+        if (anchor) {
+            found = anchor;
+            high = mid - 1;
+            continue;
+        }
+        if (isOffsetBeforeViewport(element, mid, textLength, viewport, writingMode)) {
             low = mid + 1;
             continue;
         }
-        found = anchor;
         high = mid - 1;
     }
     return found;
