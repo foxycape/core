@@ -49,8 +49,10 @@ export type CreateMarkOptions = {
     thumbnail?: string;
     /** OPFS path of the persisted full-size collected image */
     filePath?: string;
-    /** Optional precomputed range (PDF collected images) */
+    /** Optional precomputed range (PDF collected images, or HTML images from a virtual document) */
     contentRange?: ContentRange;
+    /** Spine url when the range belongs to a document that is not loaded in an iframe. */
+    url?: string;
 };
 
 export type FindMarkTarget = {
