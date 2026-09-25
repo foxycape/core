@@ -1,50 +1,44 @@
 import * as pdfjsLib from '../../pdfjs/legacy/build/pdf.mjs'
 
-/**
- * True when `src` can be passed to `new Worker(src, { type: 'module' })`.
- * Placeholders / `app://` plugin paths are treated as unusable (Obsidian).
- */
-export const isUsablePdfWorkerSrc = (src: string | undefined | null): src is string => {
-  if (!src) {
-    return false
-  }
-  if (src === 'pdfjs:fake-worker' || src === 'foxycape-pdf:fake-worker') {
-    return false
-  }
-  // Obsidian plugin resource URLs usually cannot be loaded as module workers.
-  if (src.startsWith('app:')) {
-    return false
-  }
-  if (/^(blob:|https?:|file:|data:|chrome-extension:|extension:|edge-extension:|moz-extension:)/i.test(src)) {
-    return true
-  }
-  // Vite dev / relative asset paths
-  return src.startsWith('/') || src.startsWith('./') || src.startsWith('../')
+/** Script text or a Blob of `pdf.worker.min.mjs`. URLs are not accepted. */
+export type PdfWorkerSource = string | Blob
+
+let installPromise: Promise<Worker> | undefined
+
+const workerFromSource = (source: PdfWorkerSource) => {
+  const blob = source instanceof Blob ? source : new Blob([source], { type: 'text/javascript' })
+  const url = URL.createObjectURL(blob)
+  return new Worker(url, { type: 'module' })
+}
+
+const loadBundledWorkerSource = async () => {
+  const workerModule = await import('../../pdfjs/legacy/build/pdf.worker.min.mjs?raw')
+  return workerModule.default
 }
 
 /**
- * Ensure `GlobalWorkerOptions.workerSrc` points at a real module Worker script.
+ * Install a module Worker that does not depend on the page protocol.
+ * The bundled worker script is turned into a Blob and assigned to
+ * `GlobalWorkerOptions.workerPort`, so pdf.js never calls `new Worker(pageUrl)`.
  *
- * Preference order:
- * 1. Already-configured usable workerSrc
- * 2. Host-provided preferred URL (Vite `?url`, copied `pdf.worker.min.mjs`, or Obsidian Blob URL)
- *
- * Worker source is not inlined (`?raw`) so hosts must pass a usable URL.
- * This is NOT pdf.js "fake worker" (main-thread simulation).
+ * Hosts that cannot import `?raw` (for example some Obsidian bundlers) may pass
+ * the script text or a Blob. An existing port is reused.
  */
-export const ensurePdfWebWorker = (preferredWorkerSrc?: string): string => {
+export const ensurePdfWebWorker = async (workerSource?: PdfWorkerSource): Promise<Worker> => {
   const { GlobalWorkerOptions } = pdfjsLib
-
-  if (isUsablePdfWorkerSrc(GlobalWorkerOptions.workerSrc)) {
-    return GlobalWorkerOptions.workerSrc
+  if (GlobalWorkerOptions.workerPort) {
+    return GlobalWorkerOptions.workerPort
   }
-
-  if (isUsablePdfWorkerSrc(preferredWorkerSrc)) {
-    GlobalWorkerOptions.workerSrc = preferredWorkerSrc
-    return preferredWorkerSrc
+  if (!installPromise) {
+    installPromise = (async () => {
+      const source = workerSource ?? await loadBundledWorkerSource()
+      const worker = workerFromSource(source)
+      GlobalWorkerOptions.workerPort = worker
+      return worker
+    })().catch((error) => {
+      installPromise = undefined
+      throw error
+    })
   }
-
-  throw new Error(
-    'PDF worker source is not configured. Pass a usable preferredWorkerSrc (Vite ?url, copied pdf.worker.min.mjs, or Blob URL).',
-  )
+  return installPromise
 }
