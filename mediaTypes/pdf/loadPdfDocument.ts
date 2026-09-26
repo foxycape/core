@@ -1,6 +1,5 @@
 import * as pdfjsLib from '../../pdfjs/legacy/build/pdf.mjs';
 import type { DocumentInitParameters } from '../../pdfjs/types/src/display/api';
-import workerSrc from '../../pdfjs/legacy/build/pdf.worker.min.js?url'
 import { getCurrentBaseUrl } from '../../kernal/common/url';
 import type { IInternalUrlBuilder } from '../../kernal';
 
@@ -18,10 +17,8 @@ export async function loadPdfDocument(
     data: string | Uint8Array | ArrayBuffer | Blob,
     options?: LoadPdfDocumentOptions,
 ) {
-    // Real Web Worker (background thread). Uses Vite ?url when usable;
-    // otherwise Blob URL from inlined worker source (Obsidian-safe).
     const ensurePdfWebWorker = await import('./ensurePdfWebWorker').then(m => m.ensurePdfWebWorker);
-    ensurePdfWebWorker(workerSrc);
+    await ensurePdfWebWorker();
 
     let cmapUrl = options?.cMapUrl
     if (!cmapUrl) {
@@ -51,7 +48,6 @@ export async function loadPdfDocument(
         cMapUrl: cmapUrl,
         standardFontDataUrl: standardFontDataUrl,
         cMapPacked: true,
-        useWorkerFetch: true,
         useSystemFonts: true,
         password: options?.password,
     }
