@@ -80,3 +80,10 @@ export {
     restoreScrollAlongStart,
     restoreScrollCapturedPlusSize,
 } from "./restoreLayoutState";
+export {
+    detectScrollLeftSign,
+    fromLogicalScrollLeft,
+    resolveScrollLeftSign,
+    toLogicalScrollLeft,
+} from "./scrollLeftAxis";
+export type { ScrollLeftSign } from "./scrollLeftAxis";

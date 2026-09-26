@@ -16,6 +16,7 @@ import {
     resolveRestoreCompensationAnchor,
 } from "../layout/geometry/restoreLayoutState";
 import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
+import { fromLogicalScrollLeft, resolveScrollLeftSign, toLogicalScrollLeft } from "../layout/geometry/scrollLeftAxis";
 import { beginProgrammaticScroll, endProgrammaticScroll, isHoldingAbsoluteAnchor, isUserScrollSettling } from "./scrollActivity";
 
 const SCROLL_WRITE_THRESHOLD = 1;
@@ -185,8 +186,11 @@ export class HtmlLayoutStatePreserver {
         if (geometry.skipsRestoreWhileSettling && isUserScrollSettling()) {
             return;
         }
-        const liveScroll = blockAxis == "x" ? scrollElement.scrollLeft : scrollElement.scrollTop;
-        const capturedScroll = blockAxis == "x" ? locationState.scrollLeft : locationState.scrollTop;
+        const liveScrollRaw = blockAxis == "x" ? scrollElement.scrollLeft : scrollElement.scrollTop;
+        const capturedScrollRaw = blockAxis == "x" ? locationState.scrollLeft : locationState.scrollTop;
+        const scrollSign = blockAxis == "x" ? resolveScrollLeftSign(scrollElement) : 1;
+        const liveScroll = toLogicalScrollLeft(liveScrollRaw, scrollSign);
+        const capturedScroll = toLogicalScrollLeft(capturedScrollRaw, scrollSign);
         const sizeDelta = blockAxis == "x"
             ? (wrapper?.scrollWidth ?? 0) - locationState.width
             : (wrapper?.offsetHeight ?? 0) - locationState.height;
@@ -198,7 +202,7 @@ export class HtmlLayoutStatePreserver {
                 ? locationAnchor.offsetLeft - locationState.offsetLeft
                 : locationAnchor.offsetTop - locationState.offsetTop;
         }
-        const nextScroll = geometry.restoreScroll({
+        const nextLogical = geometry.restoreScroll({
             liveScroll,
             capturedScroll,
             sizeDelta,
@@ -207,11 +211,12 @@ export class HtmlLayoutStatePreserver {
             currentIndex,
             anchorIndex,
         });
+        const nextScroll = fromLogicalScrollLeft(nextLogical, scrollSign);
 
-        if (Math.abs(nextScroll - liveScroll) <= SCROLL_WRITE_THRESHOLD) {
+        if (Math.abs(nextScroll - liveScrollRaw) <= SCROLL_WRITE_THRESHOLD) {
             return;
         }
-        if (!geometry.shouldApplyRestoredScroll(nextScroll, liveScroll)) {
+        if (!geometry.shouldApplyRestoredScroll(nextLogical, liveScroll)) {
             return;
         }
 

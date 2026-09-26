@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { scrollHorizontalTbLtr } from '@/mediaTypes/html/renderer/layout/geometry/scrollHorizontalTbLtr'
 import { scrollHorizontalTbRtl } from '@/mediaTypes/html/renderer/layout/geometry/scrollHorizontalTbRtl'
 import { scrollVerticalLrLtr } from '@/mediaTypes/html/renderer/layout/geometry/scrollVerticalLrLtr'
+import { scrollVerticalLrRtl } from '@/mediaTypes/html/renderer/layout/geometry/scrollVerticalLrRtl'
 import { scrollVerticalRlLtr } from '@/mediaTypes/html/renderer/layout/geometry/scrollVerticalRlLtr'
+import { scrollVerticalRlRtl } from '@/mediaTypes/html/renderer/layout/geometry/scrollVerticalRlRtl'
+import { fromLogicalScrollLeft, toLogicalScrollLeft } from '@/mediaTypes/html/renderer/layout/geometry/scrollLeftAxis'
 import { pageHorizontalTbLtr } from '@/mediaTypes/html/renderer/layout/geometry/pageHorizontalTbLtr'
 import { pageHorizontalTbRtl } from '@/mediaTypes/html/renderer/layout/geometry/pageHorizontalTbRtl'
 import { layoutGeometryById } from '@/mediaTypes/html/renderer/layout/geometry'
@@ -384,5 +387,37 @@ describe('pipeline-owned scroll I/O policy', () => {
             currentIndex: 0,
             anchorIndex: 0,
         }))).toBe(1100)
+    })
+})
+
+describe('rtl vertical scrollLeft axis', () => {
+    const writeBack = (raw: number, sizeDelta: number, restore: (input: RestoreScrollInput) => number) => {
+        const logical = toLogicalScrollLeft(raw, -1)
+        const nextLogical = restore(scrollInput({
+            liveScroll: logical,
+            capturedScroll: logical,
+            sizeDelta,
+            currentIndex: 0,
+            anchorIndex: 0,
+        }))
+        return fromLogicalScrollLeft(nextLogical, -1)
+    }
+
+    it('adds a width delta to the distance from the right edge', () => {
+        expect(writeBack(-400, 200, scrollVerticalLrRtl.restoreScroll)).toBe(-600)
+    })
+
+    it('does not follow the current chapter width on vertical-rl rtl', () => {
+        expect(writeBack(-400, 200, scrollVerticalRlRtl.restoreScroll)).toBe(-400)
+    })
+
+    it('follows the current chapter width on vertical-lr rtl', () => {
+        expect(scrollVerticalLrRtl.restoreScroll(scrollInput({
+            liveScroll: 400,
+            capturedScroll: 400,
+            sizeDelta: 200,
+            currentIndex: 0,
+            anchorIndex: 0,
+        }))).toBe(600)
     })
 })
