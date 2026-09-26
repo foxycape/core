@@ -31,7 +31,7 @@ const scrollInput = (partial: Partial<RestoreScrollInput>): RestoreScrollInput =
     ...partial,
 })
 
-describe('restoreScrollAlongEnd / scroll-vertical-rl-ltr', () => {
+describe('restoreScrollAlongLeftAnchoredReverse / scroll-vertical-rl-ltr', () => {
     it('pins the reading start when the current chapter grows and the user has not scrolled', () => {
         expect(scrollVerticalRlLtr.restoreScroll(scrollInput({
             liveScroll: 400,
@@ -52,31 +52,35 @@ describe('restoreScrollAlongEnd / scroll-vertical-rl-ltr', () => {
         }))).toBe(900)
     })
 
-    it('shifts when file 0 on the right grows while the viewport is on file 1', () => {
+    it('does not move scroll when an earlier chapter on the right changes size', () => {
         expect(scrollVerticalRlLtr.restoreScroll(scrollInput({
             liveScroll: 1200,
             capturedScroll: 400,
             sizeDelta: 300,
             currentIndex: 0,
             anchorIndex: 1,
-        }))).toBe(1500)
-    })
-
-    it('compensates file 0 on the right shrinking with a negative sizeDelta', () => {
+        }))).toBe(1200)
         expect(scrollVerticalRlLtr.restoreScroll(scrollInput({
             liveScroll: 1800,
             capturedScroll: 1800,
             sizeDelta: -500,
             currentIndex: 0,
             anchorIndex: 1,
-        }))).toBe(1300)
+        }))).toBe(1800)
     })
 
-    it('does not move scroll when a later chapter on the left changes size', () => {
+    it('shifts when a later chapter on the left changes size', () => {
         expect(scrollVerticalRlLtr.restoreScroll(scrollInput({
             liveScroll: 800,
             capturedScroll: 400,
             sizeDelta: 400,
+            currentIndex: 2,
+            anchorIndex: 1,
+        }))).toBe(1200)
+        expect(scrollVerticalRlLtr.restoreScroll(scrollInput({
+            liveScroll: 1200,
+            capturedScroll: 1200,
+            sizeDelta: -400,
             currentIndex: 2,
             anchorIndex: 1,
         }))).toBe(800)

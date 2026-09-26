@@ -76,6 +76,7 @@ export {
     restorePageTransformAlongEnd,
     restorePageTransformAlongStart,
     restoreScrollAlongEnd,
+    restoreScrollAlongLeftAnchoredReverse,
     restoreScrollAlongStart,
     restoreScrollCapturedPlusSize,
 } from "./restoreLayoutState";

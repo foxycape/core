@@ -109,6 +109,40 @@ export const restoreScrollAlongEnd = ({
     return clampScroll(liveScroll + sizeDelta);
 };
 
+/**
+ * scroll-vertical-rl-ltr: row-reverse inside a left-anchored max-content strip.
+ * A later chapter (higher index, on the left) shifts every chapter to its right,
+ * so scrollLeft must follow that width delta. An earlier chapter only extends
+ * the far right edge. The anchor chapter is right-aligned, so its own growth
+ * moves the visible text unless the user has already scrolled.
+ */
+export const restoreScrollAlongLeftAnchoredReverse = ({
+    liveScroll,
+    capturedScroll,
+    sizeDelta,
+    offsetDelta,
+    foundElement,
+    currentIndex,
+    anchorIndex,
+}: RestoreScrollInput) => {
+    if (currentIndex < 0 || anchorIndex < 0) {
+        return liveScroll;
+    }
+    if (currentIndex > anchorIndex) {
+        return clampScroll(liveScroll + sizeDelta);
+    }
+    if (currentIndex < anchorIndex) {
+        return liveScroll;
+    }
+    if (foundElement) {
+        return clampScroll(liveScroll + offsetDelta);
+    }
+    if (Math.abs(liveScroll - capturedScroll) > USER_SCROLLED_THRESHOLD) {
+        return liveScroll;
+    }
+    return clampScroll(liveScroll + sizeDelta);
+};
+
 export const passthroughRestoreScroll = ({ liveScroll }: RestoreScrollInput) => liveScroll;
 
 export type ScrollLocateDeltaWithEdgeInput = ScrollLocateDeltaInput & {

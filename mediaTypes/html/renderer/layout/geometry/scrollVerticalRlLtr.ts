@@ -6,7 +6,7 @@ import {
     compensationRectAlongX,
     getScrollLocateDeltaAlongEnd,
     restorePageTransformAlongEnd,
-    restoreScrollAlongEnd,
+    restoreScrollAlongLeftAnchoredReverse,
 } from "./restoreLayoutState";
 
 export const scrollVerticalRlLtr: ILayoutGeometry = {
@@ -66,7 +66,7 @@ export const scrollVerticalRlLtr: ILayoutGeometry = {
         height: wrapper.offsetHeight,
     }),
     restorePageTransform: restorePageTransformAlongEnd,
-    restoreScroll: restoreScrollAlongEnd,
+    restoreScroll: restoreScrollAlongLeftAnchoredReverse,
     getCompensationRect: compensationRectAlongX,
     getScrollLocateDelta: getScrollLocateDeltaAlongEnd,
     alignWrapperToViewport: alignWrapperToVisualEnd,
