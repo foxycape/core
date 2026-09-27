@@ -1,6 +1,6 @@
 export class BasePDFPageView extends RenderableView {
     constructor(options: any);
-    canvas: null;
+    canvas: HTMLCanvasElement | null;
     /** @type {null | HTMLDivElement} */
     div: null | HTMLDivElement;
     enableOptimizedPartialRendering: boolean;

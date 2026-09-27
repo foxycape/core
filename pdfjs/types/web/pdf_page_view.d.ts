@@ -239,7 +239,7 @@ export class PDFPageView extends BasePDFPageView {
      * For use by the `PDFThumbnailView.setImage`-method.
      * @ignore
      */
-    get thumbnailCanvas(): null;
+    get thumbnailCanvas(): HTMLCanvasElement | null;
     #private;
 }
 import { BasePDFPageView } from "./base_pdf_page_view.js";

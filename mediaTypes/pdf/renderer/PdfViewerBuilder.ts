@@ -1,5 +1,6 @@
 import { MultiPDFViewer } from "./MultiPdfViewer";
 import * as pdfjsViewer from "../../../pdfjs/legacy/web/pdf_viewer.mjs";
+import type { L10n } from "../../../pdfjs/types/web/l10n";
 import { PdfOptions } from "../PdfOptions";
 import { PdfNoopL10n } from "./PdfNoopL10n";
 
@@ -44,7 +45,7 @@ export class PdfViewerBuilder {
                 container,
                 eventBus,
                 linkService,
-                l10n: new PdfNoopL10n(),
+                l10n: new PdfNoopL10n() as unknown as L10n,
                 maxCanvasPixels,
                 textLayerMode: this.options.textLayerMode == 1 ? 1 : 0,
                 annotationMode: this.options.annotationMode,

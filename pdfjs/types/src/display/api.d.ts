@@ -406,7 +406,7 @@ export type RenderParameters = {
      * value is the canvas associated with the `canvasContext` parameter if no
      * value is provided explicitly.
      */
-    canvas: HTMLCanvasElement | null;
+    canvas?: HTMLCanvasElement | null;
     /**
      * - Rendering viewport obtained by calling
      * the `PDFPageProxy.getViewport` method.

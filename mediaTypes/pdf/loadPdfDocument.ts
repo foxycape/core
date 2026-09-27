@@ -78,8 +78,13 @@ export async function loadPdfDocument(
         options.documentInitParametersCallback(documentInitParameters);
     }
     const loadingTask = pdfjsLib.getDocument(documentInitParameters)
-    if (!loadingTask._worker && documentInitParameters.worker) {
-        loadingTask._worker = documentInitParameters.worker
+    // getDocument only stores an internally created worker. A caller-supplied
+    // worker stays unset, so destroy() would leak it.
+    const taskWithWorker = loadingTask as unknown as {
+        _worker: DocumentInitParameters["worker"] | null
+    }
+    if (!taskWithWorker._worker && documentInitParameters.worker) {
+        taskWithWorker._worker = documentInitParameters.worker
     }
     if (options?.showPasswordPrompt) {
         loadingTask.onPassword = options?.passwordPrompt
