@@ -7,6 +7,7 @@ export type LoadPdfDocumentOptions = {
     password?: string;
     cMapUrl?: string;
     standardFontDataUrl?: string;
+    wasmUrl?: string;
     showPasswordPrompt?: boolean;
     passwordPrompt?: (callback: (password: string) => void, reason: any) => void;
     documentInitParametersCallback?: (documentInitParameters: DocumentInitParameters) => void;
@@ -44,9 +45,22 @@ export async function loadPdfDocument(
     if (standardFontDataUrl && !standardFontDataUrl.endsWith("/")) {
         standardFontDataUrl += "/"
     }
+    let wasmUrl = options?.wasmUrl
+    if (!wasmUrl) {
+        /* @vite-ignore */
+        wasmUrl = new URL('../../pdfjs/wasm/', import.meta.url).href
+        //note: here cannot add /
+        if (wasmUrl.indexOf('/core/pdfjs/wasm') < 0) {
+            wasmUrl = options?.internalUrlBuilder ? await options.internalUrlBuilder.getAbsoluteUrl("pdfjs/wasm/", true) : getCurrentBaseUrl() + "/pdfjs/wasm/";
+        }
+    }
+    if (wasmUrl && !wasmUrl.endsWith("/")) {
+        wasmUrl += "/"
+    }
     const documentInitParameters: DocumentInitParameters = {
         cMapUrl: cmapUrl,
         standardFontDataUrl: standardFontDataUrl,
+        wasmUrl: wasmUrl,
         cMapPacked: true,
         useSystemFonts: true,
         password: options?.password,

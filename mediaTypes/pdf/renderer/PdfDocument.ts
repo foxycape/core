@@ -37,7 +37,8 @@ export class PdfDocument extends BaseDocument implements IPdfDocument {
 
     getPageGeometry(): PdfPageGeometry | undefined {
         const pageView = this.resolvePageView();
-        if (!pageView?.viewport || !pageView.div) {
+        const ref = pageView?.pdfPage?.ref;
+        if (!pageView?.viewport || !pageView.div || !ref) {
             return undefined;
         }
         return {
@@ -47,7 +48,7 @@ export class PdfDocument extends BaseDocument implements IPdfDocument {
             displayWidth: pageView.width,
             displayHeight: pageView.height,
             pageRect: pageView.div.getBoundingClientRect(),
-            ref: pageView.pdfPage.ref
+            ref,
         };
     }
 

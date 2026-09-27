@@ -37,7 +37,10 @@ export class PdfDestinationBuilder implements IPdfDestinationBuilder {
             y = options.y;
         }
 
-       const geometry = doc.getPageGeometry();
+        const geometry = doc?.getPageGeometry();
+        if (!geometry?.ref) {
+            return null;
+        }
         const width = geometry.displayWidth;
         const height = geometry.displayHeight;
         const ref = geometry.ref;

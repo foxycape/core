@@ -16,31 +16,35 @@ export class FreeTextEditor extends AnnotationEditor {
     static updateDefaultParams(type: any, value: any): void;
     /** @inheritdoc */
     static get defaultPropertiesToUpdate(): any[][];
-    static "__#19@#getNodeContent"(node: any): any;
-    static "__#19@#deserializeContent"(content: any): any;
+    static "__#private@#getNodeContent"(node: any): any;
+    static "__#private@#deserializeContent"(content: any): any;
     /** @inheritdoc */
     static deserialize(data: any, parent: any, uiManager: any): Promise<AnnotationEditor | null>;
     constructor(params: any);
+    _colorPicker: null;
+    color: any;
     /** @inheritdoc */
     updateParams(type: any, value: any): void;
     /** @inheritdoc */
     get propertiesToUpdate(): any[][];
+    /** @inheritdoc */
+    get toolbarButtons(): (string | null)[][];
+    get colorType(): number;
     /**
      * Helper to translate the editor with the keyboard when it's empty.
      * @param {number} x in page units.
      * @param {number} y in page units.
      */
     _translateEmpty(x: number, y: number): void;
+    /** @inheritdoc */
+    onceAdded(focus: any): void;
     /**
      * Commit the content we have in this editor.
      * @returns {undefined}
      */
     commit(): undefined;
-    /**
-     * ondblclick callback.
-     * @param {MouseEvent} event
-     */
-    dblclick(event: MouseEvent): void;
+    /** @inheritdoc */
+    keydown(event: any): void;
     editorDivKeydown(event: any): void;
     editorDivFocus(event: any): void;
     editorDivBlur(event: any): void;
@@ -48,6 +52,8 @@ export class FreeTextEditor extends AnnotationEditor {
     editorDiv: HTMLDivElement | undefined;
     overlayDiv: HTMLDivElement | undefined;
     editorDivPaste(event: any): void;
+    /** @inheritdoc */
+    getPDFRect(): any[];
     /** @inheritdoc */
     serialize(isForCopying?: boolean): Object | null;
     /** @inheritdoc */

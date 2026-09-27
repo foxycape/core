@@ -7,6 +7,8 @@ export class PdfOptions {
     cMapUrl: string;
     /** Custom pdf standardFontDataUrl absolute address or relative address to pdf.worker.js */
     standardFontDataUrl: string;
+    /** Directory of pdf.js wasm decoders (jbig2, openjpeg, qcms). Include the trailing slash. */
+    wasmUrl: string;
 
     /**
      * Text layer mode:

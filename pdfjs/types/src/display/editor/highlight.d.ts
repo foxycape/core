@@ -19,28 +19,20 @@ export class HighlightEditor extends AnnotationEditor {
     /** @inheritdoc */
     static updateDefaultParams(type: any, value: any): void;
     static get defaultPropertiesToUpdate(): (number | null)[][];
-    static "__#25@#rotateBbox"({ x, y, width, height }: {
-        x: any;
-        y: any;
-        width: any;
-        height: any;
-    }, angle: any): {
-        x: any;
-        y: any;
-        width: any;
-        height: any;
-    };
+    static "__#private@#rotateBbox"([x, y, width, height]: [any, any, any, any], angle: any): any[];
     static startHighlighting(parent: any, isLTR: any, { target: textLayer, x, y }: {
         target: any;
         x: any;
         y: any;
     }): void;
-    static "__#25@#highlightMove"(parent: any, event: any): void;
-    static "__#25@#endHighlight"(parent: any, event: any): void;
+    static "__#private@#highlightMove"(parent: any, event: any): void;
+    static "__#private@#endHighlight"(parent: any, event: any): void;
     /** @inheritdoc */
     static deserialize(data: any, parent: any, uiManager: any): Promise<AnnotationEditor | null>;
     constructor(params: any);
     color: any;
+    opacity: any;
+    defaultL10nId: string;
     /** @inheritdoc */
     get telemetryInitialData(): {
         action: string;
@@ -57,13 +49,19 @@ export class HighlightEditor extends AnnotationEditor {
     /** @inheritdoc */
     translateInPage(x: any, y: any): void;
     /** @inheritdoc */
+    get commentButtonPosition(): null;
+    /** @inheritdoc */
     updateParams(type: any, value: any): void;
     /** @inheritdoc */
     get propertiesToUpdate(): any[][];
     /** @inheritdoc */
+    get toolbarButtons(): any;
+    /** @inheritdoc */
     fixAndSetPosition(): void;
     /** @inheritdoc */
     getRect(tx: any, ty: any): any[];
+    /** @inheritdoc */
+    onceAdded(focus: any): void;
     /** @inheritdoc */
     rotate(angle: any): void;
     pointerover(): void;

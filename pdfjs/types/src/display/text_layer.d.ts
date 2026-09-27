@@ -1,5 +1,6 @@
 export type PageViewport = import("./display_utils").PageViewport;
 export type TextContent = import("./api").TextContent;
+export type TextLayerImages = import("./text_layer_images").TextLayerImages;
 export type TextLayerParameters = {
     /**
      * - Text content to
@@ -17,6 +18,11 @@ export type TextLayerParameters = {
      * the text runs.
      */
     viewport: PageViewport;
+    /**
+     * - An optional TextLayerImages instance
+     * that handles right clicking on images.
+     */
+    images?: import("./text_layer_images").TextLayerImages | undefined;
 };
 export type TextLayerUpdateParameters = {
     /**
@@ -31,28 +37,28 @@ export type TextLayerUpdateParameters = {
     onBefore?: Function | undefined;
 };
 export class TextLayer {
-    static "__#46@#ascentCache": Map<any, any>;
-    static "__#46@#canvasContexts": Map<any, any>;
-    static "__#46@#canvasCtxFonts": WeakMap<object, any>;
-    static "__#46@#minFontSize": null;
-    static "__#46@#pendingTextLayers": Set<any>;
+    static "__#private@#ascentCache": Map<any, any>;
+    static "__#private@#canvasContexts": Map<any, any>;
+    static "__#private@#canvasCtxFonts": WeakMap<object, any>;
+    static "__#private@#minFontSize": null;
+    static "__#private@#pendingTextLayers": Set<any>;
     static get fontFamilyMap(): any;
     /**
      * Clean-up global textLayer data.
      * @returns {undefined}
      */
     static cleanup(): undefined;
-    static "__#46@#getCtx"(lang?: null): any;
-    static "__#46@#ensureCtxFont"(ctx: any, size: any, family: any): void;
+    static "__#private@#getCtx"(lang?: null): any;
+    static "__#private@#ensureCtxFont"(ctx: any, size: any, family: any): void;
     /**
      * Compute the minimum font size enforced by the browser.
      */
-    static "__#46@#ensureMinFontSizeComputed"(): void;
-    static "__#46@#getAscent"(fontFamily: any, lang: any): any;
+    static "__#private@#ensureMinFontSizeComputed"(): void;
+    static "__#private@#getAscent"(fontFamily: any, style: any, lang: any): any;
     /**
      * @param {TextLayerParameters} options
      */
-    constructor({ textContentSource, container, viewport }: TextLayerParameters);
+    constructor({ textContentSource, images, container, viewport }: TextLayerParameters);
     /**
      * Render the textLayer.
      * @returns {Promise}
@@ -74,12 +80,12 @@ export class TextLayer {
      *   of the textContent input.
      *   This is output and will initially be set to an empty array.
      */
-    get textDivs(): HTMLElement[];
+    get textDivs(): Array<HTMLElement>;
     /**
      * @type {Array<string>} Strings that correspond to the `str` property of
      *   the text items of the textContent input.
      *   This is output and will initially be set to an empty array
      */
-    get textContentItemsStr(): string[];
+    get textContentItemsStr(): Array<string>;
     #private;
 }

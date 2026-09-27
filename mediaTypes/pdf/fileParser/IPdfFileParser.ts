@@ -15,6 +15,8 @@ export type PdfPasswordPromptCallback = (password: string | Error) => void | Pro
 export type PdfFileParserOptions = {
     cMapUrl?: string;
     standardFontDataUrl?: string;
+    /** Directory of pdf.js wasm decoders. Include the trailing slash. */
+    wasmUrl?: string;
     /**
      * Enable pdf.js password prompt. When true,
      * PdfPasswordProvider emits EventNames.RequirePdfPassword (app only needs to listen).

@@ -5,6 +5,10 @@ export type PageViewportParameters = {
      */
     viewBox: Array<number>;
     /**
+     * - The size of units.
+     */
+    userUnit: number;
+    /**
      * - The scale of the viewport.
      */
     scale: number;
@@ -55,61 +59,25 @@ export type PageViewportCloneParameters = {
      */
     dontFlip?: boolean | undefined;
 };
+export function applyOpacity(color: any, opacity: any): any;
+export class ColorScheme {
+    static get isDarkMode(): any;
+}
+export class CSSConstants {
+    static get commentForegroundColor(): any;
+}
 export function deprecated(details: any): void;
-export class DOMCanvasFactory extends BaseCanvasFactory {
-    constructor({ ownerDocument, enableHWA }: {
-        ownerDocument?: Document | undefined;
-        enableHWA?: boolean | undefined;
-    });
-    _document: Document;
-    /**
-     * @ignore
-     */
-    _createCanvas(width: any, height: any): HTMLCanvasElement;
-}
-export class DOMCMapReaderFactory extends BaseCMapReaderFactory {
-    /**
-     * @ignore
-     */
-    _fetchData(url: any, compressionType: any): Promise<{
-        cMapData: Uint8Array;
-        compressionType: any;
-    }>;
-}
-/**
- * FilterFactory aims to create some SVG filters we can use when drawing an
- * image (or whatever) on a canvas.
- * Filters aren't applied with ctx.putImageData because it just overwrites the
- * underlying pixels.
- * With these filters, it's possible for example to apply some transfer maps on
- * an image without the need to apply them on the pixel arrays: the renderer
- * does the magic for us.
- */
-export class DOMFilterFactory extends BaseFilterFactory {
-    constructor({ docId, ownerDocument }: {
-        docId: any;
-        ownerDocument?: Document | undefined;
-    });
-    addFilter(maps: any): any;
-    addHCMFilter(fgColor: any, bgColor: any): any;
-    addAlphaFilter(map: any): any;
-    addLuminosityFilter(map: any): any;
-    addHighlightHCMFilter(filterName: any, fgColor: any, bgColor: any, newFgColor: any, newBgColor: any): any;
-    #private;
-}
-export class DOMStandardFontDataFactory extends BaseStandardFontDataFactory {
-    /**
-     * @ignore
-     */
-    _fetchData(url: any): Promise<Uint8Array>;
-}
-export class DOMSVGFactory extends BaseSVGFactory {
-    /**
-     * @ignore
-     */
-    _createSVG(type: any): any;
-}
 export function fetchData(url: any, type?: string): Promise<any>;
+/**
+ * Find a color that has sufficient contrast against a fixed color.
+ * The luminance (in HSL color space) of the base color is adjusted
+ * until the contrast ratio between the base color and the fixed color
+ * is at least the minimum contrast ratio required by WCAG 2.1.
+ * @param {Array<number>} baseColor
+ * @param {Array<number>} fixedColor
+ * @returns {string}
+ */
+export function findContrastColor(baseColor: Array<number>, fixedColor: Array<number>): string;
 export function getColorValues(colors: any): void;
 export function getCurrentTransform(ctx: any): any[];
 export function getCurrentTransformInverse(ctx: any): any[];
@@ -127,7 +95,8 @@ export function getFilenameFromUrl(url: string): string;
  * @returns {string} Guessed PDF filename.
  */
 export function getPdfFilenameFromUrl(url: string, defaultFilename?: string): string;
-export function getRGB(color: any): any;
+export function getRGB(color: any): any[];
+export function getRGBA(color: any): any[] | null;
 /**
  * NOTE: This is (mostly) intended to support printing of XFA forms.
  */
@@ -138,6 +107,7 @@ export function getXfaPageViewport(xfaPage: any, { scale, rotation }: {
 export function isDataScheme(url: any): boolean;
 export function isPdfFile(filename: any): boolean;
 export function isValidFetchUrl(url: any, baseUrl: any): boolean;
+export function makePathFromDrawOPS(data: any): Path2D;
 /**
  * Event handler to suppress context menu.
  */
@@ -146,6 +116,8 @@ export function noContextMenu(e: any): void;
  * Scale factors for the canvas, necessary with HiDPI displays.
  */
 export class OutputScale {
+    static get pixelRatio(): number;
+    static capPixels(maxPixels: any, capAreaFactor: any): any;
     /**
      * @type {number} Horizontal scale.
      */
@@ -158,12 +130,22 @@ export class OutputScale {
      * @type {boolean} Returns `true` when scaling is required, `false` otherwise.
      */
     get scaled(): boolean;
+    /**
+     * @type {boolean} Returns `true` when scaling is symmetric,
+     *   `false` otherwise.
+     */
     get symmetric(): boolean;
+    /**
+     * @returns {boolean} Returns `true` if scaling was limited,
+     *   `false` otherwise.
+     */
+    limitCanvas(width: any, height: any, maxPixels: any, maxDim: any, capAreaFactor?: number): boolean;
 }
 /**
  * @typedef {Object} PageViewportParameters
  * @property {Array<number>} viewBox - The xMin, yMin, xMax and
  *   yMax coordinates.
+ * @property {number} userUnit - The size of units.
  * @property {number} scale - The scale of the viewport.
  * @property {number} rotation - The rotation, in degrees, of the viewport.
  * @property {number} [offsetX] - The horizontal, i.e. x-axis, offset. The
@@ -193,8 +175,9 @@ export class PageViewport {
     /**
      * @param {PageViewportParameters}
      */
-    constructor({ viewBox, scale, rotation, offsetX, offsetY, dontFlip, }: PageViewportParameters);
+    constructor({ viewBox, userUnit, scale, rotation, offsetX, offsetY, dontFlip, }: PageViewportParameters);
     viewBox: number[];
+    userUnit: number;
     scale: number;
     rotation: number;
     offsetX: number;
@@ -212,7 +195,7 @@ export class PageViewport {
      * @param {PageViewportCloneParameters} [params]
      * @returns {PageViewport} Cloned viewport.
      */
-    clone({ scale, rotation, offsetX, offsetY, dontFlip, }?: PageViewportCloneParameters | undefined): PageViewport;
+    clone({ scale, rotation, offsetX, offsetY, dontFlip, }?: PageViewportCloneParameters): PageViewport;
     /**
      * Converts PDF point to the viewport coordinates. For examples, useful for
      * converting PDF location into canvas pixel coordinates.
@@ -244,6 +227,7 @@ export class PageViewport {
     convertToPdfPoint(x: number, y: number): any[];
 }
 export class PDFDateString {
+    static "__#private@#regex": any;
     /**
      * Convert a PDF date string to a JavaScript `Date` object.
      *
@@ -273,6 +257,11 @@ export class RenderingCancelledException extends RenderingCancelledException_bas
     constructor(msg: any, extraDelay?: number);
     extraDelay: number;
 }
+export function renderRichText({ html, dir, className }: {
+    html: any;
+    dir: any;
+    className: any;
+}, container: any): void;
 /**
  * @param {HTMLDivElement} div
  * @param {PageViewport} viewport
@@ -281,15 +270,13 @@ export class RenderingCancelledException extends RenderingCancelledException_bas
  */
 export function setLayerDimensions(div: HTMLDivElement, viewport: PageViewport, mustFlip?: boolean, mustRotate?: boolean): void;
 export class StatTimer {
-    started: any;
     times: any[];
     time(name: any): void;
     timeEnd(name: any): void;
     toString(): string;
+    #private;
 }
-import { BaseCanvasFactory } from "./base_factory.js";
-import { BaseCMapReaderFactory } from "./base_factory.js";
-import { BaseFilterFactory } from "./base_factory.js";
-import { BaseStandardFontDataFactory } from "./base_factory.js";
-import { BaseSVGFactory } from "./base_factory.js";
+export function stopEvent(e: any): void;
+export const SupportedImageMimeTypes: string[];
+export const SVG_NS: "http://www.w3.org/2000/svg";
 export {};
