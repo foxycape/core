@@ -27,16 +27,11 @@ export const createIframe = (ownerDocument: Document, iframeId: string, forceScr
     iframe.setAttribute("width", "100%");
     iframe.setAttribute("height", "100%");
     iframe.setAttribute("style", "display:block");
-    if (geometry?.iframeGrow == "width") {
-        // iframe.style.setProperty("width", "auto");
-        iframe.style.setProperty("width", "var(" + ViewportCssVariableNames.ContentContainerWidth + ")");
-        iframe.style.setProperty("height", "var(" + ViewportCssVariableNames.ContentContainerHeight + ")");
+    if (geometry) {
+        geometry.applyIframeFrame(iframe, forceScroll);
+        return iframe;
     }
-    else if (geometry?.iframeGrow == "height") {
-        iframe.style.setProperty("width", "var(" + ViewportCssVariableNames.ContentContainerWidth + ")");
-        iframe.style.setProperty("height", "auto");
-    }
-    else if (forceScroll) {
+    if (forceScroll) {
         iframe.style.setProperty("width", "100%");
         iframe.style.setProperty("height", "var(" + ViewportCssVariableNames.ContentContainerHeight + ")");
     }

@@ -1,13 +1,60 @@
-import type { ILayoutGeometry } from "./ILayoutGeometry";
+import type { IframeSizeInput, ILayoutGeometry, RestoreScrollInput } from "./ILayoutGeometry";
 import { formatTranslate3d, signedTranslateLength } from "./formatTranslate3d";
+import { ViewportCssVariableNames } from "../ViewportCssVariableNames";
 import {
     alignWrapperNative,
     alwaysApplyRestoredScroll,
     compensationRectAlongY,
     getScrollLocateDeltaAlongStart,
     restorePageTransformAlongStart,
-    restoreScrollCapturedPlusSize,
 } from "./restoreLayoutState";
+
+const clampScroll = (value: number) => Math.max(0, value);
+
+const restoreScrollHorizontalTbLtr = ({
+    liveScroll,
+    capturedScroll,
+    sizeDelta,
+    offsetDelta,
+    foundElement,
+    currentIndex,
+    anchorIndex,
+}: RestoreScrollInput) => {
+    if (currentIndex < 0 || anchorIndex < 0 || currentIndex > anchorIndex) {
+        return liveScroll;
+    }
+    if (currentIndex === anchorIndex && foundElement) {
+        return clampScroll(capturedScroll + offsetDelta);
+    }
+    return clampScroll(capturedScroll + sizeDelta);
+};
+
+const clearInlineContentBox = (contentRoot: HTMLElement, body: HTMLElement | null) => {
+    contentRoot.style.removeProperty("height");
+    contentRoot.style.removeProperty("max-height");
+    contentRoot.style.removeProperty("width");
+    if (!body) {
+        return;
+    }
+    body.style.removeProperty("height");
+    body.style.removeProperty("max-height");
+    body.style.removeProperty("width");
+};
+
+const sizeScrollHorizontalTbLtrIframe = ({ iframe, contentRoot, body, forceScroll }: IframeSizeInput) => {
+    clearInlineContentBox(contentRoot, body);
+    iframe.style.removeProperty("min-width");
+    iframe.style.setProperty(
+        "width",
+        forceScroll ? "100%" : `var(${ViewportCssVariableNames.ContentContainerWidth})`
+    );
+    const declaredHeight = iframe.style.height;
+    if (!declaredHeight || declaredHeight === "auto") {
+        iframe.style.setProperty("height", `var(${ViewportCssVariableNames.ContentContainerHeight})`);
+    }
+    void iframe.offsetHeight;
+    iframe.style.minHeight = Math.max(1, Math.round(contentRoot.getBoundingClientRect().height)) + "px";
+};
 
 export const scrollHorizontalTbLtr: ILayoutGeometry = {
     id: "scroll-horizontal-tb-ltr",
@@ -63,7 +110,7 @@ export const scrollHorizontalTbLtr: ILayoutGeometry = {
         height: wrapper.offsetHeight,
     }),
     restorePageTransform: restorePageTransformAlongStart,
-    restoreScroll: restoreScrollCapturedPlusSize,
+    restoreScroll: restoreScrollHorizontalTbLtr,
     getCompensationRect: compensationRectAlongY,
     getScrollLocateDelta: getScrollLocateDeltaAlongStart,
     alignWrapperToViewport: alignWrapperNative,
@@ -87,4 +134,14 @@ export const scrollHorizontalTbLtr: ILayoutGeometry = {
         
         return pageNumber;
     },
+    applyIframeFrame: (iframe, forceScroll) => {
+        iframe.style.setProperty(
+            "width",
+            forceScroll ? "100%" : "var(" + ViewportCssVariableNames.ContentContainerWidth + ")"
+        );
+        iframe.style.setProperty("height", "var(" + ViewportCssVariableNames.ContentContainerHeight + ")");
+    },
+    sizeIframe: sizeScrollHorizontalTbLtrIframe,
+    shouldSkipSizeRestore: () => false,
+    restoresScrollAfterResize: true,
 };

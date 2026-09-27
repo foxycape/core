@@ -85,6 +85,22 @@ export type PageNumberFromPointInput = {
     numberOfPages: number;
 };
 
+export type IframeSizeInput = {
+    iframe: HTMLIFrameElement;
+    contentRoot: HTMLElement;
+    body: HTMLElement | null;
+    forceScroll: boolean;
+    columnWidth: number;
+    pageHeight: number;
+    columnGap: number;
+    parentContentHeight: number;
+};
+
+export type SizeRestoreSkipInput = {
+    userScrollSettling: boolean;
+    holdingAbsoluteLocate: boolean;
+};
+
 /** One of the 12 flipMode × writingMode × direction routes. */
 export type ILayoutGeometry = {
     readonly id: LayoutRouteId;
@@ -181,4 +197,12 @@ export type ILayoutGeometry = {
     getOccupiedLength: (iframe: HTMLElement | undefined, documentElement: HTMLElement) => number;
     /** Page number for an axis offset; RTL routes count from the end. */
     getPageNumberFromPoint: (input: PageNumberFromPointInput) => number;
+    /** Initial iframe box. Each route owns this; do not branch on iframeGrow. */
+    applyIframeFrame: (iframe: HTMLIFrameElement, forceScroll: boolean) => void;
+    /** Grow the iframe to this route's content size. */
+    sizeIframe: (input: IframeSizeInput) => void;
+    /** Drop a size-compensation write. Absolute locate must still apply on scroll routes that opt in. */
+    shouldSkipSizeRestore: (input: SizeRestoreSkipInput) => boolean;
+    /** After a later content resize, capture-then-restore scroll with this route's restoreScroll. */
+    readonly restoresScrollAfterResize: boolean;
 };

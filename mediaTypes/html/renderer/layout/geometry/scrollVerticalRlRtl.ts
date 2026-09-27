@@ -1,13 +1,57 @@
-import type { ILayoutGeometry } from "./ILayoutGeometry";
+import type { IframeSizeInput, ILayoutGeometry, RestoreScrollInput } from "./ILayoutGeometry";
 import { formatTranslate3d, signedTranslateLength } from "./formatTranslate3d";
+import { ViewportCssVariableNames } from "../ViewportCssVariableNames";
 import {
     alignWrapperToVisualEnd,
     alwaysApplyRestoredScroll,
     compensationRectAlongX,
     getScrollLocateDeltaAlongEnd,
     restorePageTransformAlongEnd,
-    restoreScrollAlongStart,
 } from "./restoreLayoutState";
+
+const clampScroll = (value: number) => Math.max(0, value);
+
+const restoreScrollVerticalRlRtl = ({
+    liveScroll,
+    capturedScroll,
+    sizeDelta,
+    offsetDelta,
+    foundElement,
+    currentIndex,
+    anchorIndex,
+}: RestoreScrollInput) => {
+    if (currentIndex < 0 || anchorIndex < 0 || currentIndex > anchorIndex) {
+        return liveScroll;
+    }
+    if (currentIndex === anchorIndex) {
+        if (foundElement) {
+            return clampScroll(liveScroll + offsetDelta);
+        }
+        return liveScroll;
+    }
+    if (Math.abs(liveScroll - capturedScroll) > 2) {
+        return liveScroll;
+    }
+    return clampScroll(capturedScroll + sizeDelta);
+};
+
+const sizeScrollVerticalRlRtlIframe = ({ iframe, contentRoot, body, parentContentHeight }: IframeSizeInput) => {
+    iframe.style.removeProperty("min-height");
+    const lockedHeight = parentContentHeight || iframe.clientHeight;
+    iframe.style.height = lockedHeight
+        ? lockedHeight + "px"
+        : `var(${ViewportCssVariableNames.ContentContainerHeight})`;
+    if (lockedHeight) {
+        contentRoot.style.height = lockedHeight + "px";
+        contentRoot.style.maxHeight = lockedHeight + "px";
+        if (body) {
+            body.style.height = lockedHeight + "px";
+            body.style.maxHeight = lockedHeight + "px";
+        }
+    }
+    void iframe.offsetWidth;
+    iframe.style.minWidth = Math.max(1, Math.round(contentRoot.getBoundingClientRect().width)) + "px";
+};
 
 export const scrollVerticalRlRtl: ILayoutGeometry = {
     id: "scroll-vertical-rl-rtl",
@@ -66,7 +110,7 @@ export const scrollVerticalRlRtl: ILayoutGeometry = {
         height: wrapper.offsetHeight,
     }),
     restorePageTransform: restorePageTransformAlongEnd,
-    restoreScroll: restoreScrollAlongStart,
+    restoreScroll: restoreScrollVerticalRlRtl,
     getCompensationRect: compensationRectAlongX,
     getScrollLocateDelta: getScrollLocateDeltaAlongEnd,
     alignWrapperToViewport: alignWrapperToVisualEnd,
@@ -90,4 +134,12 @@ export const scrollVerticalRlRtl: ILayoutGeometry = {
         pageNumber = Math.max(1, numberOfPages - pageNumber + 1);
         return pageNumber;
     },
+    applyIframeFrame: (iframe) => {
+        iframe.style.setProperty("width", "var(" + ViewportCssVariableNames.ContentContainerWidth + ")");
+        iframe.style.setProperty("height", "var(" + ViewportCssVariableNames.ContentContainerHeight + ")");
+    },
+    sizeIframe: sizeScrollVerticalRlRtlIframe,
+    shouldSkipSizeRestore: ({ userScrollSettling, holdingAbsoluteLocate }) =>
+        userScrollSettling && !holdingAbsoluteLocate,
+    restoresScrollAfterResize: true,
 };

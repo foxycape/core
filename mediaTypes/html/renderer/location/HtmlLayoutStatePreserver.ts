@@ -183,7 +183,10 @@ export class HtmlLayoutStatePreserver {
 
         const wrapper = this.doc.getWrapperContainer();
         const geometry = getLayoutGeometry(this.options);
-        if (geometry.skipsRestoreWhileSettling && isUserScrollSettling()) {
+        if (geometry.shouldSkipSizeRestore({
+            userScrollSettling: isUserScrollSettling(),
+            holdingAbsoluteLocate: isHoldingAbsoluteAnchor(),
+        })) {
             return;
         }
         const liveScrollRaw = blockAxis == "x" ? scrollElement.scrollLeft : scrollElement.scrollTop;
