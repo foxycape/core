@@ -98,17 +98,18 @@ export abstract class BaseFileParser implements IFileParser {
         options = options ?? new FileUrlParserOptions();
         const result = await this.fileUrlParser.parse(url, options)
 
-        if (this.fileDecrypter && result.data) {
-            const customKey = this.url instanceof FilePackage ? this.url.customKey : "";
-            const fileUrl = typeof this.url === "string" ? this.url as string : "";
-            const extension = this.extension || "";
-            const callbackFile = new DecryptFile(extension, new Uint8Array(result.data), fileUrl)
-            callbackFile.key = customKey;
-            const decryptedData = await this.fileDecrypter.decrypt(callbackFile)
-            if (decryptedData) {
-                result.data = decryptedData.buffer as ArrayBuffer;
-            }
-        }
+        // Whole-container decryption is disabled. Entry bytes are decrypted in getFileBytes.
+        // if (this.fileDecrypter && result.data) {
+        //     const customKey = this.url instanceof FilePackage ? this.url.customKey : "";
+        //     const fileUrl = typeof this.url === "string" ? this.url as string : "";
+        //     const extension = this.extension || "";
+        //     const callbackFile = new DecryptFile(extension, new Uint8Array(result.data), fileUrl)
+        //     callbackFile.key = customKey;
+        //     const decryptedData = await this.fileDecrypter.decrypt(callbackFile)
+        //     if (decryptedData) {
+        //         result.data = decryptedData.buffer as ArrayBuffer;
+        //     }
+        // }
         return result;
     }
 

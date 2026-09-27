@@ -1,5 +1,6 @@
-import { HttpClientOptions, IHttpClient, ResponseType } from "./IHttpClient";
+import { HttpByteRange, HttpClientOptions, HttpRangeResult, IHttpClient, ResponseType } from "./IHttpClient";
 import { isNumber } from "../common/number";
+import { parseContentRange } from "./contentRange";
 
 const attachTimeout = (request: RequestInit, options?: HttpClientOptions) => {
     if (options?.abortController) {
@@ -104,6 +105,55 @@ export class HttpClient implements IHttpClient {
             }
         }
         return await this.response(response, options?.responseType)
+    }
+
+    async getRange(url: string, range: HttpByteRange, options?: HttpClientOptions): Promise<HttpRangeResult> {
+        if (!Number.isInteger(range.start) || !Number.isInteger(range.end) || range.start < 0 || range.end < range.start) {
+            throw new RangeError(`Invalid byte range: ${range.start}-${range.end}`)
+        }
+        if (range.end === range.start) {
+            return { data: new Uint8Array(0), status: 200, partial: true }
+        }
+        const headers = new Headers(options?.headers)
+        headers.set('Range', `bytes=${range.start}-${range.end - 1}`)
+        const request: RequestInit = {
+            method: 'get',
+            headers,
+        }
+        const clearTimeout = attachTimeout(request, options)
+        let response: Response
+        try {
+            response = await fetch(url, request)
+        } finally {
+            clearTimeout()
+        }
+        await this.throwIfFailed(response)
+        const data = new Uint8Array(await response.arrayBuffer())
+        const contentRange = parseContentRange(response.headers.get('Content-Range'))
+        const partial = response.status === 206
+        return {
+            data,
+            status: response.status,
+            totalSize: partial ? contentRange?.totalSize : undefined,
+            partial,
+        }
+    }
+
+    private async throwIfFailed(response: Response): Promise<void> {
+        if (response.ok) {
+            return
+        }
+        if (response.status == 404) {
+            throw new Error(`File not found! status: ${response.status}`);
+        }
+        if (response.status == 403) {
+            throw new Error(`Forbidden! status: ${response.status}`);
+        }
+        if (response.status == 401) {
+            throw new Error(`Unauthorized! status: ${response.status}`);
+        }
+        const text = await response.text();
+        throw new Error(`HTTP error! status: ${response.status},message: ${text}`);
     }
 
     async response(response: Response, responseType: ResponseType) {

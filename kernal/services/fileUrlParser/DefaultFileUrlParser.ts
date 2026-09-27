@@ -2,11 +2,23 @@ import { convertStringToUint8Array } from "../../common/encoding";
 import { getExtension } from "../../common/path";
 import { isNullOrWhiteSpace } from "../../common/text";
 import { checkIsAbsoluteUrl, getFullUrl } from "../../common/url";
+import { BlobByteSource } from "../../io/BlobByteSource";
+import { openHttpByteSource } from "../../io/HttpByteSource";
+import { materialize, type IByteSource } from "../../io/IByteSource";
+import { MemoryByteSource } from "../../io/MemoryByteSource";
 import { FileUrlParserOptions, IFileUrlParser, UrlParseResult } from "./IFileUrlParser";
 import { IHttpClient } from "../../network/IHttpClient";
 import { IInternalUrlBuilder } from "../internalUrlBuilder/IInternalUrlBuilder";
 import { FilePackage, SpineFile } from "../../IFileParser";
 import { ILocale } from "../../i18n/ILocale";
+
+type BasicUrlParseResult = {
+    mainUrl: string
+    data?: ArrayBuffer
+    byteSource?: IByteSource
+    base: string
+    requireCalculateFileSymbolCount: boolean
+}
 
 export class DefaultFileUrlParser implements IFileUrlParser {
     constructor(public readonly httpClient: IHttpClient, public readonly internalUrlBuilder: IInternalUrlBuilder, public readonly locale: ILocale) {
@@ -44,6 +56,7 @@ export class DefaultFileUrlParser implements IFileUrlParser {
                 options = Object.assign({}, filePackage, options);
                 let parseResult = await this.parseBasicUrl(filePackage.fileUrl, options)
                 result.data = parseResult.data;
+                result.byteSource = parseResult.byteSource
                 result.requireCalculateFileSymbolCount = parseResult.requireCalculateFileSymbolCount
                 result.base = parseResult.base
                 result.mainUrl = parseResult.mainUrl
@@ -53,6 +66,7 @@ export class DefaultFileUrlParser implements IFileUrlParser {
         else {
             let parseResult = await this.parseBasicUrl(url, options)
             result.data = parseResult.data;
+            result.byteSource = parseResult.byteSource
             result.requireCalculateFileSymbolCount = parseResult.requireCalculateFileSymbolCount
             result.base = parseResult.base
             result.mainUrl = parseResult.mainUrl
@@ -60,12 +74,13 @@ export class DefaultFileUrlParser implements IFileUrlParser {
         return result
     }
 
-    protected async parseBasicUrl(url: any, options?: FileUrlParserOptions): Promise<{ mainUrl: string, data: ArrayBuffer, base: string, requireCalculateFileSymbolCount: boolean; }> {
+    protected async parseBasicUrl(url: any, options?: FileUrlParserOptions): Promise<BasicUrlParseResult> {
         const changedParameters = await this.changeOpenParameters(url, options);
         url = changedParameters.url;
         options = changedParameters.options;
         let requireCalculateFileSymbolCount = false;
-        let data: ArrayBuffer
+        let data: ArrayBuffer | undefined
+        let byteSource: IByteSource | undefined
         let base: string = "";
         let mainUrl: string = "";
         if (typeof url === "string") {
@@ -104,33 +119,65 @@ export class DefaultFileUrlParser implements IFileUrlParser {
                             data = await this.getDataFromNetworkUrl(fullUrl, options);
                         }
                     }
+                    if (data) {
+                        byteSource = new MemoryByteSource(data)
+                    }
+                }
+                else {
+                    byteSource = await this.createByteSourceFromString(fullUrl, options)
                 }
                 mainUrl = fullUrl;
             }
             else {
                 data = convertStringToUint8Array(url).buffer as ArrayBuffer
+                byteSource = new MemoryByteSource(data)
                 mainUrl = "";
             }
 
             requireCalculateFileSymbolCount = true;
         } else if (url instanceof ArrayBuffer) {
             data = url
+            byteSource = new MemoryByteSource(data)
             requireCalculateFileSymbolCount = true;
         } else if (url instanceof Uint8Array) {
             data = url.buffer as ArrayBuffer;
+            byteSource = new MemoryByteSource(data)
             requireCalculateFileSymbolCount = true;
         } else if (url instanceof Blob) {
-            data = await this.readBlobAsArrayBuffer(url, options);
+            const loaded = await this.loadBlobSource(url, options)
+            data = loaded.data
+            byteSource = loaded.byteSource
             requireCalculateFileSymbolCount = true;
         } else if (globalThis.FileSystemFileHandle && url instanceof globalThis.FileSystemFileHandle) {
             const file = await url.getFile();
-            data = await this.readBlobAsArrayBuffer(file, options);
+            const loaded = await this.loadBlobSource(file, options)
+            data = loaded.data
+            byteSource = loaded.byteSource
             requireCalculateFileSymbolCount = true;
         }
         else {
             throw new Error(this.locale.getText("fileparser_unknownUrl", "unknown url format"));
         }
-        return { mainUrl, data, base, requireCalculateFileSymbolCount };
+        return { mainUrl, data, byteSource, base, requireCalculateFileSymbolCount };
+    }
+
+    /**
+     * Random-access source for a string URL.
+     * The core default treats the URL as HTTP. Hosts override this for local paths.
+     */
+    protected async createByteSourceFromString(url: string, options?: FileUrlParserOptions): Promise<IByteSource> {
+        return openHttpByteSource(this.httpClient, url, options)
+    }
+
+    private async loadBlobSource(blob: Blob, options?: FileUrlParserOptions): Promise<{ data?: ArrayBuffer, byteSource: IByteSource }> {
+        const byteSource = new BlobByteSource(blob)
+        if (!options?.requireDownload) {
+            return { byteSource }
+        }
+        if (options.fileDownloadingCallback) {
+            return { byteSource, data: await this.readBlobAsArrayBuffer(blob, options) }
+        }
+        return { byteSource, data: await materialize(byteSource) }
     }
 
     protected async changeOpenParameters(url: any, options?: FileUrlParserOptions): Promise<{ url: string, options?: FileUrlParserOptions }> {

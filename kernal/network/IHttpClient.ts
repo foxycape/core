@@ -26,6 +26,27 @@ export interface IHttpClient {
      * @param responseType 
      */
     getConfig<T>(urls: string[], defaultValue: T, responseType?: ResponseType): Promise<T>;
+
+    /**
+     * GET a half-open byte range `[start, end)`.
+     * Sends `Range: bytes=start-(end-1)`. Status 206 sets `partial`.
+     * Status 200 means the server ignored Range and `data` is the whole body.
+     */
+    getRange(url: string, range: HttpByteRange, options?: HttpClientOptions): Promise<HttpRangeResult>;
+}
+
+/** Half-open byte range. `end` is exclusive. */
+export type HttpByteRange = {
+    start: number
+    end: number
+}
+
+export type HttpRangeResult = {
+    data: Uint8Array
+    status: number
+    /** Set when the response is 206 and Content-Range includes a total length. */
+    totalSize?: number
+    partial: boolean
 }
 
 export class HttpClientOptions {

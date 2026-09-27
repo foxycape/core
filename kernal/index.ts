@@ -54,6 +54,11 @@ export * from './web/debounce';
 export * from './ISymbolCalclator';
 export * from './hostViewport';
 export * from './services/internalUrlBuilder/IInternalUrlBuilder'
+export type { IByteSource } from './io/IByteSource'
+export { assertByteRange, materialize, readExact, sliceByteSource } from './io/IByteSource'
+export { BlobByteSource } from './io/BlobByteSource'
+export { HttpByteSource, openHttpByteSource } from './io/HttpByteSource'
+export { MemoryByteSource } from './io/MemoryByteSource'
 export { computeMd5, computeSimpleId } from './crypto/MD5'
 export { createHasher, digestMany, digestStream, HASH_CHUNK_SIZE, SIMPLE_ID_BYTE_LENGTH } from './crypto/hash'
 export type { DigestSource, HashSpec, StreamingHasher } from './crypto/hash'

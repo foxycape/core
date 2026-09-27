@@ -1,5 +1,6 @@
 import { Metadata } from "../../Metadata";
 import { SpineFile } from "../../IFileParser";
+import type { IByteSource } from "../../io/IByteSource";
 import { Nav } from "../../nav/Nav";
 import { OpenOptions } from "../../OpenOptions";
 
@@ -14,6 +15,8 @@ export class FileUrlParserOptions extends OpenOptions {
 export class UrlParseResult {
     mainUrl?: string;
     data?: ArrayBuffer
+    /** Random-access view of a single file. Absent for multi-file inputs. */
+    byteSource?: IByteSource
     metadata?: Metadata
     nav?: Nav
     isMultiFiles:boolean=false;

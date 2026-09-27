@@ -1,5 +1,6 @@
 import { ITextDocument } from "../../../kernal/ITextDocument";
-import { SpineFile, SymbolType, IFileDecrypter } from "../../../kernal";
+import { FilePackage, SpineFile, SymbolType, IFileDecrypter } from "../../../kernal";
+import { materialize } from "../../../kernal/io/IByteSource";
 import { getDocumentBody } from "../../../kernal/html/finder";
 import { HtmlTextDocument } from "./HtmlTextDocument";
 import { BaseFileParser } from "../../base/fileParser/BaseFileParser";
@@ -38,6 +39,9 @@ export class HtmlFileParser extends BaseFileParser implements IHtmlFileParser {
     protected override async parseUrl(url: any, options: FileUrlParserOptions): Promise<UrlParseResult> {
         const result = await super.parseUrl(url, options);
         if (!result.isMultiFiles) {
+            if (!result.data && result.byteSource && isBlobBackedInput(url)) {
+                result.data = await materialize(result.byteSource)
+            }
             result.spineFiles = [new SpineFile(result.data, result.mainUrl, this.extension)];
         }
         return result;
@@ -90,4 +94,18 @@ export class HtmlFileParser extends BaseFileParser implements IHtmlFileParser {
         this.data = null
         await super.dispose();
     }
+}
+
+const isFileSystemFileHandle = (value: unknown): value is FileSystemFileHandle =>
+    typeof globalThis.FileSystemFileHandle === 'function' && value instanceof globalThis.FileSystemFileHandle
+
+/** Local File, Blob, or file handle. String URLs stay unloaded until a later fetch. */
+const isBlobBackedInput = (url: unknown): boolean => {
+    if (url instanceof Blob || isFileSystemFileHandle(url)) {
+        return true
+    }
+    if (url instanceof FilePackage) {
+        return url.fileUrl instanceof Blob || isFileSystemFileHandle(url.fileUrl)
+    }
+    return false
 }
