@@ -1,19 +1,10 @@
 import { convertBase64ToArrayBuffer } from "../common/buffer";
+import { digestStream } from "./hash";
 import { CryptoOptions, HashAlgorithm, ICrypto } from "./ICrypto";
-import { computeMd5 } from "./MD5";
 
 const getCryptoSubtle = () => {
     const crypto = globalThis.crypto || globalThis["msCrypto"];
     return crypto.subtle || crypto.webkitSubtle;
-};
-
-const digestBuffer = async (data: BufferSource, hashAlgorithm: Exclude<HashAlgorithm, 'MD5'>) => {
-    const cryptoSubtle = getCryptoSubtle();
-    const hash = await cryptoSubtle.digest(hashAlgorithm, data);
-    const hashArray = Array.from(new Uint8Array(hash));
-    return hashArray.map((byte) => {
-        return byte.toString(16).padStart(2, '0');
-    }).join('');
 };
 
 /** Convert string (UTF-8) or ArrayBuffer to bytes. */
@@ -81,36 +72,7 @@ const importRsaPrivateKey = async (key: string | ArrayBuffer) => {
 
 export class WebCrypto implements ICrypto {
     async digest(data: string | Blob | Uint8Array | ArrayBuffer, hashAlgorithm?: HashAlgorithm) {
-        if (!hashAlgorithm)
-            hashAlgorithm = "SHA-256";
-
-        if (typeof data === 'string') { 
-            const encoded = new TextEncoder().encode(data);
-            if (hashAlgorithm == "MD5") {
-                return await computeMd5(encoded.buffer as ArrayBuffer);
-            }
-           
-            return await digestBuffer(encoded, hashAlgorithm);
-        }
-
-        let buffer: ArrayBuffer;
-        if (data instanceof ArrayBuffer) {
-            buffer = data;
-        } else if (data instanceof Uint8Array) {
-            buffer = data.buffer as ArrayBuffer;
-        } else if (data instanceof File) {
-            buffer = await data.arrayBuffer();
-        } else if (data instanceof Blob) {
-            buffer = await data.arrayBuffer();
-        } else {
-            throw new Error('Unsupported digest content type');
-        }
-
-        if (hashAlgorithm == "MD5") {
-            return await computeMd5(buffer);
-        }
-
-        return await digestBuffer(new Uint8Array(buffer), hashAlgorithm);
+        return digestStream(data, hashAlgorithm ?? 'SHA-256');
     }
 
     async encrypt(data: string | ArrayBuffer, options: CryptoOptions): Promise<ArrayBuffer> {
