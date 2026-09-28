@@ -27,14 +27,12 @@ export const registerPdfMediaType = (
   reader.mediaTypeRegistry.register(
     extensions,
     async (url, extension) => {
-      const crypto = await reader.services.get('crypto', true)
       const fileUrlParser = await reader.services.get('fileUrlParser', true)
       const httpClient = await reader.services.get('httpClient', true)
       const fileDecrypter = await reader.services.get('fileDecrypter', false)
       const fileProvider = await reader.services.get('fileProvider', false)
 
       return new PdfFileParser(
-        crypto!,
         fileDecrypter as any,
         fileProvider as any,
         fileUrlParser!,

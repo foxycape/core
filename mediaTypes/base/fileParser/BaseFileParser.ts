@@ -11,7 +11,6 @@ import { FileUrlParserOptions, IFileUrlParser, UrlParseResult } from "../../../k
 import { IFileDecrypter } from "../../../kernal/services/file/IFileDecrypter";
 import { IFileProvider } from "../../../kernal/services/file/IFileProvider";
 import { IHttpClient } from "../../../kernal/network/IHttpClient";
-import { ICrypto } from "../../../kernal/crypto/ICrypto";
 
 export abstract class BaseFileParser implements IFileParser {
     private nav: Nav = new Nav();
@@ -20,7 +19,6 @@ export abstract class BaseFileParser implements IFileParser {
 
     /**
      * constructor
-     * @param crypto Crypto service
      * @param fileDecrypter File decrypter service
      * @param fileProvider File provider service
      * @param fileUrlParser File url parser service
@@ -29,7 +27,6 @@ export abstract class BaseFileParser implements IFileParser {
      * @param extension file extension of the input data
      */
     constructor(
-        protected readonly crypto: ICrypto,
         protected readonly fileDecrypter: IFileDecrypter,
         protected readonly fileProvider: IFileProvider,
         protected readonly fileUrlParser: IFileUrlParser,
@@ -67,23 +64,6 @@ export abstract class BaseFileParser implements IFileParser {
     private currentIsMultiFiles: boolean
     get isMultiFiles(): boolean {
         return this.currentIsMultiFiles ?? false;
-    }
-
-    abstract getFileHash(algorithm?: "MD5" | "SHA-1"): Promise<string>;
-
-    private currentWholeFileHash: string;
-    protected async computeFileHash(isMultiFiles: boolean, data: ArrayBuffer, algorithm?: 'MD5' | 'SHA-1') {
-        if (isMultiFiles) {
-            return "";
-        }
-        if (!algorithm || algorithm == 'SHA-1') {
-            if (this.currentWholeFileHash) {
-                return this.currentWholeFileHash
-            }
-            this.currentWholeFileHash = await this.crypto.digest(data, "SHA-1");
-            return this.currentWholeFileHash;
-        }
-        return await this.crypto.digest(data, "MD5");
     }
 
     async load(options?: FileLoadOptions): Promise<void> {

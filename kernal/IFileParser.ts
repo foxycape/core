@@ -20,12 +20,6 @@ export interface IFileParser extends IDisposable {
     load(options?: FileLoadOptions): Promise<void>;
 
     /**
-     * Hash of the entire file. Returns null for split files. (Available only after the file is loaded)
-     * @param algorithm Defaults to SHA-1
-     */
-    getFileHash(algorithm?: 'MD5' | 'SHA-1'): Promise<string>;
-
-    /**
      * Get resource metadata
      */
     getMetadata(): Promise<Metadata>;

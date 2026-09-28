@@ -22,7 +22,6 @@ describe('Reader / FileLoader split', () => {
   it('FileLoader.load parses without DOM via pipeline', async () => {
     const fileParser = {
       load: vi.fn(async () => undefined),
-      getFileHash: vi.fn(async () => 'hash-1'),
       getMetadata: vi.fn(async () => new Metadata()),
       dispose: vi.fn(async () => undefined),
     } as unknown as IFileParser
@@ -75,7 +74,6 @@ describe('Reader / FileLoader split', () => {
 
     const fileParser = {
       load: vi.fn(async () => undefined),
-      getFileHash: vi.fn(async () => 'hash-1'),
       getMetadata: vi.fn(async () => fileMetadata),
       dispose: vi.fn(async () => undefined),
     } as unknown as IFileParser

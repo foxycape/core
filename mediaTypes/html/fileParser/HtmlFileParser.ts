@@ -6,7 +6,6 @@ import { HtmlTextDocument } from "./HtmlTextDocument";
 import { BaseFileParser } from "../../base/fileParser/BaseFileParser";
 import { FileUrlParserOptions, IFileUrlParser, UrlParseResult } from "../../../kernal/services/fileUrlParser/IFileUrlParser";
 import { IFileProvider } from "../../../kernal/services/file/IFileProvider";
-import { ICrypto } from "../../../kernal/crypto/ICrypto";
 import { IHttpClient } from "../../../kernal/network/IHttpClient";
 import { IHtmlTextDocument } from "../renderer/IHtmlTextDocument";
 import type { IHtmlContentNormalizer } from "../IHtmlContentNormalizer";
@@ -16,11 +15,9 @@ import { NoopHtmlContentNormalizer } from "../NoopHtmlContentNormalizer";
 import { DefaultHtmlSymbolMeasure } from "../DefaultHtmlSymbolMeasure";
 
 export class HtmlFileParser extends BaseFileParser implements IHtmlFileParser {
-    private data: ArrayBuffer;
     readonly contentNormalizer: IHtmlContentNormalizer;
     readonly symbolMeasure: IHtmlSymbolMeasure;
     constructor(
-        crypto: ICrypto,
         fileDecrypter: IFileDecrypter,
         fileProvider: IFileProvider,
         fileUrlParser: IFileUrlParser,
@@ -31,7 +28,7 @@ export class HtmlFileParser extends BaseFileParser implements IHtmlFileParser {
         contentNormalizer?: IHtmlContentNormalizer,
         symbolMeasure?: IHtmlSymbolMeasure,
     ) {
-        super(crypto, fileDecrypter, fileProvider, fileUrlParser, httpClient, url, extension)
+        super(fileDecrypter, fileProvider, fileUrlParser, httpClient, url, extension)
         this.contentNormalizer = contentNormalizer ?? new NoopHtmlContentNormalizer();
         this.symbolMeasure = symbolMeasure ?? new DefaultHtmlSymbolMeasure();
     }
@@ -47,17 +44,8 @@ export class HtmlFileParser extends BaseFileParser implements IHtmlFileParser {
         return result;
     }
 
-    protected override async initializeDatas(result: UrlParseResult): Promise<void> {
-        this.data = result.data;
-        await super.initializeDatas(result);
-    }
-
     override async getCover(width: number, height: number): Promise<Blob> {
         return null;
-    }
-
-    async getFileHash(algorithm?: 'MD5' | 'SHA-1'): Promise<string> {
-        return await this.computeFileHash(this.isMultiFiles, this.data, algorithm);
     }
 
     private textDocuments: ITextDocument[];
@@ -91,7 +79,6 @@ export class HtmlFileParser extends BaseFileParser implements IHtmlFileParser {
             }
             this.textDocuments.splice(0)
         }
-        this.data = null
         await super.dispose();
     }
 }

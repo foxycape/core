@@ -9,14 +9,12 @@ import { BaseFileParser } from "../../base/fileParser/BaseFileParser";
 import { IHttpClient } from "../../../kernal/network/IHttpClient";
 import { FileUrlParserOptions, IFileUrlParser, UrlParseResult } from "../../../kernal/services/fileUrlParser/IFileUrlParser";
 import { IFileProvider } from "../../../kernal/services/file/IFileProvider";
-import { ICrypto } from "../../../kernal/crypto/ICrypto";
 import { PdfPasswordProvider } from "./PdfPasswordProvider";
 
 export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
     private readonly passwordProvider: PdfPasswordProvider;
 
     constructor(
-        crypto: ICrypto,
         fileDecrypter: IFileDecrypter,
         fileProvider: IFileProvider,
         fileUrlParser: IFileUrlParser,
@@ -28,7 +26,7 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
         public readonly extension: string,
         public readonly options: PdfFileParserOptions,
     ) {
-        super(crypto, fileDecrypter, fileProvider, fileUrlParser, httpClient, url, extension);
+        super(fileDecrypter, fileProvider, fileUrlParser, httpClient, url, extension);
         this.passwordProvider = new PdfPasswordProvider(events, locale, context);
         this.bindDefaultPasswordFlow();
     }
@@ -128,25 +126,6 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
             documentInitParametersCallback: this.options.documentInitParametersCallback,
         })
         return doc;
-    }
-
-    private currentWholePdfFileHash: string;
-    override async getFileHash(algorithm?: 'MD5' | 'SHA-1') {
-        if (this.isMultiFiles) {
-            return "";
-        }
-        if (!algorithm || algorithm == 'SHA-1') {
-            if (this.currentWholePdfFileHash) {
-                return this.currentWholePdfFileHash
-            }
-
-            const data = await Array.from(this.pdfDocs.values())[0].getData();
-            this.currentWholePdfFileHash = await this.crypto.digest(data, 'SHA-1')
-            return this.currentWholePdfFileHash;
-        }
-
-        const data = await Array.from(this.pdfDocs.values())[0].getData();
-        return await this.crypto.digest(data, 'MD5')
     }
 
     override async load(options?: FileLoadOptions): Promise<void> {
