@@ -1,7 +1,9 @@
 import * as pdfjsLib from '../../pdfjs/legacy/build/pdf.mjs';
-import type { DocumentInitParameters } from '../../pdfjs/types/src/display/api';
+import type { DocumentInitParameters, PDFDocumentLoadingTask } from '../../pdfjs/types/src/display/api';
 import { getCurrentBaseUrl } from '../../kernal/common/url';
 import type { IInternalUrlBuilder } from '../../kernal';
+import type { IByteSource } from '../../kernal/io/IByteSource';
+import { ByteSourceRangeTransport } from './ByteSourceRangeTransport';
 
 export type LoadPdfDocumentOptions = {
     password?: string;
@@ -14,8 +16,21 @@ export type LoadPdfDocumentOptions = {
     internalUrlBuilder?: IInternalUrlBuilder;
 };
 
+export type PdfDocumentSource = string | Uint8Array | ArrayBuffer | Blob | IByteSource;
+
+const isByteSource = (value: PdfDocumentSource): value is IByteSource => {
+    return typeof value === 'object'
+        && value !== null
+        && !(value instanceof Uint8Array)
+        && !(value instanceof ArrayBuffer)
+        && !(value instanceof Blob)
+        && typeof (value as IByteSource).size === 'number'
+        && typeof (value as IByteSource).read === 'function'
+        && typeof (value as IByteSource).close === 'function';
+};
+
 export async function loadPdfDocument(
-    data: string | Uint8Array | ArrayBuffer | Blob,
+    data: PdfDocumentSource,
     options?: LoadPdfDocumentOptions,
 ) {
     const ensurePdfWebWorker = await import('./ensurePdfWebWorker').then(m => m.ensurePdfWebWorker);
@@ -65,17 +80,40 @@ export async function loadPdfDocument(
         useSystemFonts: true,
         password: options?.password,
     }
-    if (typeof data === "string") {
+    let opened = false
+    let rejectRange: ((error: unknown) => void) | undefined
+    const rangeTransport = isByteSource(data)
+        ? new ByteSourceRangeTransport(data, (error) => {
+            if (opened) {
+                console.error(error)
+                return
+            }
+            rejectRange?.(error)
+        })
+        : undefined
+    if (rangeTransport) {
+        documentInitParameters.range = rangeTransport
+        documentInitParameters.disableStream = true
+        documentInitParameters.disableAutoFetch = true
+    }
+    else if (typeof data === "string") {
         documentInitParameters.url = data;
     }
     else if (data instanceof Blob) {
         documentInitParameters.data = await data.arrayBuffer();
     }
-    else {
+    else if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
         documentInitParameters.data = data;
     }
     if (options?.documentInitParametersCallback) {
         options.documentInitParametersCallback(documentInitParameters);
+    }
+    // Re-apply after the callback. pdf.js ignores `range` when `data` is set.
+    if (rangeTransport) {
+        documentInitParameters.range = rangeTransport
+        documentInitParameters.disableStream = true
+        documentInitParameters.disableAutoFetch = true
+        documentInitParameters.data = undefined
     }
     const loadingTask = pdfjsLib.getDocument(documentInitParameters)
     // getDocument only stores an internally created worker. A caller-supplied
@@ -89,5 +127,30 @@ export async function loadPdfDocument(
     if (options?.showPasswordPrompt) {
         loadingTask.onPassword = options?.passwordPrompt
     }
-    return await loadingTask.promise
+    if (!rangeTransport) {
+        return await loadingTask.promise
+    }
+    try {
+        return await new Promise<Awaited<PDFDocumentLoadingTask['promise']>>((resolve, reject) => {
+            rejectRange = reject
+            loadingTask.promise.then(
+                (doc) => {
+                    opened = true
+                    resolve(doc)
+                },
+                reject,
+            )
+        })
+    } catch (error) {
+        await destroyLoadingTask(loadingTask)
+        throw error
+    }
+}
+
+const destroyLoadingTask = async (task: PDFDocumentLoadingTask) => {
+    try {
+        await task.destroy()
+    } catch {
+        // Already destroyed, or the worker closed while the range read failed.
+    }
 }

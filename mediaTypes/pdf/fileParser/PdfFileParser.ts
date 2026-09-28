@@ -2,7 +2,7 @@ import { isNullOrWhiteSpace } from "../../../kernal/common/text";
 import { Nav, SpineFile, FileLocation, NavPoint, IFileDecrypter, Context, ILocale, IEventEmitter, FileLoadOptions } from "../../../kernal";
 import { IPdfFileParser, PdfFileParserOptions } from "./IPdfFileParser";
 import * as pdfjsLib from '../../../pdfjs/legacy/build/pdf.mjs';
-import { loadPdfDocument } from "../loadPdfDocument";
+import { loadPdfDocument, type PdfDocumentSource } from "../loadPdfDocument";
 import { ITextDocument } from "../../../kernal/ITextDocument";
 import { PdfTextDocument } from "./PdfTextDocument";
 import { BaseFileParser } from "../../base/fileParser/BaseFileParser";
@@ -10,9 +10,15 @@ import { IHttpClient } from "../../../kernal/network/IHttpClient";
 import { FileUrlParserOptions, IFileUrlParser, UrlParseResult } from "../../../kernal/services/fileUrlParser/IFileUrlParser";
 import { IFileProvider } from "../../../kernal/services/file/IFileProvider";
 import { PdfPasswordProvider } from "./PdfPasswordProvider";
+import { BlobByteSource } from "../../../kernal/io/BlobByteSource";
+import { materialize, type IByteSource } from "../../../kernal/io/IByteSource";
+import { MemoryByteSource } from "../../../kernal/io/MemoryByteSource";
 
 export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
     private readonly passwordProvider: PdfPasswordProvider;
+    /** Single-file source shared by every page. Absent when the bytes were passed in whole. */
+    private sharedSource: IByteSource | undefined;
+    private readonly ownedSources: IByteSource[] = [];
 
     constructor(
         fileDecrypter: IFileDecrypter,
@@ -72,32 +78,67 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
         return this.textDocuments;
     }
 
-    private getPdfSpineFileData = async (spineFile: SpineFile): Promise<Uint8Array | string> => {
-        let data: Uint8Array;
-        let foundData = false;
-        if (spineFile.data) {
-            if (spineFile.data instanceof ArrayBuffer) {
-                if (spineFile.data.byteLength > 0) {
-                    data = new Uint8Array(spineFile.data)
-                    foundData = true;
-                }
-            }
-            else {
-                if (spineFile.data.size > 0) {
-                    const buffer = await spineFile.data.arrayBuffer();
-                    data = new Uint8Array(buffer)
-                }
-            }
+    /**
+     * Keep an in-memory buffer on `result.data`. A ranged source is stored for later page loads.
+     */
+    private async captureInitialSource(result: UrlParseResult): Promise<void> {
+        if (result.data && result.data.byteLength > 0) {
+            const source = result.byteSource;
+            result.byteSource = undefined;
+            await source?.close();
+            return;
         }
-        if (!foundData) {
-            if (!spineFile.url) {
-                return new Uint8Array(0);
-            }
-            data = (await this.getFileBytes(spineFile.url)).data;
+        if (!result.byteSource) {
+            return;
         }
-
-        return data;
+        if (result.byteSource instanceof MemoryByteSource) {
+            result.data = await materialize(result.byteSource);
+            const source = result.byteSource;
+            result.byteSource = undefined;
+            await source.close();
+            return;
+        }
+        this.sharedSource = result.byteSource;
+        this.ownedSources.push(result.byteSource);
+        result.byteSource = undefined;
     }
+
+    private trackSource(source: IByteSource): IByteSource {
+        this.ownedSources.push(source);
+        return source;
+    }
+
+    private async resolveSpineInput(spineFile: SpineFile): Promise<PdfDocumentSource> {
+        if (spineFile.data instanceof ArrayBuffer && spineFile.data.byteLength > 0) {
+            return new Uint8Array(spineFile.data);
+        }
+        if (spineFile.data instanceof Blob && spineFile.data.size > 0) {
+            return this.trackSource(new BlobByteSource(spineFile.data));
+        }
+        if (this.sharedSource) {
+            return this.sharedSource;
+        }
+        if (!spineFile.url) {
+            return new Uint8Array(0);
+        }
+        const parsed = await this.fileUrlParser.parse(spineFile.url, { requireDownload: false });
+        if (parsed.data && parsed.data.byteLength > 0) {
+            const source = parsed.byteSource;
+            parsed.byteSource = undefined;
+            await source?.close();
+            return new Uint8Array(parsed.data);
+        }
+        if (parsed.byteSource instanceof MemoryByteSource) {
+            const data = new Uint8Array(await materialize(parsed.byteSource));
+            await parsed.byteSource.close();
+            return data;
+        }
+        if (parsed.byteSource) {
+            return this.trackSource(parsed.byteSource);
+        }
+        return new Uint8Array(0);
+    }
+
     protected pdfDocs = new Map<string, pdfjsLib.PDFDocumentProxy>();
     async getPdfDocument(spineFile: SpineFile): Promise<pdfjsLib.PDFDocumentProxy> {
         let doc = this.pdfDocs.get(spineFile.url)
@@ -114,7 +155,7 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
         if (this.options.standardPasswordProvider) {
             password = await this.options.standardPasswordProvider(this, spineFile);
         }
-        const data = await this.getPdfSpineFileData(spineFile)
+        const data = await this.resolveSpineInput(spineFile)
         const doc = await loadPdfDocument(data, {
             password: password,
             cMapUrl: this.options.cMapUrl,
@@ -129,7 +170,7 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
     }
 
     override async load(options?: FileLoadOptions): Promise<void> {
-        const result = await this.parseUrl(this.url, { requireDownload: true });
+        const result = await this.parseUrl(this.url, { requireDownload: false });
         await this.initializeDatas(result);
         if (options?.measureFilePercentage) {
             await this.measureFilePercentage(result.spineFiles ?? [], result.requireCalculateFileSymbolCount)
@@ -142,8 +183,11 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
             result.spineFiles = [];
         }
         if (!result.isMultiFiles) {
+            await this.captureInitialSource(result);
             const rootSpineFile = new SpineFile(result.data, result.mainUrl, this.extension);
             const doc = await this.internalGetPdfDocumentProxy(rootSpineFile)
+            result.data = undefined;
+            rootSpineFile.data = undefined;
             // Add to cache
             for (let i = 0; i < doc.numPages; i++) {
                 const spineFileUrl = `${i + 1}.pdf`; // Page numbers start from 1
@@ -213,6 +257,15 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
             }
         }
         this.pdfDocs.clear();
+        this.sharedSource = undefined;
+        const sources = this.ownedSources.splice(0);
+        for (const source of sources) {
+            try {
+                await source.close();
+            } catch (e) {
+                //
+            }
+        }
         if (this.textDocuments) {
             for (const textDocument of this.textDocuments) {
                 await textDocument.dispose();
