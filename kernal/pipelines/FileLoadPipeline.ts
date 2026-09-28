@@ -77,7 +77,8 @@ export class FileLoadPipeline {
         }
 
         await lifecycle.onInitialize?.(formatted.extension);
-        const id = await inputFormatter.getId(formatted.url, formatted.openOptions);
+        const simpleIdProvider = await this.deps.services.get("simpleIdProvider");
+        const id =simpleIdProvider ? await simpleIdProvider.getSimpleId(formatted.url) : await inputFormatter.getSimpleId(formatted.url, formatted.openOptions?.id);
         await lifecycle.onOptionsParse?.(options);
 
         const prepareState: FileLoadPrepareState = {

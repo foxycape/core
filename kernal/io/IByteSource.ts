@@ -5,6 +5,7 @@ import { HASH_CHUNK_SIZE } from "../crypto/hash";
  * Returned bytes are owned by the caller and must not alias a buffer a later read can overwrite.
  */
 export type IByteSource = {
+    /** The size of the source in bytes. */
     readonly size: number
     /** Read `[start, end)`. A read past `size` returns a shorter array. `start >= size` returns an empty array. */
     read(start: number, end: number): Promise<Uint8Array>

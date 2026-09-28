@@ -11,6 +11,7 @@ export type CoreServiceMap = {
     fileUrlProvider: import("./file/IFileUrlProvider").IFileUrlProvider;
     fileDecrypter: import("./file/IFileDecrypter").IFileDecrypter;
     fileProvider: import("./file/IFileProvider").IFileProvider;
+    simpleIdProvider: import("./identity/ISimpleIdProvider").ISimpleIdProvider;
 };
 
 /** Runtime keys of {@link CoreServiceMap}; adding a map field without updating this is a type error. */
@@ -22,6 +23,7 @@ export const CORE_SERVICE_KEYS = Object.keys({
     fileUrlProvider: true,
     fileDecrypter: true,
     fileProvider: true,
+    simpleIdProvider: true,
 } satisfies Record<keyof CoreServiceMap, true>) as Array<keyof CoreServiceMap>;
 
 /** DOM / reader UI services (only registered for Reader). */

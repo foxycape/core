@@ -151,8 +151,8 @@ export class InputFormatter {
         return extension?.toLowerCase();
     }
 
-    getId = async (url: any, openOptions: OpenOptions) => {
-        let id = openOptions?.id ?? "";
+    getSimpleId = async (url: any, existId?:string) => {
+        let id = existId ?? "";
         if (!id && url instanceof FilePackage) {
             id = url.id;
         }
