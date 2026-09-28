@@ -8,9 +8,7 @@ import { isAppLocationFrom } from "./progress/userChangedProgress";
 
 /** Fields that can be batch-assigned on Context. */
 export type ContextInit = {
-    simpleId?: string;
     id?: string;
-    isExternalId?: boolean;
     metadata?: Metadata;
     progress?: Progress;
     currentLocation?: FileLocation;
@@ -28,11 +26,9 @@ export type ContextInit = {
  * Current reading session context (mutable session bag).
  */
 export class Context {
-    /** Simple id used for large-file identity */
-    readonly simpleId: string;
+
+    /** Resource id */
     id: string;
-    /** Whether id was provided externally */
-    readonly isExternalId?: boolean;
     metadata: Metadata = new Metadata();
     progress: Progress = new Progress(1, 0);
     /** Current reading location */
@@ -66,8 +62,7 @@ export class Context {
             this.options = new Options();
         }
 
-        this.openOptions.resourceId = this.id;
-        this.openOptions.simpleId = this.simpleId;
+        this.openOptions.id = this.id;
     }
 
     /** Whether the user changed reading progress */

@@ -38,11 +38,7 @@ describe('Reader / FileLoader split', () => {
         openOptions: {},
         extension: '.pdf',
       })),
-      getIds: vi.fn(async () => ({
-        simpleId: 'simple-1',
-        resourceId: '',
-        isExternalId: false,
-      })),
+      getId: vi.fn(async () => 'hash-1'),
       formatParserUrl: vi.fn(() => ({ url: 'book.pdf', abortController: undefined })),
       formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),
     }
@@ -59,7 +55,7 @@ describe('Reader / FileLoader split', () => {
     const result = await pipeline.load('book.pdf')
 
     expect(result.extension).toBe('.pdf')
-    expect(result.resourceId).toBe('hash-1')
+    expect(result.id).toBe('hash-1')
     expect(result.fileParser).toBe(fileParser)
     expect(result.context.rootContainer).toBeUndefined()
     expect(fileParser.load).toHaveBeenCalledOnce()
@@ -92,10 +88,8 @@ describe('Reader / FileLoader split', () => {
           openOptions: { metadata: overlay },
           extension: '.epub',
         })),
-        getIds: vi.fn(async () => ({
-          simpleId: 'simple-1',
-          resourceId: 'sha-1',
-          isExternalId: true,
+        getId: vi.fn(async () => ({
+          id: 'sha-1',
         })),
         formatParserUrl: vi.fn(() => ({ url: 'book.epub', abortController: undefined })),
         formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),

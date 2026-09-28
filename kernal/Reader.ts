@@ -70,7 +70,7 @@ export class Reader implements LifecycleHooks {
     onRenderered?: (renderer: IRenderer) => Promise<void>;
     onProgressChangeGuard?: (progress: number) => boolean;
     onBeforeRedirect?: (documentsProvider: IDocumentsProvider) => Promise<void>;
-    onLocationRequest?: (simpleId: string) => Promise<FileLocation | undefined>;
+    onLocationRequest?: (id: string) => Promise<FileLocation | undefined>;
 
     constructor(options: Options, services: ReaderServices) {
         this.fileLoader = new FileLoader(options, services, this);
@@ -571,7 +571,7 @@ export class Reader implements LifecycleHooks {
                 if (this.startLoadTime) {
                     const progress = await this.renderer?.progressTracker.getProgress(true);
                     if (progress) {
-                        this.events.emit(EventNames.ResourceUnload, { reader: this, simpleId: this.context.simpleId, resourceId: this.context.id, startLoadTime: this.startLoadTime, progress: progress });
+                        this.events.emit(EventNames.ResourceUnload, { reader: this, id: this.context.id, startLoadTime: this.startLoadTime, progress: progress });
                     }
                 }
             }

@@ -21,7 +21,7 @@ export interface ICrypto {
      */
     decrypt(data: ArrayBuffer, options: CryptoOptions): Promise<ArrayBuffer>;
 }
-export type HashAlgorithm = 'MD5' | 'SHA-1' | 'SHA-256' | 'SHA-384' | 'SHA-512';
+export type HashAlgorithm = 'MD5' | 'SHA-1' | 'SHA-256'
 export type HashContent = Blob | Uint8Array | ArrayBuffer | Promise<Blob> | FileSystemFileHandle;
 export type CryptoMode = 'CBC';
 export class CryptoOptions {

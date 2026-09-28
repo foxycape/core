@@ -22,5 +22,5 @@ export type LifecycleHooks = {
     onBeforeRedirect?: (documentsProvider: IDocumentsProvider) => Promise<void>;
 
     /**if no valid location is provided, request a location for the file */
-    onLocationRequest?: (simpleId: string) => Promise<FileLocation | undefined>;
+    onLocationRequest?: (id: string) => Promise<FileLocation | undefined>;
 };

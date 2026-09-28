@@ -64,4 +64,3 @@ export { createHasher, digestMany, digestStream, HASH_CHUNK_SIZE, SIMPLE_ID_BYTE
 export type { DigestSource, HashSpec, StreamingHasher } from './crypto/hash'
 export * from './JsonConvert'
 export * from './ContentRange'
-export * from './mark'

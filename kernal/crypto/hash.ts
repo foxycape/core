@@ -1,4 +1,4 @@
-import { createMD5, createSHA1, createSHA256, createSHA384, createSHA512 } from 'hash-wasm';
+import { createMD5, createSHA1, createSHA256 } from 'hash-wasm';
 import type { HashAlgorithm } from './ICrypto';
 
 /** Read size for Blob/File hashing. hash-wasm copies each update into wasm memory. */
@@ -34,10 +34,10 @@ const createWasmHasher = (algorithm: HashAlgorithm) => {
             return createSHA1();
         case 'SHA-256':
             return createSHA256();
-        case 'SHA-384':
-            return createSHA384();
-        case 'SHA-512':
-            return createSHA512();
+        // case 'SHA-384':
+        //     return createSHA384();
+        // case 'SHA-512':
+        //     return createSHA512();
         default:
             throw new Error(`Unsupported hash algorithm: ${algorithm}`);
     }

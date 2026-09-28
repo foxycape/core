@@ -9,10 +9,8 @@ export class OpenOptions {
     /** parent id */
     parentId?: string;
 
-    /** specify resource simple id */
-    simpleId?: string;
     /** specify resource id */
-    resourceId?: string;
+    id?: string;
     /** third-party file id (for cloud storage) */
     customFileId?: string;
     /** specify the suffix name of the opened file */

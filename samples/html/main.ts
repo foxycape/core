@@ -64,7 +64,6 @@ type OpenTarget = {
   label: string
   source: Blob | ArrayBuffer | FilePackage
   extension: string
-  resourceId?: string
 }
 
 type StylePreset = {
@@ -386,7 +385,6 @@ const openTarget = async (target: OpenTarget) => {
     await reader.open(target.source, readerRoot, readerRoot, {
       extension: target.extension,
       fileName: target.label,
-      resourceId: target.resourceId,
     })
     lastTarget = target
     const documents = reader.getRenderer()?.getDocuments() ?? []
@@ -428,7 +426,6 @@ const buildOpenTargetFromFiles = (files: File[]): OpenTarget | null => {
     label,
     source,
     extension: source.extension,
-    resourceId: files.map((file) => file.name).join('|'),
   }
 }
 

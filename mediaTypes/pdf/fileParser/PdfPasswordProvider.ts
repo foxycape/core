@@ -65,22 +65,22 @@ export class PdfPasswordProvider {
         this.pdfjsPasswordCallback?.(password);
     };
 
-    private getSimpleId(): string | undefined {
-        const simpleId = this.context.simpleId;
-        return simpleId || undefined;
+    private getId(): string | undefined {
+        const id = this.context.id;
+        return id || undefined;
     }
 
-    private getStorageKey(simpleId: string): string {
-        return `${PdfPasswordProvider.PASSWORD_KEY_PREFIX}${simpleId}`;
+    private getStorageKey(id: string): string {
+        return `${PdfPasswordProvider.PASSWORD_KEY_PREFIX}${id}`;
     }
 
     private getStoredPassword(): string | undefined {
-        const simpleId = this.getSimpleId();
-        if (!simpleId) {
+        const id = this.getId();
+        if (!id) {
             return undefined;
         }
         try {
-            const password = localStorage.getItem(this.getStorageKey(simpleId));
+            const password = localStorage.getItem(this.getStorageKey(id));
             if (password) {
                 this.sessionPassword = password;
             }
@@ -96,12 +96,12 @@ export class PdfPasswordProvider {
         if (openOptions) {
             openOptions.password = password;
         }
-        const simpleId = this.getSimpleId();
-        if (!simpleId) {
+        const id = this.getId();
+        if (!id) {
             return;
         }
         try {
-            localStorage.setItem(this.getStorageKey(simpleId), password);
+            localStorage.setItem(this.getStorageKey(id), password);
         } catch {
             // ignore quota / private mode
         }
@@ -113,12 +113,12 @@ export class PdfPasswordProvider {
         if (openOptions) {
             openOptions.password = '';
         }
-        const simpleId = this.getSimpleId();
-        if (!simpleId) {
+        const id = this.getId();
+        if (!id) {
             return;
         }
         try {
-            localStorage.removeItem(this.getStorageKey(simpleId));
+            localStorage.removeItem(this.getStorageKey(id));
         } catch {
             // ignore
         }

@@ -151,42 +151,35 @@ export class InputFormatter {
         return extension?.toLowerCase();
     }
 
-    getIds = async (url: any, openOptions: OpenOptions) => {
-        let resourceId = openOptions?.resourceId ?? "";
-        let simpleId = openOptions?.simpleId ?? "";
-        if (!resourceId && url instanceof FilePackage) {
-            resourceId = url.resourceId;
+    getId = async (url: any, openOptions: OpenOptions) => {
+        let id = openOptions?.id ?? "";
+        if (!id && url instanceof FilePackage) {
+            id = url.id;
         }
-        if (!simpleId && url instanceof FilePackage) {
-            simpleId = url.simpleId;
-        }
-        if (resourceId) {
-            if (!simpleId) {
-                simpleId = resourceId;
-            }
-            return { simpleId, resourceId, isExternalId: true };
+        if (id) {
+            return id
         }
 
-        if (isNullOrWhiteSpace(simpleId)) {
+        if (isNullOrWhiteSpace(id)) {
             if (typeof url === "string" ||
                 url instanceof ArrayBuffer
                 || url instanceof Uint8Array
                 || url instanceof Blob
                 || (globalThis.FileSystemFileHandle && url instanceof FileSystemFileHandle)) {
-                simpleId = await computeSimpleId(url);
+                    id = await computeSimpleId(url);
             } else if (url instanceof FilePackage) {
-                if (url.fileUrl) {
-                    simpleId = await computeSimpleId(url.fileUrl);
+                if (url.id) {
+                    id = url.id;
                 }
                 else {
-                    throw new Error('Missing resourceId')
+                    throw new Error('Missing id in FilePackage')
                 }
             }
             else {
-                simpleId = getUuid();
+                id = getUuid();
             }
         }
-        return { simpleId, resourceId, isExternalId: false };
+        return id
     }
 
     formatLocation = (inputLocation: FileLocation | number | string, extension: string) => {

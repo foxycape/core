@@ -24,9 +24,7 @@ export type FileLoadPrepareState = {
     url: any;
     openOptions: OpenOptions;
     extension: string;
-    simpleId: string;
-    resourceId: string;
-    isExternalId: boolean;
+    id: string;
 };
 
 export type FileLoadPipelineOptions = {
@@ -46,9 +44,7 @@ export type FileLoadResult = {
     url: any;
     openOptions: OpenOptions;
     extension: string;
-    simpleId: string;
-    resourceId: string;
-    isExternalId: boolean;
+    id: string;
     fileParser: IFileParser;
     metadata: Metadata;
     context: Context;
@@ -81,23 +77,19 @@ export class FileLoadPipeline {
         }
 
         await lifecycle.onInitialize?.(formatted.extension);
-        let { simpleId, resourceId, isExternalId } = await inputFormatter.getIds(formatted.url, formatted.openOptions);
+        const id = await inputFormatter.getId(formatted.url, formatted.openOptions);
         await lifecycle.onOptionsParse?.(options);
 
         const prepareState: FileLoadPrepareState = {
             url: formatted.url,
             openOptions: formatted.openOptions,
             extension: formatted.extension,
-            simpleId,
-            resourceId,
-            isExternalId,
+            id,
         };
 
         const preparedContextInit = await pipelineOptions?.prepareContext?.(prepareState);
         const context = new Context(events, {
-            simpleId,
-            id: resourceId,
-            isExternalId,
+            id,
             url: formatted.url,
             extension: formatted.extension,
             options,
@@ -123,11 +115,6 @@ export class FileLoadPipeline {
             throw new Error("User cancelled task");
         }
 
-        if (!resourceId) {
-            resourceId = await fileParser.getFileHash();
-            context.id = resourceId;
-        }
-
         const formatLocationResult = inputFormatter.formatLocation(formatted.openOptions?.location, formatted.extension);
         let location = formatLocationResult.location;
         const percentage = formatLocationResult.percentage;
@@ -135,7 +122,7 @@ export class FileLoadPipeline {
 
         if (!isValidLocation) {
             try {
-                location = (await lifecycle.onLocationRequest?.(simpleId))
+                location = (await lifecycle.onLocationRequest?.(id))
                     ?? new FileLocation("0", 1, "ratio");
             } catch {
                 location = new FileLocation("0", 1, "ratio");
@@ -169,9 +156,7 @@ export class FileLoadPipeline {
             url: formatted.url,
             openOptions: formatted.openOptions,
             extension: formatted.extension,
-            simpleId,
-            resourceId,
-            isExternalId,
+            id,
             fileParser,
             metadata,
             context,

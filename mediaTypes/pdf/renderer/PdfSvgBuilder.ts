@@ -427,7 +427,7 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
         const isSafari = this.isSafari;
         const documentFragment = document.createDocumentFragment();
         const ownerDocument = this.renderer.getRendererContainer().ownerDocument;
-        const resourceId = this.renderer.owner.context?.id ?? "pdf";
+        const id = this.renderer.owner.context?.id ?? "pdf";
         const fontFamilyCache = new Map<string, string>();
         const flipY = [1, 0, 0, -1, 0, 0];
         const rotate90 = [0, -1, 1, 0, 0, 0];
@@ -526,7 +526,7 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
                 }
             }
 
-            const textId = "p-" + resourceId + "-" + pageNumber + "-t-" + i;
+            const textId = "p-" + id + "-" + pageNumber + "-t-" + i;
             if (isFirefox || isSafari) {
                 const normalized = this.extractFontSizeFromTransform(tx, fontSize);
                 tx = normalized.tx;
