@@ -106,10 +106,6 @@ export const removeElement = (rootElement: Document | HTMLElement, objectId: str
     }
 };
 
-export const injectJSContent = (rootElement: Document | HTMLElement, jsContent: string, replace: boolean, scriptId: string = ""): void => {
-    injectHeadObject(rootElement, jsContent, replace, scriptId, "script");
-};
-
 export const injectCssContent = (rootElement: Document | HTMLElement, cssContent: string, replace: boolean, cssId: string = "", callback?: (container: Element, content: Element) => void): void => {
     injectHeadObject(rootElement, cssContent, replace, cssId, "css", callback);
 };
