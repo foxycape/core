@@ -37,7 +37,7 @@ describe('Reader / FileLoader split', () => {
         openOptions: {},
         extension: '.pdf',
       })),
-      getId: vi.fn(async () => 'hash-1'),
+      getSimpleId: vi.fn(async () => 'hash-1'),
       formatParserUrl: vi.fn(() => ({ url: 'book.pdf', abortController: undefined })),
       formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),
     }
@@ -86,9 +86,7 @@ describe('Reader / FileLoader split', () => {
           openOptions: { metadata: overlay },
           extension: '.epub',
         })),
-        getId: vi.fn(async () => ({
-          id: 'sha-1',
-        })),
+        getSimpleId: vi.fn(async () => 'sha-1'),
         formatParserUrl: vi.fn(() => ({ url: 'book.epub', abortController: undefined })),
         formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),
       } as any,
@@ -109,6 +107,95 @@ describe('Reader / FileLoader split', () => {
     expect(result.metadata.language).toBe('en')
     expect(result.metadata.isbn).toBe('9780000000000')
     expect(result.context.metadata).toBe(result.metadata)
+  })
+
+  it('does not parse an http url when the simple id is already known', async () => {
+    const parse = vi.fn(async (_source: unknown) => {
+      throw new Error('parse should not run')
+    })
+    const getSimpleId = vi.fn(async (source: unknown) => {
+      await parse(source)
+      return 'hashed'
+    })
+    const fileParser = {
+      load: vi.fn(async () => undefined),
+      getMetadata: vi.fn(async () => new Metadata()),
+      dispose: vi.fn(async () => undefined),
+    } as unknown as IFileParser
+    const openOptions = Object.assign(new OpenOptions(), {
+      id: 'simple-1',
+      extension: '.epub',
+    })
+    const httpUrl = 'https://cdn.example/book.epub'
+
+    const pipeline = new FileLoadPipeline({
+      inputFormatter: {
+        guardUrl: vi.fn(),
+        formatInputParameters: vi.fn(async () => ({
+          url: httpUrl,
+          openOptions,
+          extension: '.epub',
+        })),
+        getSimpleId: vi.fn(async () => 'from-formatter'),
+        formatParserUrl: vi.fn(() => ({ url: httpUrl, abortController: undefined })),
+        formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),
+      } as any,
+      mediaTypeRegistry: {
+        createFileParser: vi.fn(async () => fileParser),
+      } as any,
+      services: {
+        get: vi.fn(async (name: string) => (name === 'simpleIdProvider' ? { getSimpleId } : undefined)),
+      } as any,
+      options: new Options(),
+      events: new EventEmitter(),
+      lifecycle: {},
+    })
+
+    const result = await pipeline.load(httpUrl, openOptions)
+
+    expect(result.id).toBe('simple-1')
+    expect(getSimpleId).not.toHaveBeenCalled()
+    expect(parse).not.toHaveBeenCalled()
+  })
+
+  it('uses FilePackage.id without parsing when open options omit the id', async () => {
+    const getSimpleId = vi.fn(async () => 'hashed')
+    const fileParser = {
+      load: vi.fn(async () => undefined),
+      getMetadata: vi.fn(async () => new Metadata()),
+      dispose: vi.fn(async () => undefined),
+    } as unknown as IFileParser
+    const filePackage = new FilePackage()
+    filePackage.fileUrl = 'https://cdn.example/book.epub'
+    filePackage.id = 'package-1'
+
+    const pipeline = new FileLoadPipeline({
+      inputFormatter: {
+        guardUrl: vi.fn(),
+        formatInputParameters: vi.fn(async () => ({
+          url: filePackage,
+          openOptions: {},
+          extension: '.epub',
+        })),
+        getSimpleId: vi.fn(async () => 'from-formatter'),
+        formatParserUrl: vi.fn(() => ({ url: filePackage, abortController: undefined })),
+        formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),
+      } as any,
+      mediaTypeRegistry: {
+        createFileParser: vi.fn(async () => fileParser),
+      } as any,
+      services: {
+        get: vi.fn(async () => ({ getSimpleId })),
+      } as any,
+      options: new Options(),
+      events: new EventEmitter(),
+      lifecycle: {},
+    })
+
+    const result = await pipeline.load(filePackage)
+
+    expect(result.id).toBe('package-1')
+    expect(getSimpleId).not.toHaveBeenCalled()
   })
 
   it('exposes FileLoader composition on Reader', () => {

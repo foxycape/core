@@ -1,7 +1,7 @@
 import { Context, ContextInit } from "../Context";
 import { fillMetadata, Metadata } from "../Metadata";
 import { IEventEmitter } from "../IEventEmitter";
-import { IFileParser } from "../IFileParser";
+import { FilePackage, IFileParser } from "../IFileParser";
 import type { LifecycleHooks } from "../LifecycleHooks";
 import { MediaTypeRegistry } from "../MediaTypeRegistry";
 import { OpenOptions } from "../OpenOptions";
@@ -77,8 +77,7 @@ export class FileLoadPipeline {
         }
 
         await lifecycle.onInitialize?.(formatted.extension);
-        const simpleIdProvider = await this.deps.services.get("simpleIdProvider");
-        const id =simpleIdProvider ? await simpleIdProvider.getSimpleId(formatted.url) : await inputFormatter.getSimpleId(formatted.url, formatted.openOptions?.id);
+        const id = await this.resolveSimpleId(formatted.url, formatted.openOptions);
         await lifecycle.onOptionsParse?.(options);
 
         const prepareState: FileLoadPrepareState = {
@@ -165,5 +164,24 @@ export class FileLoadPipeline {
             location,
             percentage,
         };
+    }
+
+    /** Reuse a known id so opening a cached book does not re-read the file. */
+    private async resolveSimpleId(url: unknown, openOptions?: OpenOptions): Promise<string> {
+        const fromOptions = typeof openOptions?.id === "string" ? openOptions.id.trim() : "";
+        if (fromOptions) {
+            return fromOptions;
+        }
+        if (url instanceof FilePackage) {
+            const fromPackage = typeof url.id === "string" ? url.id.trim() : "";
+            if (fromPackage) {
+                return fromPackage;
+            }
+        }
+        const simpleIdProvider = await this.deps.services.get("simpleIdProvider");
+        if (simpleIdProvider) {
+            return simpleIdProvider.getSimpleId(url);
+        }
+        return this.deps.inputFormatter.getSimpleId(url, openOptions?.id);
     }
 }
