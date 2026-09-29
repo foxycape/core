@@ -108,7 +108,7 @@ export class DefaultFileUrlParser implements IFileUrlParser {
                     fullUrl = await this.formatUrl(url, options);
                 }
 
-                if (options?.requireDownload) {
+                if (options?.requireFullFile) {
                     if (checkIsAbsoluteUrl(fullUrl, true)) {
                         data = await this.getDataFromNetworkUrl(fullUrl, options);
                     }
@@ -171,7 +171,7 @@ export class DefaultFileUrlParser implements IFileUrlParser {
 
     private async loadBlobSource(blob: Blob, options?: FileUrlParserOptions): Promise<{ data?: ArrayBuffer, byteSource: IByteSource }> {
         const byteSource = new BlobByteSource(blob)
-        if (!options?.requireDownload) {
+        if (!options?.requireFullFile) {
             return { byteSource }
         }
         if (options.fileDownloadingCallback) {

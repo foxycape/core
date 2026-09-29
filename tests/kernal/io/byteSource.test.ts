@@ -31,9 +31,9 @@ describe('byte source', () => {
         expect(await result.byteSource?.read(1, 4)).toEqual(bytes.slice(1, 4))
     })
 
-    it('materializes a blob only when requireDownload is set', async () => {
+    it('materializes a blob only when requireFullFile is set', async () => {
         const blob = new Blob([bytes])
-        const result = await createParser().parse(blob, { requireDownload: true })
+        const result = await createParser().parse(blob, { requireFullFile: true })
         expect(new Uint8Array(result.data!)).toEqual(bytes)
         expect(await result.byteSource?.read(0, 2)).toEqual(bytes.slice(0, 2))
     })

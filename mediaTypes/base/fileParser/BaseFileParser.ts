@@ -67,7 +67,7 @@ export abstract class BaseFileParser implements IFileParser {
     }
 
     async load(options?: FileLoadOptions): Promise<void> {
-        const result = await this.parseUrl(this.url, { requireDownload: false });
+        const result = await this.parseUrl(this.url, { requireFullFile: false });
         await this.initializeDatas(result);
         if (options?.measureFilePercentage) {
             await this.measureFilePercentage(this.spineFiles, this.urlParseResult?.requireCalculateFileSymbolCount)
