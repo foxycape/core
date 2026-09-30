@@ -16,7 +16,7 @@ export class PdfOptions {
      * - 1: pdf.js span text layer
      * - 2: custom SVG text layer (PdfSvgBuilder)
      */
-    textLayerMode: number = 2;
+    textLayerMode: number = 1;
 
     /** Annotation mode: 0-disable, 1-enable, 2-ENABLE_FORMS, 3-ENABLE_STORAGE */
     annotationMode: number = 2;
