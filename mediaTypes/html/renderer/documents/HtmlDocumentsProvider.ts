@@ -327,12 +327,14 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
                         const safariScrollTop = scrollElementScrollTop + doc.getWrapperContainer().getBoundingClientRect().y + redirectElementY;
                         scrollElement.scrollTo(0, safariScrollTop);
                     }
+                    const settledElementY = getLocateClientRect(redirectTarget).y;
                     iframeY = iframe?.getBoundingClientRect()?.y ?? 0;
-                    distance = redirectElementY + iframeY;
+                    distance = settledElementY + iframeY;
                 }
-                else {
-                    scrollTopOffset = distance - scrollTopOffset - scrollElement.getBoundingClientRect().top;
-                }
+                // Safari's corrective scroll pins the anchor to the viewport top,
+                // which sits under the reader menu. Same clearance as other browsers:
+                // scroll-element top plus redirectPositionOffset.
+                scrollTopOffset = distance - scrollTopOffset - scrollElement.getBoundingClientRect().top;
                 if (scrollTopOffset > 0) {
                     const toBottomDistance = scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight;
                     if (toBottomDistance > 0) {

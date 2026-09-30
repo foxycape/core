@@ -81,7 +81,7 @@ export class HtmlElementLocator implements IHtmlElementLocator {
                 pageNumber = await doc.getPageNumber(target);
             }
         }
-        if (compareTagName(target.tagName, "BODY")) {
+        if (compareTagName(target.tagName, "BODY")||target.ownerDocument.body.firstElementChild==target) {
             isDocumentStart = true;
         }
         return { target, pageNumber, isDocumentStart };
