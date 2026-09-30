@@ -1,3 +1,4 @@
+/** @vitest-environment happy-dom */
 import { describe, expect, it } from 'vitest'
 import { scrollHorizontalTbLtr } from '@/mediaTypes/html/renderer/layout/geometry/scrollHorizontalTbLtr'
 import { scrollHorizontalTbRtl } from '@/mediaTypes/html/renderer/layout/geometry/scrollHorizontalTbRtl'
@@ -8,15 +9,13 @@ import { scrollVerticalRlRtl } from '@/mediaTypes/html/renderer/layout/geometry/
 import { fromLogicalScrollLeft, toLogicalScrollLeft } from '@/mediaTypes/html/renderer/layout/geometry/scrollLeftAxis'
 import { pageHorizontalTbLtr } from '@/mediaTypes/html/renderer/layout/geometry/pageHorizontalTbLtr'
 import { pageHorizontalTbRtl } from '@/mediaTypes/html/renderer/layout/geometry/pageHorizontalTbRtl'
+import { pageVerticalLrLtr } from '@/mediaTypes/html/renderer/layout/geometry/pageVerticalLrLtr'
 import { layoutGeometryById } from '@/mediaTypes/html/renderer/layout/geometry'
 import {
-    excludeResizingCompensationDocument,
     getScrollLocateDelta,
     isAtReadingStartScroll,
-    pickAbsoluteCompensationUrl,
     pickVisibleCompensationDocument,
     pinReadingStartScroll,
-    resolveRestoreCompensationAnchor,
     restorePageTransformAlongEnd,
     restorePageTransformAlongStart,
     restoreScrollAlongStart,
@@ -31,6 +30,7 @@ const scrollInput = (partial: Partial<RestoreScrollInput>): RestoreScrollInput =
     foundElement: false,
     currentIndex: 0,
     anchorIndex: 0,
+    atReadingStart: false,
     ...partial,
 })
 
@@ -42,7 +42,18 @@ describe('restoreScrollAlongLeftAnchoredReverse / scroll-vertical-rl-ltr', () =>
             sizeDelta: 200,
             currentIndex: 0,
             anchorIndex: 0,
+            atReadingStart: true,
         }))).toBe(600)
+    })
+
+    it('keeps live scroll when the anchor chapter grows away from the reading start', () => {
+        expect(scrollVerticalRlLtr.restoreScroll(scrollInput({
+            liveScroll: 400,
+            capturedScroll: 400,
+            sizeDelta: 200,
+            currentIndex: 0,
+            anchorIndex: 0,
+        }))).toBe(400)
     })
 
     it('keeps live scroll after a left swipe while the current chapter grows', () => {
@@ -176,10 +187,8 @@ describe('restoreScrollAlongStart / restorePageTransform wiring', () => {
         }))).toBe(1386)
         expect(scrollHorizontalTbLtr.shouldApplyRestoredScroll(0, 500)).toBe(true)
         expect(scrollHorizontalTbLtr.skipsRestoreWhileSettling).toBe(false)
-        expect(scrollHorizontalTbLtr.compensationAnchorMode).toBe('first-visible')
         expect(scrollVerticalLrLtr.skipsRestoreWhileSettling).toBe(true)
         expect(scrollVerticalRlLtr.skipsRestoreWhileSettling).toBe(true)
-        expect(scrollVerticalRlLtr.compensationAnchorMode).toBe('visual-edge')
     })
 
     it('keeps page transform +offset / -offset helpers', () => {
@@ -289,29 +298,6 @@ describe('pinReadingStartScroll', () => {
     })
 })
 
-describe('pickAbsoluteCompensationUrl', () => {
-    it('keeps currentLocation.url after redirectingDocUrl expires while locate is held', () => {
-        expect(pickAbsoluteCompensationUrl({
-            direction: undefined,
-            currentLocationUrl: 'chapter-8.html',
-            redirectingDocUrl: undefined,
-            holdAbsoluteAnchor: true,
-        })).toBe('chapter-8.html')
-        expect(pickAbsoluteCompensationUrl({
-            direction: undefined,
-            currentLocationUrl: 'chapter-8.html',
-            redirectingDocUrl: undefined,
-            holdAbsoluteAnchor: false,
-        })).toBeUndefined()
-        expect(pickAbsoluteCompensationUrl({
-            direction: 'next',
-            currentLocationUrl: 'chapter-8.html',
-            redirectingDocUrl: 'chapter-8.html',
-            holdAbsoluteAnchor: true,
-        })).toBeUndefined()
-    })
-})
-
 describe('getScrollLocateDelta', () => {
     it('aligns to the reading-start edge', () => {
         expect(getScrollLocateDelta({
@@ -348,7 +334,6 @@ describe('pipeline-owned scroll I/O policy', () => {
         expect(scrollHorizontalTbLtr.preloadRangeMode).toBe('visible-span')
         expect(scrollHorizontalTbLtr.rewritesWrapperVisibility).toBe(false)
         expect(scrollHorizontalTbLtr.holdsAbsoluteLocate).toBe(false)
-        expect(scrollHorizontalTbLtr.compensationAnchorMode).toBe('first-visible')
         expect(scrollHorizontalTbLtr.getCompensationRect({
             top: 10,
             bottom: 80,
@@ -374,12 +359,7 @@ describe('pipeline-owned scroll I/O policy', () => {
         expect(layoutGeometryById['page-vertical-rl-ltr'].rewritesWrapperVisibility).toBe(false)
     })
 
-    it('keeps the captured reading chapter as restore anchor when locate is not held', () => {
-        const previous = { id: 'previous' }
-        const current = { id: 'current' }
-        expect(excludeResizingCompensationDocument([previous, current], previous)).toEqual([current])
-        expect(resolveRestoreCompensationAnchor(current, previous, false)).toBe(current)
-        expect(resolveRestoreCompensationAnchor(current, previous, true)).toBe(previous)
+    it('still compensates from the captured chapter index', () => {
         expect(scrollHorizontalTbLtr.restoreScroll(scrollInput({
             liveScroll: 900,
             capturedScroll: 700,
@@ -426,5 +406,101 @@ describe('rtl vertical scrollLeft axis', () => {
             currentIndex: 0,
             anchorIndex: 0,
         }))).toBe(600)
+    })
+})
+
+describe('layout axis measurement', () => {
+    const wrapper = { scrollWidth: 500, offsetHeight: 80, scrollHeight: 240 } as HTMLElement
+    const extent = { width: 300, height: 40 }
+    const anchor = { offsetLeft: 30, offsetTop: 12 } as HTMLElement
+    const capturedOffset = { offsetLeft: 10, offsetTop: 4 }
+
+    it('measures vertical lr and rl on the same x axis', () => {
+        expect(scrollVerticalLrLtr.measureBlockSizeDelta(wrapper, extent)).toBe(200)
+        expect(scrollVerticalRlLtr.measureBlockSizeDelta(wrapper, extent)).toBe(200)
+        expect(scrollVerticalLrLtr.measureBlockOffsetDelta(anchor, capturedOffset)).toBe(20)
+        expect(scrollVerticalRlLtr.measureBlockOffsetDelta(anchor, capturedOffset)).toBe(20)
+        expect(scrollVerticalLrLtr.measureBlockSizeDelta(null, extent)).toBe(-300)
+    })
+
+    it('compensates a later chapter on vertical-rl and leaves vertical-lr', () => {
+        const input = scrollInput({
+            liveScroll: 400,
+            capturedScroll: 400,
+            sizeDelta: 200,
+            currentIndex: 2,
+            anchorIndex: 0,
+        })
+        expect(scrollVerticalLrLtr.restoreScroll(input)).toBe(400)
+        expect(scrollVerticalRlLtr.restoreScroll(input)).toBe(600)
+    })
+
+    it('measures horizontal scroll on y and page routes on their page axis', () => {
+        expect(scrollHorizontalTbLtr.measureBlockSizeDelta(wrapper, extent)).toBe(40)
+        expect(scrollHorizontalTbLtr.measureBlockOffsetDelta(anchor, capturedOffset)).toBe(8)
+        expect(pageVerticalLrLtr.measurePageSizeDelta(wrapper, extent)).toBe(200)
+        expect(pageVerticalLrLtr.measurePageOffsetDelta(anchor, capturedOffset)).toBe(8)
+        expect(pageHorizontalTbLtr.measurePageSizeDelta(wrapper, extent)).toBe(200)
+        expect(pageHorizontalTbLtr.measurePageOffsetDelta(anchor, capturedOffset)).toBe(20)
+    })
+
+    it('reads and writes logical scroll on the route axis', () => {
+        const scrollElement = document.createElement('div')
+        scrollElement.scrollLeft = 40
+        scrollElement.scrollTop = 90
+        const written: { left?: number; top?: number }[] = []
+        scrollElement.scrollTo = (options?: ScrollToOptions) => {
+            if (!options) {
+                return
+            }
+            if (options.left != null) {
+                scrollElement.scrollLeft = options.left
+            }
+            if (options.top != null) {
+                scrollElement.scrollTop = options.top
+            }
+            written.push(options)
+        }
+        expect(scrollVerticalLrLtr.readLogicalScroll(scrollElement)).toBe(40)
+        expect(scrollHorizontalTbLtr.readLogicalScroll(scrollElement)).toBe(90)
+        expect(scrollVerticalLrLtr.readCapturedLogicalScroll(scrollElement, { scrollLeft: 15, scrollTop: 70 })).toBe(15)
+        expect(scrollHorizontalTbLtr.readCapturedLogicalScroll(scrollElement, { scrollLeft: 15, scrollTop: 70 })).toBe(70)
+        scrollVerticalLrLtr.writeLogicalScroll(scrollElement, 55)
+        expect(scrollElement.scrollLeft).toBe(55)
+        expect(scrollElement.scrollTop).toBe(90)
+        scrollHorizontalTbLtr.writeLogicalScroll(scrollElement, 12)
+        expect(scrollElement.scrollTop).toBe(12)
+        expect(scrollElement.scrollLeft).toBe(55)
+        expect(written).toEqual([{ left: 55, top: 90 }, { left: 55, top: 12 }])
+
+        const transform = document.createElement('div')
+        transform.setAttribute('data-target-transform', '120')
+        expect(pageVerticalLrLtr.readPageTransform(transform)).toBe(120)
+        expect(pageHorizontalTbLtr.readPageTransform(transform)).toBe(120)
+        transform.removeAttribute('data-target-transform')
+        transform.style.transform = 'translateY(30px)'
+        expect(pageVerticalLrLtr.readPageTransform(transform)).toBe(30)
+        transform.style.transform = 'translateX(18px)'
+        expect(pageHorizontalTbLtr.readPageTransform(transform)).toBe(18)
+    })
+})
+
+describe('document order compensation anchor', () => {
+    it('uses the last visible document on scroll routes that compensate earlier chapters', () => {
+        expect(scrollHorizontalTbLtr.documentOrderAnchor).toBe('last')
+        expect(scrollHorizontalTbRtl.documentOrderAnchor).toBe('last')
+        expect(scrollVerticalLrLtr.documentOrderAnchor).toBe('last')
+        expect(scrollVerticalLrRtl.documentOrderAnchor).toBe('last')
+        expect(scrollVerticalRlRtl.documentOrderAnchor).toBe('last')
+        expect(scrollVerticalRlLtr.documentOrderAnchor).toBe('first')
+    })
+
+    it('keeps the first visible document on page routes', () => {
+        expect(layoutGeometryById['page-horizontal-tb-ltr'].documentOrderAnchor).toBe('first')
+        expect(layoutGeometryById['page-horizontal-tb-rtl'].documentOrderAnchor).toBe('first')
+        expect(layoutGeometryById['page-vertical-lr-ltr'].documentOrderAnchor).toBe('first')
+        expect(layoutGeometryById['page-vertical-lr-rtl'].documentOrderAnchor).toBe('first')
+        expect(layoutGeometryById['page-vertical-rl-ltr'].documentOrderAnchor).toBe('first')
+        expect(layoutGeometryById['page-vertical-rl-rtl'].documentOrderAnchor).toBe('first')
     })
 })

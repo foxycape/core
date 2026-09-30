@@ -47,11 +47,29 @@ export type RestoreScrollInput = {
     foundElement: boolean;
     currentIndex: number;
     anchorIndex: number;
+    /** Logical scroll is already at this route's reading-start edge. */
+    atReadingStart: boolean;
 };
 
 export type CompensationAnchorEdge = "start" | "end";
+/** Visible document used as the size-compensation anchor, in `getDocuments()` order. */
+export type DocumentOrderAnchor = "first" | "last";
 export type PreloadRangeMode = "visible-span" | "visual-edge" | "page-fill";
-export type CompensationAnchorMode = "first-visible" | "visual-edge";
+
+export type CapturedBlockScroll = {
+    scrollLeft: number;
+    scrollTop: number;
+};
+
+export type CapturedExtent = {
+    width: number;
+    height: number;
+};
+
+export type CapturedAnchorOffset = {
+    offsetLeft: number;
+    offsetTop: number;
+};
 
 export type CompensationRect = {
     start: number;
@@ -134,15 +152,15 @@ export type ILayoutGeometry = {
     readonly measureColumnsAsLtr: boolean;
     /** Page 1 starts from the inline-end / right edge. */
     readonly usesRtlPageStart: boolean;
-    /** Which visible document is the size-compensation anchor. */
+    /** Which visible document is the preload anchor. */
     readonly compensationAnchorEdge: CompensationAnchorEdge;
-    /** `first-visible` uses getFirstVisibleDocument(); `visual-edge` uses live rects. */
-    readonly compensationAnchorMode: CompensationAnchorMode;
+    /** Size-compensation anchor in document order. Page routes stay `first`. */
+    readonly documentOrderAnchor: DocumentOrderAnchor;
     /** How far around the visible chapter(s) to keep loaded. */
     readonly preloadRangeMode: PreloadRangeMode;
     /** Rewrite wrapper `isVisible` from live rects (0-size placeholders are not visible). */
     readonly rewritesWrapperVisibility: boolean;
-    /** Pin the TOC / absolute-locate chapter as the compensation anchor. */
+    /** Absolute locate still writes size compensation while user scroll is settling. */
     readonly holdsAbsoluteLocate: boolean;
     /**
      * Skip writing restore while the user scroll settle window is open.
@@ -177,6 +195,22 @@ export type ILayoutGeometry = {
     restorePageTransform: (input: RestorePageTransformInput) => number;
     /** Adjust live scroll after a document wrapper grows or shrinks. */
     restoreScroll: (input: RestoreScrollInput) => number;
+    /** Logical block-axis scroll. X uses the scrollLeft sign; Y is scrollTop. */
+    readLogicalScroll: (scrollElement: HTMLElement) => number;
+    /** Captured block-axis scroll in the same logical space as `readLogicalScroll`. */
+    readCapturedLogicalScroll: (scrollElement: HTMLElement, captured: CapturedBlockScroll) => number;
+    /** Write a logical block-axis scroll back onto the element. */
+    writeLogicalScroll: (scrollElement: HTMLElement, logical: number) => void;
+    /** Wrapper growth along the scroll compensation axis. */
+    measureBlockSizeDelta: (wrapper: HTMLElement | null | undefined, captured: CapturedExtent) => number;
+    /** Anchor movement along the scroll compensation axis. */
+    measureBlockOffsetDelta: (anchor: HTMLElement, captured: CapturedAnchorOffset) => number;
+    /** Current page-axis translate, preferring `data-target-transform`. */
+    readPageTransform: (transformContainer: HTMLElement) => number;
+    /** Wrapper growth along the page-transform axis. */
+    measurePageSizeDelta: (wrapper: HTMLElement | null | undefined, captured: CapturedExtent) => number;
+    /** Anchor movement along the page-transform axis. */
+    measurePageOffsetDelta: (anchor: HTMLElement, captured: CapturedAnchorOffset) => number;
     /** Map a wrapper rect onto the compensation axis for this route. */
     getCompensationRect: (rect: CompensationRectSource) => CompensationRect;
     /** Locate delta that aligns a target to the reading-start or reading-end edge. */

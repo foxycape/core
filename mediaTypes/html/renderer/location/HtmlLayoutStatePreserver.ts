@@ -1,5 +1,4 @@
 import { LocationState } from "../../../../kernal";
-import { parseNumber } from "../../../../kernal/common/number";
 import { getElementByNameAndIndex } from "../../../../kernal/html/finder";
 import { isHtmlElement } from "../../../../kernal/html/realm";
 import { resolveVisibleTranslationAnchor } from "../../../../kernal/html/translationAnchor";
@@ -9,14 +8,8 @@ import { HtmlOptions } from "../../HtmlOptions";
 import { HtmlSettings } from "../../HtmlSettings";
 import { IHtmlDocument } from "../IHtmlDocument";
 import { HtmlLayoutMetrics } from "../layout/HtmlLayoutMetrics";
-import {
-    excludeResizingCompensationDocument,
-    pickAbsoluteCompensationUrl,
-    pickVisibleCompensationDocument,
-    resolveRestoreCompensationAnchor,
-} from "../layout/geometry/restoreLayoutState";
 import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
-import { fromLogicalScrollLeft, resolveScrollLeftSign, toLogicalScrollLeft } from "../layout/geometry/scrollLeftAxis";
+import { isAtReadingStartScroll } from "../layout/geometry/restoreLayoutState";
 import { beginProgrammaticScroll, endProgrammaticScroll, isHoldingAbsoluteAnchor, isUserScrollSettling } from "./scrollActivity";
 
 const SCROLL_WRITE_THRESHOLD = 1;
@@ -41,21 +34,27 @@ export class HtmlLayoutStatePreserver {
         const geometry = getLayoutGeometry(this.options);
         const anchor = this.findLocationAnchor();
         const extent = wrapper ? geometry.getCaptureExtent(wrapper) : { width: 0, height: 0 };
-        return {
+        const state= {
             scrollLeft: scrollElement?.scrollLeft ?? 0,
             scrollTop: scrollElement?.scrollTop ?? 0,
             width: extent.width,
             height: extent.height,
             transformLeft: transformContainer ? getTransformLength(transformContainer, "x") : 0,
             transformTop: transformContainer ? getTransformLength(transformContainer, "y") : 0,
-            firstVisibleDocument: this.resolveCompensationAnchor() ?? renderer?.getFirstVisibleDocument(),
+            firstVisibleDocument: geometry.documentOrderAnchor == "last"
+                ? renderer?.getLastVisibleDocument()
+                : renderer?.getFirstVisibleDocument(),
             offsetLeft: anchor?.offsetLeft ?? 0,
             offsetTop: anchor?.offsetTop ?? 0,
             foundElement: !!anchor
         };
+        // const visibleDocuments = renderer?.getVisibleDocuments();
+        // console.log('visible documents', visibleDocuments?.map(doc => doc.url))
+        // console.log('capture location state', state.firstVisibleDocument?.url,"current url",this.doc.url)
+        return state
     }
 
-    async restore(locationState: LocationState): Promise<void> {
+ async restore(locationState: LocationState): Promise<void> {
         const renderer = this.doc.owner.getRenderer();
         if (!renderer || !locationState) {
             return;
@@ -68,29 +67,22 @@ export class HtmlLayoutStatePreserver {
         }
 
         const geometry = getLayoutGeometry(this.options);
-        if (geometry.flipMode == "page") {
-            const firstVisibleDocumentIndex = documents.indexOf(locationState.firstVisibleDocument);
-            if (firstVisibleDocumentIndex < 0 || currentIndex > firstVisibleDocumentIndex) {
-                return;
-            }
-            await this.waitUntilPageTransformStable();
-            this.restorePageTransform(locationState, currentIndex === firstVisibleDocumentIndex, geometry.pageAxis);
-            return;
-        }
-        const liveHold = geometry.holdsAbsoluteLocate && isHoldingAbsoluteAnchor()
-            ? this.resolveCompensationAnchor()
-            : undefined;
-        const anchorDoc = resolveRestoreCompensationAnchor(
-            locationState.firstVisibleDocument,
-            liveHold,
-            !!(geometry.holdsAbsoluteLocate && isHoldingAbsoluteAnchor()),
-        );
-        const anchorIndex = documents.indexOf(anchorDoc);
+        const anchorIndex = documents.indexOf(locationState.firstVisibleDocument);
         if (anchorIndex < 0) {
             return;
         }
+        if (geometry.flipMode == "page") {
+            if (currentIndex > anchorIndex) {
+                return;
+            }
+            await this.waitUntilPageTransformStable();
+            this.restorePageTransform(locationState, currentIndex === anchorIndex);
+            return;
+        }
         this.clearPageTransformIfNeeded();
-        this.restoreScroll(locationState, currentIndex, anchorIndex, geometry.blockAxis);
+        this.restoreScroll(locationState, currentIndex, anchorIndex);
+        // console.log('restore scroll', locationState.firstVisibleDocument?.url,"current url",this.doc.url, locationState.scrollLeft)
+        
     }
 
     /**
@@ -130,31 +122,19 @@ export class HtmlLayoutStatePreserver {
         }
     }
 
-    private restorePageTransform(locationState: LocationState, isFirstVisible: boolean, pageAxis: "x" | "y") {
+    private restorePageTransform(locationState: LocationState, isFirstVisible: boolean) {
         const transformContainer = this.getTransformContainer();
         if (!transformContainer) {
             return;
         }
-        const targetTransform = transformContainer.getAttribute("data-target-transform");
-        let currentTransform = 0;
-        if (targetTransform) {
-            currentTransform = parseNumber(targetTransform, 0, "parseFloat");
-        }
-        else {
-            currentTransform = getTransformLength(transformContainer, pageAxis);
-        }
-
-        const wrapper = this.doc.getWrapperContainer();
         const geometry = getLayoutGeometry(this.options);
-        const sizeDelta = pageAxis == "y"
-            ? (wrapper?.scrollHeight ?? 0) - locationState.height
-            : (wrapper?.scrollWidth ?? 0) - locationState.width;
+        const currentTransform = geometry.readPageTransform(transformContainer);
+        const wrapper = this.doc.getWrapperContainer();
+        const sizeDelta = geometry.measurePageSizeDelta(wrapper, locationState);
         let offsetDelta = 0;
         const anchor = isFirstVisible ? this.findLocationAnchor() : null;
         if (anchor && locationState.foundElement) {
-            offsetDelta = pageAxis == "y"
-                ? anchor.offsetTop - locationState.offsetTop
-                : anchor.offsetLeft - locationState.offsetLeft;
+            offsetDelta = geometry.measurePageOffsetDelta(anchor, locationState);
         }
         const newTransform = geometry.restorePageTransform({
             currentTransform,
@@ -173,7 +153,6 @@ export class HtmlLayoutStatePreserver {
         locationState: LocationState,
         currentIndex: number,
         anchorIndex: number,
-        blockAxis: "x" | "y"
     ) {
         const renderer = this.doc.owner.getRenderer();
         const scrollElement = this.viewport.getScrollElement() ?? renderer?.getScrollElement();
@@ -189,21 +168,16 @@ export class HtmlLayoutStatePreserver {
         })) {
             return;
         }
-        const liveScrollRaw = blockAxis == "x" ? scrollElement.scrollLeft : scrollElement.scrollTop;
-        const capturedScrollRaw = blockAxis == "x" ? locationState.scrollLeft : locationState.scrollTop;
-        const scrollSign = blockAxis == "x" ? resolveScrollLeftSign(scrollElement) : 1;
-        const liveScroll = toLogicalScrollLeft(liveScrollRaw, scrollSign);
-        const capturedScroll = toLogicalScrollLeft(capturedScrollRaw, scrollSign);
-        const sizeDelta = blockAxis == "x"
-            ? (wrapper?.scrollWidth ?? 0) - locationState.width
-            : (wrapper?.offsetHeight ?? 0) - locationState.height;
+        const liveScroll = geometry.readLogicalScroll(scrollElement);
+        const capturedScroll = geometry.readCapturedLogicalScroll(scrollElement, locationState);
+        const scrollExtent = geometry.blockAxis == "x" ? scrollElement.scrollWidth : scrollElement.scrollHeight;
+        const clientLength = geometry.blockAxis == "x" ? scrollElement.clientWidth : scrollElement.clientHeight;
+        const sizeDelta = geometry.measureBlockSizeDelta(wrapper, locationState);
         let offsetDelta = 0;
         const locationAnchor = currentIndex === anchorIndex ? this.findLocationAnchor() : null;
         const foundElement = !!(locationAnchor && locationState.foundElement);
         if (foundElement && locationAnchor) {
-            offsetDelta = blockAxis == "x"
-                ? locationAnchor.offsetLeft - locationState.offsetLeft
-                : locationAnchor.offsetTop - locationState.offsetTop;
+            offsetDelta = geometry.measureBlockOffsetDelta(locationAnchor, locationState);
         }
         const nextLogical = geometry.restoreScroll({
             liveScroll,
@@ -213,10 +187,15 @@ export class HtmlLayoutStatePreserver {
             foundElement,
             currentIndex,
             anchorIndex,
+            atReadingStart: isAtReadingStartScroll({
+                liveScroll,
+                scrollExtent,
+                clientLength,
+                initialScroll: geometry.initialScroll,
+            }),
         });
-        const nextScroll = fromLogicalScrollLeft(nextLogical, scrollSign);
 
-        if (Math.abs(nextScroll - liveScrollRaw) <= SCROLL_WRITE_THRESHOLD) {
+        if (Math.abs(nextLogical - liveScroll) <= SCROLL_WRITE_THRESHOLD) {
             return;
         }
         if (!geometry.shouldApplyRestoredScroll(nextLogical, liveScroll)) {
@@ -225,67 +204,11 @@ export class HtmlLayoutStatePreserver {
 
         beginProgrammaticScroll();
         try {
-            if (blockAxis == "x") {
-                scrollElement.scrollTo({ left: nextScroll, top: scrollElement.scrollTop });
-            }
-            else {
-                scrollElement.scrollTo({ left: scrollElement.scrollLeft, top: nextScroll });
-            }
+            geometry.writeLogicalScroll(scrollElement, nextLogical);
         }
         finally {
             endProgrammaticScroll();
         }
-    }
-
-    /**
-     * Absolute jumps (TOC) hold currentLocation.url as the size-compensation
-     * anchor until the user scrolls, so later neighbor load/dispose cannot
-     * retarget the visually first/last chapter.
-     */
-    private resolveCompensationAnchor() {
-        const renderer = this.doc.owner.getRenderer();
-        if (!renderer) {
-            return undefined;
-        }
-        const geometry = getLayoutGeometry(this.options);
-        if (geometry.compensationAnchorMode == "first-visible") {
-            const location = this.doc.owner.context.currentLocation;
-            if (location?.direction == "next" || location?.direction == "previous") {
-                return renderer.getFirstVisibleDocument();
-            }
-            const redirectUrl = this.doc.owner.context.redirectingDocUrl;
-            if (redirectUrl) {
-                return renderer.getDocument(redirectUrl) ?? renderer.getFirstVisibleDocument();
-            }
-            return renderer.getFirstVisibleDocument();
-        }
-        const location = this.doc.owner.context.currentLocation;
-        const absoluteUrl = pickAbsoluteCompensationUrl({
-            direction: location?.direction,
-            currentLocationUrl: location?.url,
-            redirectingDocUrl: this.doc.owner.context.redirectingDocUrl,
-            holdAbsoluteAnchor: isHoldingAbsoluteAnchor(),
-        });
-        if (absoluteUrl) {
-            return renderer.getDocument(absoluteUrl) ?? this.pickVisibleCompensation();
-        }
-        return this.pickVisibleCompensation();
-    }
-
-    private pickVisibleCompensation() {
-        const renderer = this.doc.owner.getRenderer();
-        if (!renderer) {
-            return undefined;
-        }
-        const geometry = getLayoutGeometry(this.options);
-        const visible = excludeResizingCompensationDocument(renderer.getVisibleDocuments(), this.doc);
-        return pickVisibleCompensationDocument(visible, geometry.compensationAnchorEdge, (doc) => {
-            const rect = doc.getWrapperContainer()?.getBoundingClientRect();
-            if (!rect) {
-                return undefined;
-            }
-            return geometry.getCompensationRect(rect);
-        }) ?? renderer.getFirstVisibleDocument();
     }
 
     private findLocationAnchor(): HTMLElement | null {

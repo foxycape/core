@@ -135,7 +135,6 @@ describe('layout routes', () => {
     expect(tb.holdsAbsoluteLocate).toBe(false)
     expect(tb.shouldApplyRestoredScroll(0, 500)).toBe(true)
     expect(tb.skipsRestoreWhileSettling).toBe(false)
-    expect(tb.compensationAnchorMode).toBe('first-visible')
 
     const rl = getLayoutGeometry(routeOptions({
       flipMode: 'scroll',
@@ -145,7 +144,6 @@ describe('layout routes', () => {
     expect(rl.preloadRangeMode).toBe('visual-edge')
     expect(rl.rewritesWrapperVisibility).toBe(true)
     expect(rl.holdsAbsoluteLocate).toBe(true)
-    expect(rl.compensationAnchorMode).toBe('visual-edge')
 
     const page = getLayoutGeometry(routeOptions({
       flipMode: 'page',

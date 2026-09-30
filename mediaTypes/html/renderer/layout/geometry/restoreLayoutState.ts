@@ -1,14 +1,20 @@
-import { scrollElementIntoView } from "../../../../../kernal/html/style";
+import { parseNumber } from "../../../../../kernal/common/number";
+import { getTransformLength, scrollElementIntoView } from "../../../../../kernal/html/style";
 import type {
     AlignWrapperInput,
+    CapturedAnchorOffset,
+    CapturedBlockScroll,
+    CapturedExtent,
     CompensationAnchorEdge,
     CompensationRect,
     CompensationRectSource,
     InitialScroll,
+    LayoutAxis,
     RestorePageTransformInput,
     RestoreScrollInput,
     ScrollLocateDeltaInput,
 } from "./ILayoutGeometry";
+import { fromLogicalScrollLeft, resolveScrollLeftSign, toLogicalScrollLeft } from "./scrollLeftAxis";
 
 const USER_SCROLLED_THRESHOLD = 2;
 
@@ -116,8 +122,8 @@ export const restoreScrollAlongEnd = ({
  * scroll-vertical-rl-ltr: row-reverse inside a left-anchored max-content strip.
  * A later chapter (higher index, on the left) shifts every chapter to its right,
  * so scrollLeft must follow that width delta. An earlier chapter only extends
- * the far right edge. The anchor chapter is right-aligned, so its own growth
- * moves the visible text unless the user has already scrolled.
+ * the far right edge. The anchor chapter's own growth follows scroll only while
+ * the viewport is still pinned to the reading start (the right edge).
  */
 export const restoreScrollAlongLeftAnchoredReverse = ({
     liveScroll,
@@ -127,6 +133,7 @@ export const restoreScrollAlongLeftAnchoredReverse = ({
     foundElement,
     currentIndex,
     anchorIndex,
+    atReadingStart,
 }: RestoreScrollInput) => {
     if (currentIndex < 0 || anchorIndex < 0) {
         return liveScroll;
@@ -143,10 +150,85 @@ export const restoreScrollAlongLeftAnchoredReverse = ({
     if (Math.abs(liveScroll - capturedScroll) > USER_SCROLLED_THRESHOLD) {
         return liveScroll;
     }
+    if (!atReadingStart) {
+        return liveScroll;
+    }
     return clampScroll(liveScroll + sizeDelta);
 };
 
 export const passthroughRestoreScroll = ({ liveScroll }: RestoreScrollInput) => liveScroll;
+
+const readLogicalScrollAlong = (scrollElement: HTMLElement, raw: number, axis: LayoutAxis) => {
+    if (axis === "y") {
+        return raw;
+    }
+    return toLogicalScrollLeft(raw, resolveScrollLeftSign(scrollElement));
+};
+
+export const readLogicalScrollAlongX = (scrollElement: HTMLElement) =>
+    readLogicalScrollAlong(scrollElement, scrollElement.scrollLeft, "x");
+
+export const readLogicalScrollAlongY = (scrollElement: HTMLElement) =>
+    scrollElement.scrollTop;
+
+export const readCapturedLogicalScrollAlongX = (
+    scrollElement: HTMLElement,
+    captured: CapturedBlockScroll,
+) => readLogicalScrollAlong(scrollElement, captured.scrollLeft, "x");
+
+export const readCapturedLogicalScrollAlongY = (
+    _scrollElement: HTMLElement,
+    captured: CapturedBlockScroll,
+) => captured.scrollTop;
+
+export const writeLogicalScrollAlongX = (scrollElement: HTMLElement, logical: number) => {
+    const raw = fromLogicalScrollLeft(logical, resolveScrollLeftSign(scrollElement));
+    scrollElement.scrollTo({ left: raw, top: scrollElement.scrollTop });
+};
+
+export const writeLogicalScrollAlongY = (scrollElement: HTMLElement, logical: number) => {
+    scrollElement.scrollTo({ left: scrollElement.scrollLeft, top: logical });
+};
+
+export const measureBlockSizeDeltaAlongX = (
+    wrapper: HTMLElement | null | undefined,
+    captured: CapturedExtent,
+) => (wrapper?.scrollWidth ?? 0) - captured.width;
+
+export const measureBlockSizeDeltaAlongY = (
+    wrapper: HTMLElement | null | undefined,
+    captured: CapturedExtent,
+) => (wrapper?.offsetHeight ?? 0) - captured.height;
+
+export const measurePageSizeDeltaAlongX = (
+    wrapper: HTMLElement | null | undefined,
+    captured: CapturedExtent,
+) => (wrapper?.scrollWidth ?? 0) - captured.width;
+
+export const measurePageSizeDeltaAlongY = (
+    wrapper: HTMLElement | null | undefined,
+    captured: CapturedExtent,
+) => (wrapper?.scrollHeight ?? 0) - captured.height;
+
+export const measureOffsetDeltaAlongX = (anchor: HTMLElement, captured: CapturedAnchorOffset) =>
+    anchor.offsetLeft - captured.offsetLeft;
+
+export const measureOffsetDeltaAlongY = (anchor: HTMLElement, captured: CapturedAnchorOffset) =>
+    anchor.offsetTop - captured.offsetTop;
+
+const readPageTransformAlong = (transformContainer: HTMLElement, axis: LayoutAxis) => {
+    const targetTransform = transformContainer.getAttribute("data-target-transform");
+    if (targetTransform) {
+        return parseNumber(targetTransform, 0, "parseFloat");
+    }
+    return getTransformLength(transformContainer, axis);
+};
+
+export const readPageTransformAlongX = (transformContainer: HTMLElement) =>
+    readPageTransformAlong(transformContainer, "x");
+
+export const readPageTransformAlongY = (transformContainer: HTMLElement) =>
+    readPageTransformAlong(transformContainer, "y");
 
 export type ScrollLocateDeltaWithEdgeInput = ScrollLocateDeltaInput & {
     initialScroll: InitialScroll;
@@ -207,28 +289,6 @@ export const alignWrapperToVisualEnd = ({
 };
 
 export const alignWrapperPassthrough = (_input: AlignWrapperInput) => {};
-
-export type AbsoluteCompensationUrlInput = {
-    direction?: string;
-    currentLocationUrl?: string;
-    redirectingDocUrl?: string;
-    holdAbsoluteAnchor: boolean;
-};
-
-export const pickAbsoluteCompensationUrl = ({
-    direction,
-    currentLocationUrl,
-    redirectingDocUrl,
-    holdAbsoluteAnchor,
-}: AbsoluteCompensationUrlInput) => {
-    if (direction === "next" || direction === "previous") {
-        return undefined;
-    }
-    if (holdAbsoluteAnchor) {
-        return currentLocationUrl || redirectingDocUrl;
-    }
-    return undefined;
-};
 
 export const READING_START_SCROLL_THRESHOLD = 8;
 
@@ -297,15 +357,3 @@ export const pickVisibleCompensationDocument = <T>(
     }
     return edge === "end" ? visible[visible.length - 1] : visible[0];
 };
-
-/** The document changing size is not the reading anchor if another chapter is visible. */
-export const excludeResizingCompensationDocument = <T>(
-    visible: readonly T[],
-    resizing?: T,
-) => (resizing ? visible.filter((item) => item !== resizing) : [...visible]);
-
-export const resolveRestoreCompensationAnchor = <T>(
-    captured: T | undefined,
-    liveHold: T | undefined,
-    useLiveHold: boolean,
-) => (useLiveHold ? liveHold ?? captured : captured);

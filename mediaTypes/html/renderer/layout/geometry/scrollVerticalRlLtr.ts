@@ -1,4 +1,4 @@
-import type { IframeSizeInput, ILayoutGeometry, RestoreScrollInput } from "./ILayoutGeometry";
+import type { IframeSizeInput, ILayoutGeometry } from "./ILayoutGeometry";
 import { formatTranslate3d, signedTranslateLength } from "./formatTranslate3d";
 import { ViewportCssVariableNames } from "../ViewportCssVariableNames";
 import {
@@ -6,37 +6,16 @@ import {
     alwaysApplyRestoredScroll,
     compensationRectAlongX,
     getScrollLocateDeltaAlongEnd,
+    measureBlockSizeDeltaAlongX,
+    measureOffsetDeltaAlongX,
+    measurePageSizeDeltaAlongX,
+    readCapturedLogicalScrollAlongX,
+    readLogicalScrollAlongX,
+    readPageTransformAlongX,
     restorePageTransformAlongEnd,
+    restoreScrollAlongLeftAnchoredReverse,
+    writeLogicalScrollAlongX,
 } from "./restoreLayoutState";
-
-const clampScroll = (value: number) => Math.max(0, value);
-
-const restoreScrollVerticalRlLtr = ({
-    liveScroll,
-    capturedScroll,
-    sizeDelta,
-    offsetDelta,
-    foundElement,
-    currentIndex,
-    anchorIndex,
-}: RestoreScrollInput) => {
-    if (currentIndex < 0 || anchorIndex < 0) {
-        return liveScroll;
-    }
-    if (currentIndex > anchorIndex) {
-        return clampScroll(liveScroll + sizeDelta);
-    }
-    if (currentIndex < anchorIndex) {
-        return liveScroll;
-    }
-    if (foundElement) {
-        return clampScroll(liveScroll + offsetDelta);
-    }
-    if (Math.abs(liveScroll - capturedScroll) > 2) {
-        return liveScroll;
-    }
-    return clampScroll(liveScroll + sizeDelta);
-};
 
 const sizeScrollVerticalRlLtrIframe = ({ iframe, contentRoot, body, parentContentHeight }: IframeSizeInput) => {
     iframe.style.removeProperty("min-height");
@@ -77,7 +56,7 @@ export const scrollVerticalRlLtr: ILayoutGeometry = {
     measureColumnsAsLtr: false,
     usesRtlPageStart: true,
     compensationAnchorEdge: "end",
-    compensationAnchorMode: "visual-edge",
+    documentOrderAnchor: "first",
     preloadRangeMode: "visual-edge",
     rewritesWrapperVisibility: true,
     holdsAbsoluteLocate: true,
@@ -113,7 +92,15 @@ export const scrollVerticalRlLtr: ILayoutGeometry = {
         height: wrapper.offsetHeight,
     }),
     restorePageTransform: restorePageTransformAlongEnd,
-    restoreScroll: restoreScrollVerticalRlLtr,
+    restoreScroll: restoreScrollAlongLeftAnchoredReverse,
+    readLogicalScroll: readLogicalScrollAlongX,
+    readCapturedLogicalScroll: readCapturedLogicalScrollAlongX,
+    writeLogicalScroll: writeLogicalScrollAlongX,
+    measureBlockSizeDelta: measureBlockSizeDeltaAlongX,
+    measureBlockOffsetDelta: measureOffsetDeltaAlongX,
+    readPageTransform: readPageTransformAlongX,
+    measurePageSizeDelta: measurePageSizeDeltaAlongX,
+    measurePageOffsetDelta: measureOffsetDeltaAlongX,
     getCompensationRect: compensationRectAlongX,
     getScrollLocateDelta: getScrollLocateDeltaAlongEnd,
     alignWrapperToViewport: alignWrapperToVisualEnd,
