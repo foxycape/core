@@ -98,12 +98,9 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                             this.owner.events.emit(EventNames.DocumentLoadFailed, this, err);
                             this.loadCompleted(true);
                         }, false);
-                        if (BrowserCapabilities.isFirefox()) {
-                            this.iframe.srcdoc = "<!DOCTYPE html><html><head></head><body></body></html>";
-                            // this.iframe.contentDocument.open();
-                            // this.iframe.contentDocument.close();
-                        }
+                       
                         const iframeDocument = this.iframe.contentDocument;
+                        const layoutState = this.captureLayoutState();
                         if ((this.options.preferSrcdoc && "srcdoc" in this.iframe) || !("write" in iframeDocument)) {
                             this.iframe.srcdoc = loadingContent;
                         }
@@ -111,8 +108,9 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                             iframeDocument.open();
                             iframeDocument.write(loadingContent);
                             iframeDocument.close();
-                            await yieldToMain();
-                        }
+                        }  
+                        await this.restoreLayoutState(layoutState);
+                        await yieldToMain();
                     }
                 }
                 else {

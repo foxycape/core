@@ -15,8 +15,14 @@ export const getTooBigHtmlTemplate = (contentLength: number) => {
 
 export const createIframe = (ownerDocument: Document, iframeId: string, forceScroll: boolean, geometry?: ILayoutGeometry): HTMLIFrameElement => {
     const iframe = createElement(ownerDocument, "iframe", iframeId);
-    if (BrowserCapabilities.isFirefox()) {
-        iframe.setAttribute("src", "javascript:");
+
+    // if (BrowserCapabilities.isFirefox()) {
+    //     iframe.setAttribute("src", "javascript:");
+    // }
+    if (BrowserCapabilities.isFirefox()||BrowserCapabilities.isSafari()) {
+        iframe.srcdoc = "<!DOCTYPE html><html><head></head><body></body></html>";
+        // this.iframe.contentDocument.open();
+        // this.iframe.contentDocument.close();
     }
     else {
         iframe.setAttribute("src", "about:blank");

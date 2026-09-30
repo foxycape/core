@@ -66,7 +66,7 @@ export const restoreScrollAlongStart = ({
     return clampScroll(capturedScroll + sizeDelta);
 };
 
-/** horizontal-tb (pre-geometry): captured + sizeDelta, or captured + offsetDelta on the first-visible element. */
+/** horizontal-tb: preceding chapter adds sizeDelta; the anchor chapter keeps live scroll unless an element anchor exists. */
 export const restoreScrollCapturedPlusSize = ({
     liveScroll,
     capturedScroll,
@@ -79,8 +79,11 @@ export const restoreScrollCapturedPlusSize = ({
     if (currentIndex < 0 || anchorIndex < 0 || currentIndex > anchorIndex) {
         return liveScroll;
     }
-    if (currentIndex === anchorIndex && foundElement) {
-        return clampScroll(capturedScroll + offsetDelta);
+    if (currentIndex === anchorIndex) {
+        if (foundElement) {
+            return clampScroll(capturedScroll + offsetDelta);
+        }
+        return liveScroll;
     }
     return clampScroll(capturedScroll + sizeDelta);
 };

@@ -136,7 +136,7 @@ describe('restoreScrollAlongStart / restorePageTransform wiring', () => {
         }))).toBe(1800)
     })
 
-    it('restores scroll-horizontal-tb with captured + sizeDelta like the pre-geometry helper', () => {
+    it('restores scroll-horizontal-tb: preceding chapter adds sizeDelta, anchor chapter keeps live scroll', () => {
         expect(scrollHorizontalTbLtr.restoreScroll(scrollInput({
             liveScroll: 80,
             capturedScroll: 80,
@@ -166,7 +166,14 @@ describe('restoreScrollAlongStart / restorePageTransform wiring', () => {
             sizeDelta: 200,
             currentIndex: 0,
             anchorIndex: 0,
-        }))).toBe(600)
+        }))).toBe(500)
+        expect(scrollHorizontalTbRtl.restoreScroll(scrollInput({
+            liveScroll: 1386,
+            capturedScroll: 1386,
+            sizeDelta: 145614,
+            currentIndex: 0,
+            anchorIndex: 0,
+        }))).toBe(1386)
         expect(scrollHorizontalTbLtr.shouldApplyRestoredScroll(0, 500)).toBe(true)
         expect(scrollHorizontalTbLtr.skipsRestoreWhileSettling).toBe(false)
         expect(scrollHorizontalTbLtr.compensationAnchorMode).toBe('first-visible')
@@ -386,7 +393,7 @@ describe('pipeline-owned scroll I/O policy', () => {
             sizeDelta: 400,
             currentIndex: 0,
             anchorIndex: 0,
-        }))).toBe(1100)
+        }))).toBe(900)
     })
 })
 

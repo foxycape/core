@@ -23,8 +23,11 @@ const restoreScrollHorizontalTbLtr = ({
     if (currentIndex < 0 || anchorIndex < 0 || currentIndex > anchorIndex) {
         return liveScroll;
     }
-    if (currentIndex === anchorIndex && foundElement) {
-        return clampScroll(capturedScroll + offsetDelta);
+    if (currentIndex === anchorIndex) {
+        if (foundElement) {
+            return clampScroll(capturedScroll + offsetDelta);
+        }
+        return liveScroll;
     }
     return clampScroll(capturedScroll + sizeDelta);
 };
