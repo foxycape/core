@@ -45,6 +45,7 @@ export class HtmlDocumentsPreloader implements IHtmlDocumentsPreloader {
 
     private onDocumentVisibleChange = () => {
         if (isProgrammaticScroll()) {
+            console.log('onDocumentVisibleChange isProgrammaticScroll')
             return;
         }
         this.schedulePreload();
