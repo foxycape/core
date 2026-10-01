@@ -168,6 +168,10 @@ export class FileLoader {
                     this.currentOpenOptions = context.openOptions;
                     pipelineOptions?.attachContext?.(context);
                 },
+                onAbortController: (abortController) => {
+                    this.abortController = abortController;
+                    pipelineOptions?.onAbortController?.(abortController);
+                },
                 isCancelled: () => this.currentIsCancelled || !!pipelineOptions?.isCancelled?.(),
             });
 

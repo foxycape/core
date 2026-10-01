@@ -2,6 +2,16 @@ import { HttpByteRange, HttpClientOptions, HttpRangeResult, IHttpClient, Respons
 import { isNumber } from "../common/number";
 import { parseContentRange } from "./contentRange";
 
+const createAbortError = () => {
+    try {
+        return new DOMException('The operation was aborted.', 'AbortError')
+    } catch {
+        const error = new Error('The operation was aborted.')
+        error.name = 'AbortError'
+        return error
+    }
+}
+
 const attachTimeout = (request: RequestInit, options?: HttpClientOptions) => {
     if (options?.abortController) {
         request.signal = options.abortController.signal
@@ -76,18 +86,38 @@ export class HttpClient implements IHttpClient {
                 if (isNumber(contentLength)) {
                     contentLength = parseInt(contentLength.toString());
                 }
+                const signal = options?.abortController?.signal
+                const cancelReader = () => {
+                    void reader.cancel().catch(() => undefined)
+                }
+                signal?.addEventListener('abort', cancelReader)
                 let receivedLength = 0;
                 let chunks = [];
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
+                let finished = false
+                try {
+                    while (true) {
+                        if (signal?.aborted) {
+                            throw createAbortError()
+                        }
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            finished = true
+                            options.downloadProgressCallback(contentLength, receivedLength, done);
+                            break;
+                        }
+                        chunks.push(value);
+                        receivedLength += value.length;
+                        //@ts-ignore
                         options.downloadProgressCallback(contentLength, receivedLength, done);
-                        break;
                     }
-                    chunks.push(value);
-                    receivedLength += value.length;
-                    //@ts-ignore
-                    options.downloadProgressCallback(contentLength, receivedLength, done);
+                } finally {
+                    signal?.removeEventListener('abort', cancelReader)
+                }
+                if (signal?.aborted) {
+                    throw createAbortError()
+                }
+                if (!finished || (isNumber(contentLength) && contentLength > 0 && receivedLength < contentLength)) {
+                    throw new Error('Incomplete download')
                 }
                 let chunksAll = new Uint8Array(receivedLength);
                 let position = 0;

@@ -246,6 +246,11 @@ export class Reader implements LifecycleHooks {
                 afterParserReady: async () => {
                     await this.loading?.show(this.getParsingText());
                 },
+                onAbortController: (abortController) => {
+                    if (abortController) {
+                        this.abortController = abortController;
+                    }
+                },
                 isCancelled: () => this.currentIsCancelled,
             });
 

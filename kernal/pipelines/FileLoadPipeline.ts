@@ -36,6 +36,11 @@ export type FileLoadPipelineOptions = {
     attachContext?: (context: Context) => void;
     /** Runs after parser.load, before metadata formatting. */
     afterParserReady?: (extension: string) => Promise<void> | void;
+    /**
+     * Fires as soon as the controller exists, before `fileParser.load`.
+     * Dispose during download can abort only if the controller is already held.
+     */
+    onAbortController?: (abortController: AbortController | undefined) => void;
     isCancelled?: () => boolean;
     measureFilePercentage?: boolean;
 };
@@ -104,6 +109,7 @@ export class FileLoadPipeline {
             formatted.extension,
             formatted.openOptions
         );
+        pipelineOptions?.onAbortController?.(abortController);
 
         const fileParser = await mediaTypeRegistry.createFileParser(
             parserUrl,

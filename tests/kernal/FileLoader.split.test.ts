@@ -198,6 +198,50 @@ describe('Reader / FileLoader split', () => {
     expect(getSimpleId).not.toHaveBeenCalled()
   })
 
+  it('publishes the abort controller before the parser loads', async () => {
+    const abortController = new AbortController()
+    const events: string[] = []
+    const fileParser = {
+      load: vi.fn(async () => {
+        events.push('load')
+      }),
+      getMetadata: vi.fn(async () => new Metadata()),
+      dispose: vi.fn(async () => undefined),
+    } as unknown as IFileParser
+
+    const pipeline = new FileLoadPipeline({
+      inputFormatter: {
+        guardUrl: vi.fn(),
+        formatInputParameters: vi.fn(async () => ({
+          url: 'https://cdn.example/book.epub',
+          openOptions: {},
+          extension: '.epub',
+        })),
+        getSimpleId: vi.fn(async () => 'hash-1'),
+        formatParserUrl: vi.fn(() => {
+          events.push('format')
+          return { url: 'https://cdn.example/book.epub', abortController }
+        }),
+        formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),
+      } as any,
+      mediaTypeRegistry: {
+        createFileParser: vi.fn(async () => fileParser),
+      } as any,
+      services: { get: vi.fn() } as any,
+      options: new Options(),
+      events: new EventEmitter(),
+      lifecycle: {},
+    })
+
+    await pipeline.load('https://cdn.example/book.epub', undefined, {
+      onAbortController: (controller) => {
+        events.push(controller === abortController ? 'abort' : 'missing')
+      },
+    })
+
+    expect(events).toEqual(['format', 'abort', 'load'])
+  })
+
   it('exposes FileLoader composition on Reader', () => {
     const reader = new TestReader(new Options(), { device: new WebBrowser() })
     expect(reader.fileLoader).toBeInstanceOf(FileLoader)
