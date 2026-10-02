@@ -1,4 +1,4 @@
-import { LocationState } from "../../../../kernal";
+import { BrowserCapabilities, LocationState } from "../../../../kernal";
 import { getElementByNameAndIndex } from "../../../../kernal/html/finder";
 import { isHtmlElement } from "../../../../kernal/html/realm";
 import { resolveVisibleTranslationAnchor } from "../../../../kernal/html/translationAnchor";
@@ -62,7 +62,7 @@ export class HtmlLayoutStatePreserver {
         this.getTransformContainer()?.removeAttribute(HtmlSettings.LayoutSwitchingAttributeName);
     }
 
-    restore(locationState: LocationState): void {
+    async restore(locationState: LocationState): Promise<void> {
         const renderer = this.doc.owner.getRenderer();
         if (!renderer || !locationState) {
             return;
@@ -82,6 +82,9 @@ export class HtmlLayoutStatePreserver {
         if (geometry.flipMode == "page") {
             if (currentIndex > anchorIndex) {
                 return;
+            }
+            if (!BrowserCapabilities.isSafari()) {
+                await this.waitUntilPageTransformStable();
             }
             this.restorePageTransform(locationState, currentIndex === anchorIndex);
             return;

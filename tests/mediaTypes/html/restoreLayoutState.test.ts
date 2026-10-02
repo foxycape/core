@@ -16,6 +16,7 @@ import {
     isAtReadingStartScroll,
     pickVisibleCompensationDocument,
     pinReadingStartScroll,
+    measurePageBoxDeltaAlongX,
     restorePageTransformAlongEnd,
     restorePageTransformAlongStart,
     restoreScrollAlongStart,
@@ -191,15 +192,16 @@ describe('restoreScrollAlongStart / restorePageTransform wiring', () => {
         expect(scrollVerticalRlLtr.skipsRestoreWhileSettling).toBe(true)
     })
 
-    it('measures horizontal page size delta from offsetWidth, not scrollWidth', () => {
+    it('measures horizontal page size delta from scrollWidth outside Safari', () => {
         const wrapper = document.createElement('div')
         Object.defineProperty(wrapper, 'offsetWidth', { configurable: true, value: 480 })
         Object.defineProperty(wrapper, 'scrollWidth', { configurable: true, value: 960 })
         const captured = { width: 120, height: 40 }
-        expect(pageHorizontalTbLtr.measurePageSizeDelta(wrapper, captured)).toBe(360)
-        expect(pageHorizontalTbRtl.measurePageSizeDelta(wrapper, captured)).toBe(360)
-        expect(pageHorizontalTbLtr.getCaptureExtent(wrapper).width).toBe(480)
-        expect(pageHorizontalTbRtl.getCaptureExtent(wrapper).width).toBe(480)
+        expect(pageHorizontalTbLtr.measurePageSizeDelta(wrapper, captured)).toBe(840)
+        expect(pageHorizontalTbRtl.measurePageSizeDelta(wrapper, captured)).toBe(840)
+        expect(pageHorizontalTbLtr.getCaptureExtent(wrapper).width).toBe(960)
+        expect(pageHorizontalTbRtl.getCaptureExtent(wrapper).width).toBe(960)
+        expect(measurePageBoxDeltaAlongX(wrapper, captured)).toBe(360)
     })
 
     it('keeps page transform +offset / -offset helpers', () => {
@@ -451,7 +453,7 @@ describe('layout axis measurement', () => {
         expect(scrollHorizontalTbLtr.measureBlockOffsetDelta(anchor, capturedOffset)).toBe(8)
         expect(pageVerticalLrLtr.measurePageSizeDelta(wrapper, extent)).toBe(200)
         expect(pageVerticalLrLtr.measurePageOffsetDelta(anchor, capturedOffset)).toBe(8)
-        expect(pageHorizontalTbLtr.measurePageSizeDelta(wrapper, extent)).toBe(120)
+        expect(pageHorizontalTbLtr.measurePageSizeDelta(wrapper, extent)).toBe(200)
         expect(pageHorizontalTbLtr.measurePageOffsetDelta(anchor, capturedOffset)).toBe(20)
     })
 

@@ -1,4 +1,4 @@
-import { LastElementAttributeName } from "../../../../../kernal";
+import { BrowserCapabilities, LastElementAttributeName } from "../../../../../kernal";
 import { HtmlSettings } from "../../../HtmlSettings";
 import type { IframeSizeInput, ILayoutGeometry } from "./ILayoutGeometry";
 import { ViewportCssVariableNames } from "../ViewportCssVariableNames";
@@ -12,6 +12,7 @@ import {
     measureOffsetDeltaAlongX,
     measureOffsetDeltaAlongY,
     measurePageBoxDeltaAlongX,
+    measurePageSizeDeltaAlongX,
     passthroughRestoreScroll,
     readCapturedLogicalScrollAlongY,
     readLogicalScrollAlongY,
@@ -193,7 +194,7 @@ export const pageHorizontalTbRtl: ILayoutGeometry = {
     getPageMoveLength: (pageBoxWidth, pageHeight, columnGap) => pageBoxWidth + columnGap,
     getColumnWidthForCss: (columnWidth, pageHeight) => columnWidth,
     getCaptureExtent: (wrapper) => ({
-        width: wrapper.offsetWidth,
+        width: BrowserCapabilities.isSafari() ? wrapper.offsetWidth : wrapper.scrollWidth,
         height: wrapper.offsetHeight,
     }),
     restorePageTransform: restorePageTransformAlongEnd,
@@ -204,7 +205,9 @@ export const pageHorizontalTbRtl: ILayoutGeometry = {
     measureBlockSizeDelta: measureBlockSizeDeltaAlongY,
     measureBlockOffsetDelta: measureOffsetDeltaAlongY,
     readPageTransform: readPageTransformAlongX,
-    measurePageSizeDelta: measurePageBoxDeltaAlongX,
+    measurePageSizeDelta: (wrapper, captured) => BrowserCapabilities.isSafari()
+        ? measurePageBoxDeltaAlongX(wrapper, captured)
+        : measurePageSizeDeltaAlongX(wrapper, captured),
     measurePageOffsetDelta: measureOffsetDeltaAlongX,
     getCompensationRect: compensationRectAlongX,
     getScrollLocateDelta: getScrollLocateDeltaAlongStart,

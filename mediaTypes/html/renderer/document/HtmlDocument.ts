@@ -104,7 +104,8 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                        
                         const iframeDocument = this.iframe.contentDocument;
                         const layoutState = this.captureLayoutState();
-                        const deferPageRestore = getLayoutGeometry(this.options).flipMode == "page";
+                        const deferPageRestore = getLayoutGeometry(this.options).flipMode == "page"
+                            && BrowserCapabilities.isSafari();
                         if (deferPageRestore) {
                             this.pendingPageLayoutState = layoutState;
                             this.concealPageStrip();
@@ -331,7 +332,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
             if (deferPlaceholderRemoval) {
                 this.wrapperContainer.classList.remove(HtmlSettings.FileContentContainerHeightClassName);
             }
-            this.layoutStatePreserver.restore(layoutState);
+            await this.layoutStatePreserver.restore(layoutState);
         }
         finally {
             this.revealPendingPageStrip();
@@ -389,7 +390,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         return this.layoutStatePreserver.capture();
     }
     async restoreLayoutState(locationState: LocationState): Promise<void> {
-        this.layoutStatePreserver.restore(locationState);
+        await this.layoutStatePreserver.restore(locationState);
     }
 
     private concealPageStrip(): void {
