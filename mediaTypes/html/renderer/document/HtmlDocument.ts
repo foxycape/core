@@ -317,6 +317,9 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         if (deferPlaceholderRemoval) {
             this.wrapperContainer.classList.remove(HtmlSettings.FileContentContainerHeightClassName);
         }
+        if (geometry.flipMode == "page") {
+            await this.flushPageAxisExtent();
+        }
         await this.restoreLayoutState(layoutState);
         if (!this.retainLoadingLayer) {
             await this.releaseLoadingLayer();
@@ -328,13 +331,15 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         this.resizeObserver.observeIframeSize(async () => {
             const geometry = getLayoutGeometry(this.options);
             const keepEnd = shouldKeepPageEndOnContentGrow(this.owner.context.currentLocation, this.url);
+            const restorePage = geometry.flipMode == "page";
             const restoreScroll = geometry.restoresScrollAfterResize || keepEnd;
-            const layoutState = restoreScroll ? this.captureLayoutState() : null;
+            const layoutState = (restorePage || restoreScroll) ? this.captureLayoutState() : null;
             this.resetLayoutSizes();
-            if (geometry.flipMode == "page") {
+            if (restorePage) {
                 this.pageCalculator.calcNumberOfPages(true);
+                await this.flushPageAxisExtent();
             }
-            if (restoreScroll && layoutState) {
+            if ((restorePage || restoreScroll) && layoutState) {
                 await this.restoreLayoutState(layoutState);
                 if (keepEnd) {
                     const pages = this.internalGetNumberOfPages();
@@ -367,6 +372,26 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     resetLayoutSizes(): void {
         this.resetIframeMinSize();
     }
+
+    /**
+     * Safari applies an iframe's min-width to the parent wrapper on the next frame.
+     * Reading the page-axis length after that frame makes sizeDelta see the new extent.
+     */
+    private flushPageAxisExtent = async () => {
+        const view = this.wrapperContainer.ownerDocument.defaultView;
+        if (view) {
+            await new Promise<void>((resolve) => {
+                view.requestAnimationFrame(() => resolve());
+            });
+        }
+        const geometry = getLayoutGeometry(this.options);
+        if (geometry.pageAxis == "y") {
+            void this.wrapperContainer.scrollHeight;
+            return;
+        }
+        void this.wrapperContainer.scrollWidth;
+    };
+
     captureLayoutState(): LocationState {
         return this.layoutStatePreserver.capture();
     }
