@@ -197,6 +197,63 @@ describe('HtmlDocumentsPreloader scroll settle gate', () => {
 
         await preloader.dispose()
     })
+
+    it('preloads the next chapter when visibility changes during a programmatic scroll', async () => {
+        vi.useFakeTimers()
+        try {
+            const nextLoad = vi.fn(async () => undefined)
+            const visible = createDoc(vi.fn(async () => undefined))
+            const next = {
+                ...createDoc(nextLoad),
+                getWrapperContainer: () => ({
+                    isVisible: false,
+                    getBoundingClientRect: () => ({
+                        left: 0,
+                        top: 400,
+                        right: 400,
+                        bottom: 800,
+                        width: 400,
+                        height: 400,
+                    }),
+                    clientWidth: 400,
+                }),
+            }
+            const renderer = {
+                clientWidth: 400,
+                querySelector: () => ({ hasAttribute: () => false }),
+                getBoundingClientRect: () => ({ left: 0, top: 0, right: 400, bottom: 400 }),
+            }
+            const events = new EventEmitter()
+            const preloader = new HtmlDocumentsPreloader(
+                events,
+                {
+                    owner: { context: { currentLocation: {} } },
+                    getRendererContainer: () => renderer,
+                    getScrollElement: () => renderer,
+                    getDocuments: () => [visible, next],
+                    getVisibleDocuments: () => [visible],
+                    getLoadedDocuments: () => [visible],
+                } as never,
+                () => undefined as never,
+                new HtmlOptions(),
+            )
+
+            beginProgrammaticScroll()
+            events.emit(EventNames.DocumentVisibleChange, next, true)
+            expect(nextLoad).not.toHaveBeenCalled()
+            expect(isUserScrollSettling()).toBe(false)
+
+            await vi.advanceTimersByTimeAsync(500)
+            expect(nextLoad).toHaveBeenCalled()
+            expect(isUserScrollSettling()).toBe(false)
+
+            endProgrammaticScroll()
+            await preloader.dispose()
+        }
+        finally {
+            vi.useRealTimers()
+        }
+    })
 })
 
 describe('HtmlDocumentsPreloader substantial visible range', () => {
