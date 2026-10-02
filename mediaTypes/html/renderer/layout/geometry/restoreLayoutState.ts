@@ -205,6 +205,12 @@ export const measurePageSizeDeltaAlongX = (
     captured: CapturedExtent,
 ) => (wrapper?.scrollWidth ?? 0) - captured.width;
 
+/** Horizontal page strips shift by the flex item's border box, not overflow scrollWidth. */
+export const measurePageBoxDeltaAlongX = (
+    wrapper: HTMLElement | null | undefined,
+    captured: CapturedExtent,
+) => (wrapper?.offsetWidth ?? 0) - captured.width;
+
 export const measurePageSizeDeltaAlongY = (
     wrapper: HTMLElement | null | undefined,
     captured: CapturedExtent,

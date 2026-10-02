@@ -54,7 +54,15 @@ export class HtmlLayoutStatePreserver {
         return state
     }
 
- async restore(locationState: LocationState): Promise<void> {
+    concealPageStrip(): void {
+        this.getTransformContainer()?.setAttribute(HtmlSettings.LayoutSwitchingAttributeName, "true");
+    }
+
+    revealPageStrip(): void {
+        this.getTransformContainer()?.removeAttribute(HtmlSettings.LayoutSwitchingAttributeName);
+    }
+
+    restore(locationState: LocationState): void {
         const renderer = this.doc.owner.getRenderer();
         if (!renderer || !locationState) {
             return;
@@ -75,7 +83,6 @@ export class HtmlLayoutStatePreserver {
             if (currentIndex > anchorIndex) {
                 return;
             }
-            await this.waitUntilPageTransformStable();
             this.restorePageTransform(locationState, currentIndex === anchorIndex);
             return;
         }

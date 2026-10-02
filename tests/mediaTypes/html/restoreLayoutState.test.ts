@@ -191,6 +191,17 @@ describe('restoreScrollAlongStart / restorePageTransform wiring', () => {
         expect(scrollVerticalRlLtr.skipsRestoreWhileSettling).toBe(true)
     })
 
+    it('measures horizontal page size delta from offsetWidth, not scrollWidth', () => {
+        const wrapper = document.createElement('div')
+        Object.defineProperty(wrapper, 'offsetWidth', { configurable: true, value: 480 })
+        Object.defineProperty(wrapper, 'scrollWidth', { configurable: true, value: 960 })
+        const captured = { width: 120, height: 40 }
+        expect(pageHorizontalTbLtr.measurePageSizeDelta(wrapper, captured)).toBe(360)
+        expect(pageHorizontalTbRtl.measurePageSizeDelta(wrapper, captured)).toBe(360)
+        expect(pageHorizontalTbLtr.getCaptureExtent(wrapper).width).toBe(480)
+        expect(pageHorizontalTbRtl.getCaptureExtent(wrapper).width).toBe(480)
+    })
+
     it('keeps page transform +offset / -offset helpers', () => {
         expect(restorePageTransformAlongStart({
             currentTransform: 100,
@@ -410,7 +421,7 @@ describe('rtl vertical scrollLeft axis', () => {
 })
 
 describe('layout axis measurement', () => {
-    const wrapper = { scrollWidth: 500, offsetHeight: 80, scrollHeight: 240 } as HTMLElement
+    const wrapper = { scrollWidth: 500, offsetWidth: 420, offsetHeight: 80, scrollHeight: 240 } as HTMLElement
     const extent = { width: 300, height: 40 }
     const anchor = { offsetLeft: 30, offsetTop: 12 } as HTMLElement
     const capturedOffset = { offsetLeft: 10, offsetTop: 4 }
@@ -440,7 +451,7 @@ describe('layout axis measurement', () => {
         expect(scrollHorizontalTbLtr.measureBlockOffsetDelta(anchor, capturedOffset)).toBe(8)
         expect(pageVerticalLrLtr.measurePageSizeDelta(wrapper, extent)).toBe(200)
         expect(pageVerticalLrLtr.measurePageOffsetDelta(anchor, capturedOffset)).toBe(8)
-        expect(pageHorizontalTbLtr.measurePageSizeDelta(wrapper, extent)).toBe(200)
+        expect(pageHorizontalTbLtr.measurePageSizeDelta(wrapper, extent)).toBe(120)
         expect(pageHorizontalTbLtr.measurePageOffsetDelta(anchor, capturedOffset)).toBe(20)
     })
 

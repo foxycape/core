@@ -50,6 +50,8 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
 
     private callbacks: { resolve: any; reject: any; }[] = [];
     private retainLoadingLayer = false;
+    private pendingPageLayoutState: LocationState | null = null;
+    private pageStripConcealed = false;
     override async load(): Promise<void> {
         await new Promise<void>(async (resolve, reject) => {
             if (this.loadStatus == "success") {
@@ -89,6 +91,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                             await this.processAfterLoaded();
                         }, false);
                         this.iframe.addEventListener("error", (err) => {
+                            this.revealPendingPageStrip();
                             this.retainLoadingLayer = false;
                             this.loadingLayer?.removeLoadingLayer();
                             this.loadStatus = "fail";
@@ -101,6 +104,11 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                        
                         const iframeDocument = this.iframe.contentDocument;
                         const layoutState = this.captureLayoutState();
+                        const deferPageRestore = getLayoutGeometry(this.options).flipMode == "page";
+                        if (deferPageRestore) {
+                            this.pendingPageLayoutState = layoutState;
+                            this.concealPageStrip();
+                        }
                         if ((this.options.preferSrcdoc && "srcdoc" in this.iframe) || !("write" in iframeDocument)) {
                             this.iframe.srcdoc = loadingContent;
                         }
@@ -108,8 +116,10 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                             iframeDocument.open();
                             iframeDocument.write(loadingContent);
                             iframeDocument.close();
-                        }  
-                        await this.restoreLayoutState(layoutState);
+                        }
+                        if (!deferPageRestore) {
+                            await this.restoreLayoutState(layoutState);
+                        }
                         await yieldToMain();
                     }
                 }
@@ -121,6 +131,7 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
                 }
             }
             catch (error) {
+                this.revealPendingPageStrip();
                 this.logger.error(error);
                 this.retainLoadingLayer = false;
                 if (!this.owner?.context) {
@@ -292,32 +303,39 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
     private processAfterLoaded = async () => {
         const contentContainer = this.getContentContainer();
         if (!contentContainer) {
+            this.revealPendingPageStrip();
             return;
         }
         contentContainer.setAttribute("data-url", this.url);
-        const layoutState = this.captureLayoutState();
+        const layoutState = this.pendingPageLayoutState ?? this.captureLayoutState();
+        this.pendingPageLayoutState = null;
         const geometry = getLayoutGeometry(this.options);
         const deferPlaceholderRemoval = geometry.iframeGrow == "width";
         if (!deferPlaceholderRemoval) {
             this.wrapperContainer.classList.remove(HtmlSettings.FileContentContainerHeightClassName);
         }
-        const postprocesses = this.owner.getRenderer()?.documentPostprocesses ?? [];
-        for (const postprocess of postprocesses) {
-            try {
-                await postprocess(this);
-                await yieldToMain();
+        try {
+            const postprocesses = this.owner.getRenderer()?.documentPostprocesses ?? [];
+            for (const postprocess of postprocesses) {
+                try {
+                    await postprocess(this);
+                    await yieldToMain();
+                }
+                catch (e) {
+                    this.logger.error('postprocess', 'function', postprocess?.name, e);
+                }
             }
-            catch (e) {
-                this.logger.error('postprocess', 'function', postprocess?.name, e);
-            }
-        }
 
-        await this.layoutStatePreserver.waitUntilPageTransformStable();
-        this.resetLayoutSizes();
-        if (deferPlaceholderRemoval) {
-            this.wrapperContainer.classList.remove(HtmlSettings.FileContentContainerHeightClassName);
+            await this.layoutStatePreserver.waitUntilPageTransformStable();
+            this.resetLayoutSizes();
+            if (deferPlaceholderRemoval) {
+                this.wrapperContainer.classList.remove(HtmlSettings.FileContentContainerHeightClassName);
+            }
+            this.layoutStatePreserver.restore(layoutState);
         }
-        await this.restoreLayoutState(layoutState);
+        finally {
+            this.revealPendingPageStrip();
+        }
         if (!this.retainLoadingLayer) {
             await this.releaseLoadingLayer();
         }
@@ -371,7 +389,21 @@ export class HtmlDocument extends BaseDocument implements IHtmlDocument {
         return this.layoutStatePreserver.capture();
     }
     async restoreLayoutState(locationState: LocationState): Promise<void> {
-        await this.layoutStatePreserver.restore(locationState);
+        this.layoutStatePreserver.restore(locationState);
+    }
+
+    private concealPageStrip(): void {
+        this.pageStripConcealed = true;
+        this.layoutStatePreserver.concealPageStrip();
+    }
+
+    private revealPendingPageStrip(): void {
+        this.pendingPageLayoutState = null;
+        if (!this.pageStripConcealed) {
+            return;
+        }
+        this.pageStripConcealed = false;
+        this.layoutStatePreserver.revealPageStrip();
     }
     private resetIframeMinSize() {
         const contentRootElement = this.getContentRootElement();
