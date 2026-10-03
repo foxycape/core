@@ -58,8 +58,13 @@ export class BrowserCapabilities {
         return !!(globalThis.matchMedia && globalThis.matchMedia(query).matches);
     }
 
+    private static browserName: string;
+    static setBrowserName(name: string): void {
+        this.browserName = name;
+    }
+
     static getBrowserName(): string {
-        return this.getBrowserData().name;
+        return this.browserName || this.getBrowserData().name;
     }
 
     static getBrowserVersion(): string {
