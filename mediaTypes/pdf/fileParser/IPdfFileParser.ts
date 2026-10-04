@@ -17,6 +17,8 @@ export type PdfFileParserOptions = {
     standardFontDataUrl?: string;
     /** Directory of pdf.js wasm decoders. Include the trailing slash. */
     wasmUrl?: string;
+    /** Directory of predefined ICC profiles. Include the trailing slash. */
+    iccUrl?: string;
     /**
      * Enable pdf.js password prompt. When true,
      * PdfPasswordProvider emits EventNames.RequirePdfPassword (app only needs to listen).

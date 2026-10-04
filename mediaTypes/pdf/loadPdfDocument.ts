@@ -10,6 +10,7 @@ export type LoadPdfDocumentOptions = {
     cMapUrl?: string;
     standardFontDataUrl?: string;
     wasmUrl?: string;
+    iccUrl?: string;
     showPasswordPrompt?: boolean;
     passwordPrompt?: (callback: (password: string) => void, reason: any) => void;
     documentInitParametersCallback?: (documentInitParameters: DocumentInitParameters) => void;
@@ -72,10 +73,23 @@ export async function loadPdfDocument(
     if (wasmUrl && !wasmUrl.endsWith("/")) {
         wasmUrl += "/"
     }
+    let iccUrl = options?.iccUrl
+    if (!iccUrl) {
+        /* @vite-ignore */
+        iccUrl = new URL('../../pdfjs/iccs/', import.meta.url).href
+        //note: here cannot add /
+        if (iccUrl.indexOf('/core/pdfjs/iccs') < 0) {
+            iccUrl = options?.internalUrlBuilder ? await options.internalUrlBuilder.getAbsoluteUrl("pdfjs/iccs/", true) : getCurrentBaseUrl() + "/pdfjs/iccs/";
+        }
+    }
+    if (iccUrl && !iccUrl.endsWith("/")) {
+        iccUrl += "/"
+    }
     const documentInitParameters: DocumentInitParameters = {
         cMapUrl: cmapUrl,
         standardFontDataUrl: standardFontDataUrl,
         wasmUrl: wasmUrl,
+        iccUrl: iccUrl,
         cMapPacked: true,
         useSystemFonts: true,
         password: options?.password,

@@ -9,6 +9,8 @@ export class PdfOptions {
     standardFontDataUrl: string;
     /** Directory of pdf.js wasm decoders (jbig2, openjpeg, qcms). Include the trailing slash. */
     wasmUrl: string;
+    /** Directory of predefined ICC profiles (DeviceCMYK). Include the trailing slash. */
+    iccUrl: string;
 
     /**
      * Text layer mode:

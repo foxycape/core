@@ -161,6 +161,7 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
             cMapUrl: this.options.cMapUrl,
             standardFontDataUrl: this.options.standardFontDataUrl,
             wasmUrl: this.options.wasmUrl,
+            iccUrl: this.options.iccUrl,
             showPasswordPrompt: this.options.showPasswordPrompt,
             passwordPrompt: this.passwordProvider.onPasswordPrompt,
             internalUrlBuilder: this.options.internalUrlBuilder,
