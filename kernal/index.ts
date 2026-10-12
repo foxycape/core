@@ -42,6 +42,7 @@ export * from './plugins/PluginRegistry';
 export * from './plugins/PluginManager';
 
 export * from "./services/font/IFontProvider";
+export * from "./services/font/IFontLoader";
 export * from './IStyleProvider';
 export * from './IThemeProvider';
 export * from './nav/Nav';

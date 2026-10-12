@@ -20,94 +20,26 @@ export type FontLoadOptions = {
 };
 
 /**
- * Font provider interface
+ * Applies a font inside one usage scenario, such as the reader or a share card.
+ * The available fonts come from IFontLoader.
  */
 export interface IFontProvider extends IDisposable {
-
     /**
-     * Initialize
+     * Initialize the font provider.
      */
     initialize(): Promise<void>;
 
     /**
-     * Reload fonts
-     */
-    reload(): Promise<void>;
-
-    /** Whether local fonts are supported */
-    get supportLocalFonts(): boolean
-
-    /**
-     * Load local fonts
-     * @param showMessageWhenFail Show a message when an error occurs
-     */
-    loadLocalFonts(showMessageWhenFail: boolean): Promise<boolean>;
-
-    /**
-     * Remove local fonts
-     */
-    removeLocalFonts(): Promise<void>;
-
-    /**
-     * Get the font list for each language
-     * @param language Optional language filter
-     */
-    getFonts(language?: string): Promise<Font[]>;
-
-    /**
-     * Get a font
-     * @param name Font name
-     */
-    getFont(name: string): Promise<Font>;
-
-    /**
-     * Get the current font
+     * Font this scenario is using.
      */
     getCurrentFont(): Promise<Font>;
 
     /**
-     * Add a font
-     * @param language
-     * @param font
-     */
-    addFont(font: Font): void;
-
-    /**
-     * Add fonts
-     * @param language
-     * @param fonts
-     */
-    addFonts(fonts: Font[]): void;
-
-    /**
-     * Remove a font
-     */
-    removeFont(font: Font | string): void;
-
-    /**
-     * Remove fonts
-     */
-    removeFonts(fonts: Font[]): void;
-
-    /**
-     * Change the current font.
+     * Use another font in this scenario.
      * @param font Font object or font name
      * @param options Optional; when `text` is set, a text-based subset may be loaded dynamically
      */
     changeFont(font: Font | string, options?: FontLoadOptions): Promise<void>;
-
-    /**
-     * Activate a font.
-     * @param ownerDocument
-     * @param font
-     * @param options Optional; when `text` is set, CSS may be generated and injected dynamically
-     */
-    activateFont(ownerDocument: Document, font: Font, options?: FontLoadOptions): Promise<void>;
-
-    /**
-     * Clear all fonts
-     */
-    clear(): void;
 }
 
 
