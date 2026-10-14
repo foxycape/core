@@ -41,4 +41,10 @@ export class PdfOptions {
 
     /** Whether to enable pdf password input prompt */
     showPasswordPrompt: boolean;
+
+    /**
+     * Page canvas pixel budget passed to pdf.js.
+     * `0` keeps the desktop default.
+     */
+    maxCanvasPixels = 0;
 }

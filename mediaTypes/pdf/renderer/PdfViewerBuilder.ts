@@ -25,7 +25,8 @@ export class PdfViewerBuilder {
     ) { }
 
     build(container: HTMLDivElement): PdfViewerBuildResult {
-        const maxCanvasPixels = DEFAULT_MAX_CANVAS_PIXELS
+        const maxCanvasPixels =
+            this.options.maxCanvasPixels > 0 ? this.options.maxCanvasPixels : DEFAULT_MAX_CANVAS_PIXELS
 
         const eventBus = new pdfjsViewer.EventBus();
         const linkService = new pdfjsViewer.PDFLinkService({
