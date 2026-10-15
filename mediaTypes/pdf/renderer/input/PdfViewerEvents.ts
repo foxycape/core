@@ -78,7 +78,11 @@ export class PdfViewerEvents {
         } else if (event.type === "touchstart") {
             from = "touch";
         }
-        this.renderer.owner.context.setUserChangedProgress(true, from);
+        const context = this.renderer.owner.context;
+        if (!context || this.renderer.owner.disposed) {
+            return;
+        }
+        context.setUserChangedProgress(true, from);
     };
 
     private onPagesLoaded = async () => {

@@ -13,6 +13,8 @@ export class PdfDocumentEvents {
     private readonly eventKeyMap = getEventKeyMap(false);
     private readonly owner: Reader;
     private readonly rendererContainer: HTMLElement;
+    private selectingPointer = false;
+    private lockedScroll: { top: number; left: number } | null = null;
 
     constructor(
         private readonly pdfViewer: MultiPDFViewer,
@@ -30,6 +32,9 @@ export class PdfDocumentEvents {
         for (const key of this.eventKeyMap.keys()) {
             this.rendererContainer.addEventListener(key, this.eventListener, true);
         }
+        this.documentsProvider.getScrollElement()?.addEventListener("scroll", this.onScroll, {
+            passive: true,
+        });
         this.owner.events.on(EventNames.PdfPageRendered, this.onPageRendered);
     }
 
@@ -41,16 +46,61 @@ export class PdfDocumentEvents {
         for (const key of this.eventKeyMap.keys()) {
             this.rendererContainer.removeEventListener(key, this.eventListener, true);
         }
+        this.documentsProvider.getScrollElement()?.removeEventListener("scroll", this.onScroll);
         this.owner.events.off(EventNames.PdfPageRendered, this.onPageRendered);
+        this.selectingPointer = false;
+        this.lockedScroll = null;
     }
 
     private onPageRendered = async ({ pageNumber }) => {
-        if (pageNumber == this.pdfViewer.currentPageNumber) {
-            this.rendererContainer.ownerDocument.getSelection()?.removeAllRanges();
+        if (pageNumber != this.pdfViewer.currentPageNumber) {
+            return;
         }
+        const ownerDocument = this.rendererContainer.ownerDocument;
+        if (checkHasValidRange(ownerDocument)) {
+            return;
+        }
+        ownerDocument.getSelection()?.removeAllRanges();
+    };
+
+    private beginSelectionScrollLock = () => {
+        if (this.lockedScroll) {
+            return;
+        }
+        const scrollElement = this.documentsProvider.getScrollElement();
+        if (!scrollElement) {
+            return;
+        }
+        this.lockedScroll = {
+            top: scrollElement.scrollTop,
+            left: scrollElement.scrollLeft,
+        };
+    };
+
+    private endSelectionScrollLock = () => {
+        this.selectingPointer = false;
+        this.lockedScroll = null;
+    };
+
+    private onScroll = () => {
+        const locked = this.lockedScroll;
+        if (!locked) {
+            return;
+        }
+        const scrollElement = this.documentsProvider.getScrollElement();
+        if (!scrollElement) {
+            return;
+        }
+        if (scrollElement.scrollTop === locked.top && scrollElement.scrollLeft === locked.left) {
+            return;
+        }
+        scrollElement.scrollTo(locked.left, locked.top);
     };
 
     private onSelectionChange = async (e) => {
+        if (this.selectingPointer && checkHasValidRange(this.rendererContainer.ownerDocument)) {
+            this.beginSelectionScrollLock();
+        }
         if (!checkHasValidRange(this.rendererContainer.ownerDocument, false)) {
             this.owner.events.emit(
                 EventNames.DocumentSelectionChange,
@@ -72,6 +122,19 @@ export class PdfDocumentEvents {
     };
 
     private eventListener = async (e: Event) => {
+        if (e.type === "touchstart" || e.type === "pointerdown") {
+            this.selectingPointer = true;
+            if (checkHasValidRange(this.rendererContainer.ownerDocument)) {
+                this.beginSelectionScrollLock();
+            }
+        } else if (
+            e.type === "touchend" ||
+            e.type === "touchcancel" ||
+            e.type === "pointerup" ||
+            e.type === "pointercancel"
+        ) {
+            this.endSelectionScrollLock();
+        }
         const customEventKey = this.eventKeyMap.get(e.type as any);
         if (customEventKey) {
             const doc =

@@ -213,10 +213,14 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
     };
 
     override async load(location?: FileLocation, isReload?: boolean): Promise<void> {
+        const context = this.owner.context;
+        if (!context || this.owner.disposed) {
+            return;
+        }
         let emitLoadFinishEvent = true;
         try {
-            this.owner.context.setUserChangedProgress(!isReload, location?.from);
-            this.owner.context.currentLocation = location;
+            context.setUserChangedProgress(!isReload, location?.from);
+            context.currentLocation = location;
 
             if (location?.storeCurrent) {
                 await this.owner.onBeforeRedirect?.(this);
@@ -233,9 +237,13 @@ export class PdfDocumentsProvider extends BaseDocumentsProvider<IPdfDocument, IP
                 return;
             }
 
+            if (!this.owner.context || this.owner.disposed) {
+                emitLoadFinishEvent = false;
+                return;
+            }
             emitLoadFinishEvent = await this.navigateToLocation(location);
         } finally {
-            if (emitLoadFinishEvent) {
+            if (emitLoadFinishEvent && this.owner.context && !this.owner.disposed) {
                 this.owner.events.emit(EventNames.PdfLoadFinished, { reader: this.owner });
             }
         }
