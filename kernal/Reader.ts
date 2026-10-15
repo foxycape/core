@@ -51,6 +51,11 @@ export class Reader implements LifecycleHooks {
 
     private currentNotifier: INotifier;
     private currentLoading: ILoading;
+    private loadingShowToken = 0;
+    private loadingDelayTimer?: ReturnType<typeof setTimeout>;
+    private pendingLoadingText?: string;
+    private isLoadingLayerVisible = false;
+    private readonly loadingShowDelayMs = 1200;
     /**Start load time */
     private startLoadTime: Date;
     private loadFail?: boolean;
@@ -222,7 +227,7 @@ export class Reader implements LifecycleHooks {
             textColor: `var(${Theme.TextMutedColor})`,
             iconColor: `var(${Theme.TextAccentColor})`,
         });
-        await this.loading?.show();
+        await this.showLoading();
 
         try {
             await this.fileLoader.getFileParser()?.dispose();
@@ -244,7 +249,7 @@ export class Reader implements LifecycleHooks {
                     };
                 },
                 afterParserReady: async () => {
-                    await this.loading?.show(this.getParsingText());
+                    await this.showLoading(this.getParsingText());
                 },
                 onAbortController: (abortController) => {
                     if (abortController) {
@@ -262,7 +267,7 @@ export class Reader implements LifecycleHooks {
             throw e;
         } finally {
             this.currentIsLoaded = true;
-            await this.loading?.hide();
+            await this.hideLoading();
             if (this.readerWrapper) {
                 this.readerWrapper.style.removeProperty("background");
                 const readerWrapperBackground = this.readerWrapper.getAttribute("data-reader-wrapper-bg");
@@ -283,10 +288,46 @@ export class Reader implements LifecycleHooks {
         return this.locale.getText("share_parsing_text", "Parsing...");
     };
 
+    /** Delay the first show. Later calls only refresh text until the layer is visible. */
+    private showLoading = async (text?: string): Promise<void> => {
+        this.pendingLoadingText = text;
+        if (this.isLoadingLayerVisible) {
+            await this.loading?.show(text);
+            return;
+        }
+        if (this.loadingDelayTimer != null) {
+            return;
+        }
+        const token = this.loadingShowToken;
+        this.loadingDelayTimer = setTimeout(() => {
+            this.loadingDelayTimer = undefined;
+            if (token !== this.loadingShowToken) {
+                return;
+            }
+            this.isLoadingLayerVisible = true;
+            void this.loading?.show(this.pendingLoadingText);
+        }, this.loadingShowDelayMs);
+    };
+
+    private cancelLoadingShow = (): void => {
+        this.loadingShowToken++;
+        if (this.loadingDelayTimer != null) {
+            clearTimeout(this.loadingDelayTimer);
+            this.loadingDelayTimer = undefined;
+        }
+        this.isLoadingLayerVisible = false;
+        this.pendingLoadingText = undefined;
+    };
+
+    private hideLoading = async (): Promise<void> => {
+        this.cancelLoadingShow();
+        await this.loading?.hide();
+    };
+
     private createFileDownloadingCallback = (): NonNullable<OpenOptions["fileDownloadingCallback"]> => {
         return async (contentLength, receivedLength, done) => {
             if (done) {
-                await this.loading?.show(this.getParsingText());
+                await this.showLoading(this.getParsingText());
                 return;
             }
             const totalBytes = contentLength > 0 ? contentLength : receivedLength;
@@ -297,7 +338,7 @@ export class Reader implements LifecycleHooks {
                 "Loading file... {loaded}/{total}",
                 { loaded, total },
             );
-            await this.loading?.show(text);
+            await this.showLoading(text);
         };
     };
 
@@ -340,7 +381,7 @@ export class Reader implements LifecycleHooks {
         this.readerContainer.setAttribute("data-viewport-mode", this.getHostViewport().mode);
 
         await this.onContainerCreated?.();
-        await this.loading?.show();
+        await this.showLoading();
 
         const readerWrapperBackground = this.readerWrapper.style.getPropertyValue("background");
         if (readerWrapperBackground) {
@@ -386,7 +427,7 @@ export class Reader implements LifecycleHooks {
         await this.getRenderer()?.applyTheme(theme);
         await this.onRenderered?.(this.renderer);
 
-        await this.loading?.hide();
+        await this.hideLoading();
         this.events.emit(EventNames.RendererLoad, this.renderer);
         await this.pluginManager?.enablePlugins(result.extension);
     }
@@ -571,6 +612,7 @@ export class Reader implements LifecycleHooks {
 
     /**Clear the reader */
     async clear() {
+        this.cancelLoadingShow();
         try {
             if (this.context?.id) {
                 if (this.startLoadTime) {
