@@ -10,6 +10,8 @@ import { PdfOptions } from "../../PdfOptions";
  */
 export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
     private readonly rendererClassName = "renderer";
+    /** PDF-only so HTML `.renderer` scroll/gesture styles stay unchanged. */
+    private readonly pdfRendererClassName = "pdf-renderer";
     private readonly rendererContainer: HTMLDivElement;
     private readonly viewerContainer: HTMLDivElement;
     private layout: LayoutMetrics;
@@ -128,8 +130,19 @@ export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
         rendererContainer: HTMLDivElement;
         viewerContainer: HTMLDivElement;
     } {
+        // WebKit centers an over-wide page with negative auto margins and then
+        // reports scrollWidth === clientWidth, so a zoomed page cannot be panned.
+        // Size the viewer to its content (at least the viewport) so the extra
+        // width is real scroll distance. overflow-x/y and touch-action are set
+        // up front so iOS enables horizontal panning before the first zoom.
         let rendererCss = `.${this.rendererClassName}{`;
         rendererCss += `position:absolute;inset:0;overflow:auto;outline:none;`;
+        rendererCss += `}`;
+        rendererCss += `.${this.pdfRendererClassName}{`;
+        rendererCss += `overflow-x:auto;overflow-y:auto;touch-action:pan-x pan-y;`;
+        rendererCss += `}`;
+        rendererCss += `.${this.pdfRendererClassName} .pdfViewer{`;
+        rendererCss += `width:max-content;min-width:100%;`;
         rendererCss += `}`;
 
         const rendererContainer = createElement(
@@ -138,6 +151,7 @@ export class PdfRendererViewport implements IRendererViewport<LayoutMetrics> {
             getRandomId(true),
             this.rendererClassName,
         );
+        rendererContainer.classList.add(this.pdfRendererClassName);
         rendererContainer.classList.add(Theme.customScrollerClassName);
         rendererContainer.setAttribute("data-role", "renderer-container");
 
