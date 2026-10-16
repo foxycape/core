@@ -34,8 +34,8 @@ export async function loadPdfDocument(
     data: PdfDocumentSource,
     options?: LoadPdfDocumentOptions,
 ) {
-    const ensurePdfWebWorker = await import('./ensurePdfWebWorker').then(m => m.ensurePdfWebWorker);
-    await ensurePdfWebWorker();
+    const { createPdfDocumentWorker, terminatePdfDocumentWorker } = await import('./ensurePdfWebWorker');
+    const pdfWorker = await createPdfDocumentWorker();
 
     let cmapUrl = options?.cMapUrl
     if (!cmapUrl) {
@@ -93,6 +93,7 @@ export async function loadPdfDocument(
         cMapPacked: true,
         useSystemFonts: true,
         password: options?.password,
+        worker: pdfWorker,
     }
     let opened = false
     let rejectRange: ((error: unknown) => void) | undefined
@@ -122,6 +123,7 @@ export async function loadPdfDocument(
     if (options?.documentInitParametersCallback) {
         options.documentInitParametersCallback(documentInitParameters);
     }
+    documentInitParameters.worker = pdfWorker
     // Re-apply after the callback. pdf.js ignores `range` when `data` is set.
     if (rangeTransport) {
         documentInitParameters.range = rangeTransport
@@ -129,7 +131,13 @@ export async function loadPdfDocument(
         documentInitParameters.disableAutoFetch = true
         documentInitParameters.data = undefined
     }
-    const loadingTask = pdfjsLib.getDocument(documentInitParameters)
+    let loadingTask: PDFDocumentLoadingTask
+    try {
+        loadingTask = pdfjsLib.getDocument(documentInitParameters)
+    } catch (error) {
+        terminatePdfDocumentWorker(pdfWorker)
+        throw error
+    }
     // getDocument only stores an internally created worker. A caller-supplied
     // worker stays unset, so destroy() would leak it.
     const taskWithWorker = loadingTask as unknown as {
@@ -142,7 +150,12 @@ export async function loadPdfDocument(
         loadingTask.onPassword = options?.passwordPrompt
     }
     if (!rangeTransport) {
-        return await loadingTask.promise
+        try {
+            return await loadingTask.promise
+        } catch (error) {
+            await destroyLoadingTask(loadingTask)
+            throw error
+        }
     }
     try {
         return await new Promise<Awaited<PDFDocumentLoadingTask['promise']>>((resolve, reject) => {
@@ -162,9 +175,6 @@ export async function loadPdfDocument(
 }
 
 const destroyLoadingTask = async (task: PDFDocumentLoadingTask) => {
-    try {
-        await task.destroy()
-    } catch {
-        // Already destroyed, or the worker closed while the range read failed.
-    }
+    const { destroyPdfLoadingTask } = await import('./ensurePdfWebWorker')
+    await destroyPdfLoadingTask(task)
 }

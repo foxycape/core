@@ -13,6 +13,7 @@ import { PdfPasswordProvider } from "./PdfPasswordProvider";
 import { BlobByteSource } from "../../../kernal/io/BlobByteSource";
 import { materialize, type IByteSource } from "../../../kernal/io/IByteSource";
 import { MemoryByteSource } from "../../../kernal/io/MemoryByteSource";
+import { destroyPdfLoadingTask } from "../ensurePdfWebWorker";
 
 export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
     private readonly passwordProvider: PdfPasswordProvider;
@@ -246,15 +247,13 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
 
     override async dispose(): Promise<void> {
         await super.dispose();
-        for (const [key, value] of this.pdfDocs.entries()) {
+        for (const [, value] of this.pdfDocs.entries()) {
             try {
                 await value.cleanup();
-                if (value.loadingTask) {
-                    await value.loadingTask.destroy();
-                }
+                await destroyPdfLoadingTask(value.loadingTask);
                 await value.destroy();
             } catch (e) {
-                //
+                await destroyPdfLoadingTask(value.loadingTask);
             }
         }
         this.pdfDocs.clear();

@@ -5,6 +5,7 @@ import * as pdfjsViewer from '../../../pdfjs/legacy/web/pdf_viewer.mjs';
 import { PDFViewerOptions } from "../../../pdfjs/types/web/pdf_viewer";
 import { PdfOptions } from "../PdfOptions";
 import { getPageText } from "../shared/text/pageText";
+import { destroyPdfLoadingTask } from "../ensurePdfWebWorker";
 
 export class MultiPDFViewer extends pdfjsViewer.PDFViewer implements IDisposable {
    private isMultiDocument: boolean;
@@ -75,9 +76,7 @@ export class MultiPDFViewer extends pdfjsViewer.PDFViewer implements IDisposable
             if (fromRemote) {
                const doc = result.doc;
                await doc.cleanup(false);
-               if (doc.loadingTask) {
-                  await doc.loadingTask.destroy();
-               }
+               await destroyPdfLoadingTask(doc.loadingTask);
                await doc.destroy();
             }
             return text;
@@ -226,9 +225,7 @@ export class MultiPDFViewer extends pdfjsViewer.PDFViewer implements IDisposable
                await value.doc.cleanup();
             }
 
-            if (value.doc?.loadingTask) {
-               await value.doc.loadingTask.destroy();
-            }
+            await destroyPdfLoadingTask(value.doc?.loadingTask);
             if (value.doc) {
                await value.doc.destroy();
             }
