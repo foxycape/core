@@ -16490,7 +16490,7 @@ class InternalRenderTask {
   }
 }
 const version = "5.7.284";
-const build = "e6366b2";
+const build = "a6905cd";
 
 ;// ./src/display/editor/color_picker.js
 

@@ -1,6 +1,6 @@
 {
   "name": "@foxycape/core",
-  "version": "1.1.7",
+  "version": "1.2.0",
   "description": "Browser-side multi-format reader kernel with pluggable parsers, renderers, services, and plugins.",
   "license": "MIT",
   "type": "module",
@@ -90,7 +90,6 @@
     "ua-parser-js": "^2.0.10"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^29.0.3",
     "@types/node": "^26.2.0",
     "@types/ua-parser-js": "^0.7.39",
     "@typescript/typescript6": "^6.0.2",

@@ -2,7 +2,7 @@ import { computeUniqueId, getUuid } from "./common/uuid";
 
 /** resolve script src: resolve the current module/script URL, used to concatenate built-in resource paths */
 const resolveScriptSrc = (): string => {
-    if (typeof import.meta !== "undefined" && import.meta.url) {
+    if (import.meta.url) {
         return import.meta.url;
     }
     if (typeof document !== "undefined") {

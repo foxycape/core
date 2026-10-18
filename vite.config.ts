@@ -3,7 +3,6 @@ import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from 'fs'
 import { defineConfig, type Plugin } from 'vite'
 import dts from 'vite-plugin-dts'
 import { glob } from 'glob';
-import commonjs from '@rollup/plugin-commonjs'
 import requireTransform from 'vite-plugin-require-transform';//引入require
 
 const rootDir = import.meta.dirname
@@ -66,8 +65,6 @@ export default defineConfig({
     }
   },
   build: {
-    commonjsOptions: { include: [] },
-
     // sourcemap: true,
     lib: {
       entry: path.resolve(rootDir, './kernal/index.ts'),
@@ -76,6 +73,9 @@ export default defineConfig({
       // fileName: "[name]"
     },
     rollupOptions: {
+      checks: {
+        emptyImportMeta: false,
+      },
       input: input,
       // Keep runtime deps external so published consumers resolve them from node_modules.
       external: isExternal,
@@ -101,7 +101,6 @@ export default defineConfig({
     format: 'es',
   },
   plugins: [
-    commonjs() as any,
     requireTransform({
       fileRegex: /.js$|.ts$/
     }),

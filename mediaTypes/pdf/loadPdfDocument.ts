@@ -30,6 +30,41 @@ const isByteSource = (value: PdfDocumentSource): value is IByteSource => {
         && typeof (value as IByteSource).close === 'function';
 };
 
+const readModuleUrl = (): string => {
+    const moduleUrl = import.meta.url
+    return typeof moduleUrl === 'string' ? moduleUrl : ''
+}
+
+const resolvePdfAssetUrl = async (
+    explicit: string | undefined,
+    relativeToModule: string,
+    devPathMarker: string,
+    publicDir: string,
+    options?: LoadPdfDocumentOptions,
+): Promise<string> => {
+    let url = explicit ?? ''
+    if (!url) {
+        const moduleUrl = readModuleUrl()
+        if (moduleUrl) {
+            try {
+                url = new URL(relativeToModule, moduleUrl).href
+            } catch {
+                url = ''
+            }
+        }
+        //note: here cannot add /
+        if (!url || url.indexOf(devPathMarker) < 0) {
+            url = options?.internalUrlBuilder
+                ? await options.internalUrlBuilder.getAbsoluteUrl(publicDir, true)
+                : getCurrentBaseUrl() + '/' + publicDir
+        }
+    }
+    if (url && !url.endsWith('/')) {
+        url += '/'
+    }
+    return url
+}
+
 export async function loadPdfDocument(
     data: PdfDocumentSource,
     options?: LoadPdfDocumentOptions,
@@ -37,54 +72,10 @@ export async function loadPdfDocument(
     const { createPdfDocumentWorker, terminatePdfDocumentWorker } = await import('./ensurePdfWebWorker');
     const pdfWorker = await createPdfDocumentWorker();
 
-    let cmapUrl = options?.cMapUrl
-    if (!cmapUrl) {
-        /* @vite-ignore */
-        cmapUrl = new URL('../../pdfjs/cmaps/', import.meta.url).href
-        //note: here cannot add /
-        if (cmapUrl.indexOf('/core/pdfjs/cmaps') < 0) {
-            cmapUrl = options?.internalUrlBuilder ? await options.internalUrlBuilder.getAbsoluteUrl("pdfjs/cmaps/", true) : getCurrentBaseUrl() + "/pdfjs/cmaps/";
-        }
-    }
-    if (cmapUrl && !cmapUrl.endsWith("/")) {
-        cmapUrl += "/"
-    }
-    let standardFontDataUrl = options?.standardFontDataUrl
-    if (!standardFontDataUrl) {
-        /* @vite-ignore */
-        standardFontDataUrl = new URL('../../pdfjs/standard_fonts/', import.meta.url).href
-        //note: here cannot add /
-        if (standardFontDataUrl.indexOf('/core/pdfjs/standard_fonts') < 0) {
-            standardFontDataUrl = options?.internalUrlBuilder ? await options.internalUrlBuilder.getAbsoluteUrl("pdfjs/standard_fonts/", true) : getCurrentBaseUrl() + "/pdfjs/standard_fonts/";
-        }
-    }
-    if (standardFontDataUrl && !standardFontDataUrl.endsWith("/")) {
-        standardFontDataUrl += "/"
-    }
-    let wasmUrl = options?.wasmUrl
-    if (!wasmUrl) {
-        /* @vite-ignore */
-        wasmUrl = new URL('../../pdfjs/wasm/', import.meta.url).href
-        //note: here cannot add /
-        if (wasmUrl.indexOf('/core/pdfjs/wasm') < 0) {
-            wasmUrl = options?.internalUrlBuilder ? await options.internalUrlBuilder.getAbsoluteUrl("pdfjs/wasm/", true) : getCurrentBaseUrl() + "/pdfjs/wasm/";
-        }
-    }
-    if (wasmUrl && !wasmUrl.endsWith("/")) {
-        wasmUrl += "/"
-    }
-    let iccUrl = options?.iccUrl
-    if (!iccUrl) {
-        /* @vite-ignore */
-        iccUrl = new URL('../../pdfjs/iccs/', import.meta.url).href
-        //note: here cannot add /
-        if (iccUrl.indexOf('/core/pdfjs/iccs') < 0) {
-            iccUrl = options?.internalUrlBuilder ? await options.internalUrlBuilder.getAbsoluteUrl("pdfjs/iccs/", true) : getCurrentBaseUrl() + "/pdfjs/iccs/";
-        }
-    }
-    if (iccUrl && !iccUrl.endsWith("/")) {
-        iccUrl += "/"
-    }
+    const cmapUrl = await resolvePdfAssetUrl(options?.cMapUrl, '../../pdfjs/cmaps/', '/core/pdfjs/cmaps', 'pdfjs/cmaps/', options)
+    const standardFontDataUrl = await resolvePdfAssetUrl(options?.standardFontDataUrl, '../../pdfjs/standard_fonts/', '/core/pdfjs/standard_fonts', 'pdfjs/standard_fonts/', options)
+    const wasmUrl = await resolvePdfAssetUrl(options?.wasmUrl, '../../pdfjs/wasm/', '/core/pdfjs/wasm', 'pdfjs/wasm/', options)
+    const iccUrl = await resolvePdfAssetUrl(options?.iccUrl, '../../pdfjs/iccs/', '/core/pdfjs/iccs', 'pdfjs/iccs/', options)
     const documentInitParameters: DocumentInitParameters = {
         cMapUrl: cmapUrl,
         standardFontDataUrl: standardFontDataUrl,
