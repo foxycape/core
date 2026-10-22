@@ -1,6 +1,6 @@
 import { NavPoint } from "../nav/Nav";
 
-/**目录导航 */
+/** Table-of-contents navigation. */
 export interface INavPointNavigator {
 
     /**

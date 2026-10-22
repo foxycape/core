@@ -1,5 +1,4 @@
 import { convertBase64ToArrayBuffer } from "../common/buffer";
-import { digestStream } from "./hash";
 import { CryptoOptions, HashAlgorithm, ICrypto } from "./ICrypto";
 
 const getCryptoSubtle = () => {
@@ -70,9 +69,33 @@ const importRsaPrivateKey = async (key: string | ArrayBuffer) => {
     );
 };
 
+const toDigestBytes = async (data: string | Blob | Uint8Array | ArrayBuffer): Promise<BufferSource> => {
+    if (typeof data === 'string') {
+        return new TextEncoder().encode(data);
+    }
+    if (data instanceof Blob) {
+        return await data.arrayBuffer();
+    }
+    return data as BufferSource;
+};
+
+const toHex = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer);
+    let hex = '';
+    for (let index = 0; index < bytes.length; index++) {
+        hex += bytes[index].toString(16).padStart(2, '0');
+    }
+    return hex;
+};
+
 export class WebCrypto implements ICrypto {
     async digest(data: string | Blob | Uint8Array | ArrayBuffer, hashAlgorithm?: HashAlgorithm) {
-        return digestStream(data, hashAlgorithm ?? 'SHA-256');
+        const algorithm = hashAlgorithm ?? 'SHA-256';
+        if (algorithm === 'MD5') {
+            throw new Error('MD5 is not implemented');
+        }
+        const digest = await getCryptoSubtle().digest(algorithm, await toDigestBytes(data));
+        return toHex(digest);
     }
 
     async encrypt(data: string | ArrayBuffer, options: CryptoOptions): Promise<ArrayBuffer> {

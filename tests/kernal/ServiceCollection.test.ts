@@ -17,7 +17,7 @@ describe('ServiceCollection core/ui split', () => {
     services.registerCoreServices()
 
     expect(services.has('httpClient')).toBe(true)
-    expect(services.has('crypto')).toBe(true)
+    expect(services.has('crypto')).toBe(false)
     expect(services.has('notifier' as keyof CoreServiceMap)).toBe(false)
   })
 

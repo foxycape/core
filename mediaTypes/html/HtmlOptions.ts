@@ -100,7 +100,7 @@ export class HtmlOptions {
     /** Whether to prefer the srcdoc attribute */
     preferSrcdoc: boolean = false;
 
-    /** Whether to highlight fenced code blocks with highlight.js */
+    /** Whether the host should highlight fenced code blocks. Core does not ship a highlighter. */
     enableFormatCodeBlock: boolean = true;
 
     /** HTML block-level tags */

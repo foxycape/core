@@ -7,7 +7,7 @@ export interface ILanguageHighlighter extends IDisposable {
     highlight(doc: IDocument): Promise<void>;
 
     /**
-     * Swap highlight.js theme CSS on already-loaded documents.
+     * Swap syntax-highlight theme CSS on already-loaded documents.
      */
     applyTheme(theme: Theme): Promise<void>;
 }

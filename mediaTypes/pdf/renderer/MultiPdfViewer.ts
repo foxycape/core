@@ -126,7 +126,7 @@ export class MultiPDFViewer extends pdfjsViewer.PDFViewer implements IDisposable
             });
          }
          else {
-            //如果是单个文档，不用等待
+            // A single document does not need to wait
             this.#ensurePdfPageLoaded(pageView).then((pdfPage) => {
                this.forceRenderingQueue.delete(pageView.id);
                if (pageView.pdfPage) {

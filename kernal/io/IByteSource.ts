@@ -1,4 +1,5 @@
-import { HASH_CHUNK_SIZE } from "../crypto/hash";
+/** Read size when copying a byte source into one buffer. */
+const MATERIALIZE_CHUNK_SIZE = 2 * 1024 * 1024;
 
 /**
  * Random-access bytes. `read` uses a half-open range `[start, end)`.
@@ -58,7 +59,7 @@ export const materialize = async (source: IByteSource): Promise<ArrayBuffer> => 
     const output = new Uint8Array(source.size)
     let offset = 0
     while (offset < source.size) {
-        const end = Math.min(offset + HASH_CHUNK_SIZE, source.size)
+        const end = Math.min(offset + MATERIALIZE_CHUNK_SIZE, source.size)
         const chunk = await source.read(offset, end)
         if (chunk.byteLength === 0) {
             break

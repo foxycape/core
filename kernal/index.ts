@@ -60,8 +60,5 @@ export { assertByteRange, materialize, readExact, sliceByteSource } from './io/I
 export { BlobByteSource } from './io/BlobByteSource'
 export { HttpByteSource, openHttpByteSource } from './io/HttpByteSource'
 export { MemoryByteSource } from './io/MemoryByteSource'
-export { computeMd5, computeSimpleId } from './crypto/MD5'
-export { createHasher, digestMany, digestStream, HASH_CHUNK_SIZE, SIMPLE_ID_BYTE_LENGTH } from './crypto/hash'
-export type { DigestSource, HashSpec, StreamingHasher } from './crypto/hash'
 export * from './JsonConvert'
 export * from './ContentRange'

@@ -112,12 +112,6 @@ export class ServiceCollection<TMap extends CoreServiceMap = ServiceMap> {
                 return new HttpClient();
             });
         }
-        if (!this.has("crypto")) {
-            this.add("crypto", async () => {
-                const { WebCrypto } = await import("../crypto/WebCrypto");
-                return new WebCrypto();
-            });
-        }
         if (!this.has("internalUrlBuilder")) {
             this.add("internalUrlBuilder", async () => {
                 const { DefaultInternalUrlBuilder } = await import("./internalUrlBuilder/DefaultInternalUrlBuilder");

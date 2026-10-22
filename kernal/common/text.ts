@@ -129,7 +129,7 @@ export const formatText = (text: string, options: TextFormatOptions) => {
     return text;
 };
 
-/** CJK Unified Ideographs and Compatibility zones (aligned with `checkIsCJKChars`); excludes `\w` so spaces between digits/Latin and CJK (e.g. "05 如何") are preserved */
+/** CJK Unified Ideographs and Compatibility zones (aligned with `checkIsCJKChars`); excludes `\w` so spaces between digits/Latin and CJK (e.g. digits, a space, then a CJK character) are preserved */
 const CJK_IDEOGRAPH_CLASS = '[\\u2E00-\\u312F\\u3190-\\u9FFF]';
 const CJK_IDEOGRAPH_REGEX = /[\u2E00-\u312F\u3190-\u9FFF]/;
 

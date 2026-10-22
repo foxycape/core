@@ -62,9 +62,9 @@ export class PdfSelection implements IPdfSelection {
     private englishPunctuations = /[ !"'@#$%^&*()\-+=;:<>?,.~`/|\]\[}{]/;
     private latinCharaters = /[\u0000-\u00FF]/;
 
-    /** 句末标点（一句话结束） */
+    /** Punctuation that ends a sentence. */
     private sentenceEndPunctuations = ["。", "！", "？", "…", "；", "：", ".", "!", "?", ";"];
-    /** 其他行末标点 */
+    /** Other punctuation that can end a line. */
     private otherEndPunctuations = ["，", "、", ",", ":", "）", ")", "》", "」", "』", "]", "】"];
 
     /**
@@ -85,7 +85,7 @@ export class PdfSelection implements IPdfSelection {
             return normalized[0].text;
         }
 
-        // 所有文本行的外接矩形，作为左右空隙的参照
+        // Union box of every text line, used to measure left and right gaps.
         const maxRect = this.calcMaxRect(normalized);
         let out = normalized[0].text;
         for (let i = 1; i < normalized.length; i++) {
@@ -128,8 +128,8 @@ export class PdfSelection implements IPdfSelection {
     }
 
     /**
-     * 是否应软换行拼接（true=不换行，false=换段）。
-     * 先按标点分类，再结合相对外接矩形的 rightGap / leftGap，最后回退到原对齐启发式。
+     * Whether the next line stays in the same paragraph (true) or starts a new one (false).
+     * Classify the previous line by punctuation, then use rightGap / leftGap against the union box, then fall back to the alignment heuristic.
      */
     private checkAllowAppendToHorizontal(
         previousRect: CustomRect,
@@ -153,32 +153,32 @@ export class PdfSelection implements IPdfSelection {
         );
 
         const endKind = this.getLineEndKind(previousRect.text);
-        // 相对外接矩形：右侧空隙约 ≥3 字宽视为短行；左侧 ≥1.5 字宽视为缩进
+        // Against the union box: a right gap of about 3 character widths is a short line; a left gap of 1.5 is an indent.
         const rightEmpty = rightGap > charSize * 3;
         const leftIndented = leftGap > charSize * 1.5;
 
-        // 1) 有标点
+        // 1) The previous line ends with punctuation.
         if (endKind === "sentence") {
-            // 句末：右侧空或左侧缩进 → 换段；两侧都贴边 → 段内软换行
+            // Sentence end: a short line or an indent starts a new paragraph; lines flush on both sides stay joined.
             if (rightEmpty || leftIndented) {
                 return false;
             }
             return true;
         }
         if (endKind === "other") {
-            // 其他标点：默认未结束；仅当短行+缩进都明显时换段
+            // Other punctuation: the sentence is still open unless the line is both short and indented.
             if (rightEmpty && leftIndented) {
                 return false;
             }
             return true;
         }
 
-        // 2) 无标点：很可能没说完，默认软换行；短行+缩进才换段
+        // 2) No punctuation: the sentence is probably unfinished, so join unless the line is both short and indented.
         if (rightEmpty && leftIndented) {
             return false;
         }
 
-        // 回退：原对齐启发式（处理居中/缩进/同宽多行等）
+        // Fall back to the alignment heuristic for centered, indented, or equal-width lines.
         return this.checkAlignmentAllowsAppend(
             previousRect,
             currentRect,
@@ -189,7 +189,7 @@ export class PdfSelection implements IPdfSelection {
         );
     }
 
-    /** 原 PdfTextAssistant 对齐启发式（true=继续拼接） */
+    /** Original PdfTextAssistant alignment heuristic. True keeps the lines joined. */
     private checkAlignmentAllowsAppend(
         previousRect: CustomRect,
         currentRect: CustomRect,
@@ -255,7 +255,7 @@ export class PdfSelection implements IPdfSelection {
             return true;
         }
 
-        // 无标点时原逻辑倾向继续
+        // Without punctuation the original heuristic prefers to keep joining.
         return true;
     }
 

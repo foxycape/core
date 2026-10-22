@@ -10,7 +10,6 @@ import {
 } from '../../kernal'
 import { HtmlRenderer } from '../../mediaTypes/html/renderer/HtmlRenderer'
 import { ContentCssVariables, registerHtmlMediaType } from './registerHtmlMediaType'
-import { KeyboardPageTurning } from '../../kernal/plugins/keyboard/KeyboardPageTurning'
 import { WheelPageTurning } from '../../kernal/plugins/mouse/WheelPageTurning'
 import { HtmlOptions } from '../../mediaTypes/html/HtmlOptions'
 
@@ -225,7 +224,6 @@ options.themeName = 'default'
 
 const reader = new Reader(options, { device: new WebBrowser() })
 
-PluginRegistry.register('keyboard-page-turning', KeyboardPageTurning)
 PluginRegistry.register('wheel-page-turning', WheelPageTurning)
 
 const sampleThemeProvider: IThemeProvider = {

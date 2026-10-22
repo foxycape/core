@@ -115,7 +115,7 @@ export class DefaultFileUrlParser implements IFileUrlParser {
                     else {
                         data = await this.getDataFromStringUrl(fullUrl, options);
                         if (!data || data.byteLength == 0) {
-                            //尝试使用网络请求
+                            // Fall back to a network request
                             data = await this.getDataFromNetworkUrl(fullUrl, options);
                         }
                     }

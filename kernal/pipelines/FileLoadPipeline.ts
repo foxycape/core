@@ -188,6 +188,6 @@ export class FileLoadPipeline {
         if (simpleIdProvider) {
             return simpleIdProvider.getSimpleId(url);
         }
-        return this.deps.inputFormatter.getSimpleId(url, openOptions?.id);
+        throw new Error("simpleIdProvider is not registered");
     }
 }

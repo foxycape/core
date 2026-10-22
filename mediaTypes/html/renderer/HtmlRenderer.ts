@@ -96,15 +96,11 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
         }
     };
 
-    private languageHighlighter?: ILanguageHighlighter;
-    private async getHighlighter(): Promise<ILanguageHighlighter> {
-        if (this.htmlOptions.enableFormatCodeBlock) {
-            if (!this.languageHighlighter) {
-                const { LanguageHighlighter } = await import("./style/LanguageHighlighter");
-                this.languageHighlighter = new LanguageHighlighter(this);
-            }
-            return this.languageHighlighter;
-        }
+    /**
+     * Hosts that highlight fenced code blocks override this.
+     * Core does not ship a highlighter.
+     */
+    protected async getHighlighter(): Promise<ILanguageHighlighter | undefined> {
         return undefined;
     }
 
@@ -255,8 +251,6 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
         await this.imageLoader.dispose();
         await super.dispose();
         await this.styleProvider?.dispose();
-        await this.languageHighlighter?.dispose();
-        this.languageHighlighter = undefined;
         await this.navPointProvider?.dispose()
         await this.pagingNavigator?.dispose()
         await this.documentsResizeObserver.dispose();

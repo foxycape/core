@@ -2,8 +2,6 @@ import { deepClone } from "../common/object";
 import { getExtension } from "../common/path";
 import { isNullOrWhiteSpace } from "../common/text";
 import { checkIsHttpUrl } from "../common/url";
-import { getUuid } from "../common/uuid";
-import { computeSimpleId } from "../crypto/MD5";
 import { getDocumentBody } from "../html/finder";
 import { FilePackage } from "../IFileParser";
 import { OpenOptions } from "../OpenOptions";
@@ -149,37 +147,6 @@ export class InputFormatter {
             extension = "." + extension;
         }
         return extension?.toLowerCase();
-    }
-
-    getSimpleId = async (url: any, existId?:string) => {
-        let id = existId ?? "";
-        if (!id && url instanceof FilePackage) {
-            id = url.id;
-        }
-        if (id) {
-            return id
-        }
-
-        if (isNullOrWhiteSpace(id)) {
-            if (typeof url === "string" ||
-                url instanceof ArrayBuffer
-                || url instanceof Uint8Array
-                || url instanceof Blob
-                || (globalThis.FileSystemFileHandle && url instanceof FileSystemFileHandle)) {
-                    id = await computeSimpleId(url);
-            } else if (url instanceof FilePackage) {
-                if (url.id) {
-                    id = url.id;
-                }
-                else {
-                    throw new Error('Missing id in FilePackage')
-                }
-            }
-            else {
-                id = getUuid();
-            }
-        }
-        return id
     }
 
     formatLocation = (inputLocation: FileLocation | number | string, extension: string) => {

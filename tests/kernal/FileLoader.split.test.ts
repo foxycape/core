@@ -13,6 +13,12 @@ import { WebBrowser } from '@/kernal/device/WebBrowser'
 
 class TestReader extends Reader {}
 
+const servicesProvidingSimpleId = (id: string) => ({
+  get: vi.fn(async (name: string) =>
+    name === 'simpleIdProvider' ? { getSimpleId: async () => id } : undefined,
+  ),
+})
+
 describe('Reader / FileLoader split', () => {
   it('requires container on Reader.open', async () => {
     const reader = new TestReader(new Options(), { device: new WebBrowser() })
@@ -37,7 +43,6 @@ describe('Reader / FileLoader split', () => {
         openOptions: {},
         extension: '.pdf',
       })),
-      getSimpleId: vi.fn(async () => 'hash-1'),
       formatParserUrl: vi.fn(() => ({ url: 'book.pdf', abortController: undefined })),
       formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),
     }
@@ -45,7 +50,7 @@ describe('Reader / FileLoader split', () => {
     const pipeline = new FileLoadPipeline({
       inputFormatter: inputFormatter as any,
       mediaTypeRegistry: mediaTypeRegistry as any,
-      services: { get: vi.fn() } as any,
+      services: servicesProvidingSimpleId('hash-1') as any,
       options: new Options(),
       events: new EventEmitter(),
       lifecycle: {},
@@ -86,14 +91,13 @@ describe('Reader / FileLoader split', () => {
           openOptions: { metadata: overlay },
           extension: '.epub',
         })),
-        getSimpleId: vi.fn(async () => 'sha-1'),
         formatParserUrl: vi.fn(() => ({ url: 'book.epub', abortController: undefined })),
         formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),
       } as any,
       mediaTypeRegistry: {
         createFileParser: vi.fn(async () => fileParser),
       } as any,
-      services: { get: vi.fn() } as any,
+      services: servicesProvidingSimpleId('sha-1') as any,
       options: new Options(),
       events: new EventEmitter(),
       lifecycle: {},
@@ -198,6 +202,28 @@ describe('Reader / FileLoader split', () => {
     expect(getSimpleId).not.toHaveBeenCalled()
   })
 
+  it('throws when no id and no simpleIdProvider are available', async () => {
+    const pipeline = new FileLoadPipeline({
+      inputFormatter: {
+        guardUrl: vi.fn(),
+        formatInputParameters: vi.fn(async () => ({
+          url: 'book.pdf',
+          openOptions: {},
+          extension: '.pdf',
+        })),
+        formatParserUrl: vi.fn(() => ({ url: 'book.pdf', abortController: undefined })),
+        formatLocation: vi.fn(() => ({ location: undefined, percentage: undefined })),
+      } as any,
+      mediaTypeRegistry: { createFileParser: vi.fn() } as any,
+      services: { get: vi.fn(async () => undefined) } as any,
+      options: new Options(),
+      events: new EventEmitter(),
+      lifecycle: {},
+    })
+
+    await expect(pipeline.load('book.pdf')).rejects.toThrow('simpleIdProvider is not registered')
+  })
+
   it('publishes the abort controller before the parser loads', async () => {
     const abortController = new AbortController()
     const events: string[] = []
@@ -217,7 +243,6 @@ describe('Reader / FileLoader split', () => {
           openOptions: {},
           extension: '.epub',
         })),
-        getSimpleId: vi.fn(async () => 'hash-1'),
         formatParserUrl: vi.fn(() => {
           events.push('format')
           return { url: 'https://cdn.example/book.epub', abortController }
@@ -227,7 +252,7 @@ describe('Reader / FileLoader split', () => {
       mediaTypeRegistry: {
         createFileParser: vi.fn(async () => fileParser),
       } as any,
-      services: { get: vi.fn() } as any,
+      services: servicesProvidingSimpleId('hash-1') as any,
       options: new Options(),
       events: new EventEmitter(),
       lifecycle: {},

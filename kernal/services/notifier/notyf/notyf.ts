@@ -63,7 +63,7 @@ export default class Notyf {
   }
 
   public open(options: DeepPartial<INotyfNotificationOptions>) {
-    //阻止多次弹出
+    // Skip when a toast is already open
     // if (this.notifications.getLength() > 0)
     //   return;
     let notifies = this.getOwnerDocument().getElementById(this.containerId).children;

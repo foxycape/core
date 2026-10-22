@@ -51,7 +51,7 @@ export class HtmlImageObserver implements IDisposable {
             for (const entry of entries) {
                 const target = entry.target;
                 const isIntersecting = entry.isIntersecting || entry.intersectionRatio > 0;
-                // SVG <image>： In some environments, the intersection detection is unstable, so even if it is not intersecting, it is纳入可见集合
+                // SVG <image>: intersection detection is unstable in some environments, so count it as visible even when it is not intersecting.
                 if (isIntersecting || compareTagName(target.tagName, "IMAGE")) {
                     this.visibleImages.add(target);
                 } else {

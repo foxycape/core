@@ -3,7 +3,7 @@ import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from 'fs'
 import { defineConfig, type Plugin } from 'vite'
 import dts from 'vite-plugin-dts'
 import { glob } from 'glob';
-import requireTransform from 'vite-plugin-require-transform';//引入require
+import requireTransform from 'vite-plugin-require-transform'; // enable require()
 
 const rootDir = import.meta.dirname
 
