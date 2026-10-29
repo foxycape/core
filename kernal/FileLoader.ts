@@ -209,7 +209,7 @@ export class FileLoader {
             if (this.abortController) {
                 this.abortController.abort("Cancelled");
                 this.abortController = undefined;
-                this.logger.info("User cancelled task,url", this.url);
+                // this.logger.info("User cancelled task,url", this.url);
                 this.currentIsCancelled = true;
             }
         } catch {

@@ -625,7 +625,7 @@ export class Reader implements LifecycleHooks {
             if (this.abortController) {
                 this.abortController.abort("Cancelled");
                 this.abortController = null;
-                this.logger.info("User cancelled task,url", this.url);
+                // this.logger.info("User cancelled task,url", this.url);
                 this.currentIsCancelled = true;
             }
         } catch (e) {
