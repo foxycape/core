@@ -357,8 +357,7 @@ export class HtmlRendererViewport implements IRendererViewport<HtmlLayoutMetrics
     }
 
     private getContentsContainerWidth() {
-        const { width } = this.rendererContainer.getBoundingClientRect();
-        const clientWidth = width;
+        const clientWidth = this.rendererContainer.clientWidth || this.owner.getHostViewport().width;
         if (this.device.getDeviceType() == 'mobile' && clientWidth <= 768) {
             return clientWidth;
         }

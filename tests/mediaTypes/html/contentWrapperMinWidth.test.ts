@@ -25,6 +25,12 @@ describe('resolveContentWrapperMinWidth', () => {
             columnGap: 40,
             viewportWidth: 800,
         })).toBe('360px')
+        expect(resolveContentWrapperMinWidth('column', {
+            shadowWidth: 360,
+            columnWidth: 300,
+            columnGap: 40,
+            viewportWidth: 800,
+        })).toBe('320px')
     })
 })
 
