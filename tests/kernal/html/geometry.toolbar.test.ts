@@ -83,6 +83,49 @@ describe("calcToolbarPositionFromRect", () => {
         )
         expect(pos.visible).toBe(false)
     })
+
+    it("places a bottom toolbar one bias below the selection when clearance is zero", () => {
+        const highlight = rect(400, 200, 80, 18)
+        const pos = calcToolbarPositionFromRect(
+            container,
+            highlight,
+            fakeToolbar(120, 36),
+            "bottom",
+            5,
+            0,
+        )
+        expect(pos.visible).toBe(true)
+        expect(pos.top).toBe(highlight.top + highlight.height + 5)
+    })
+
+    it("shifts a bottom toolbar down by the selection-handle clearance", () => {
+        const highlight = rect(400, 200, 80, 18)
+        const pos = calcToolbarPositionFromRect(
+            container,
+            highlight,
+            fakeToolbar(120, 36),
+            "bottom",
+            5,
+            40,
+        )
+        expect(pos.visible).toBe(true)
+        expect(pos.top).toBe(highlight.top + highlight.height + 5 + 40)
+    })
+
+    it("moves above the selection when below clearance does not fit", () => {
+        const highlight = rect(400, 580, 80, 18)
+        const toolbarHeight = 36
+        const pos = calcToolbarPositionFromRect(
+            container,
+            highlight,
+            fakeToolbar(120, toolbarHeight),
+            "bottom",
+            5,
+            40,
+        )
+        expect(pos.visible).toBe(true)
+        expect(pos.top).toBe(highlight.top - toolbarHeight - 5)
+    })
 })
 
 describe("resolveVisibleBaseRectInContainer", () => {

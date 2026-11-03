@@ -322,6 +322,7 @@ const clamp = (value: number, min: number, max: number): number =>
  * @param displayElement Display element
  * @param toolbarPreferPosition Preferred toolbar position
  * @param bias Offset bias
+ * @param belowClearance Extra space reserved below the anchor (native selection handles)
  * @returns \{ left: number; top: number; visible: boolean \}
  */
 export const calcToolbarPositionFromRect = (
@@ -329,7 +330,8 @@ export const calcToolbarPositionFromRect = (
     baseRect: Rect,
     displayElement: Element,
     toolbarPreferPosition: ToolbarPreferPosition = "bottom",
-    bias = 5
+    bias = 5,
+    belowClearance = 0
 ): { left: number; top: number; visible: boolean } => {
     const displayElementRect = displayElement.getBoundingClientRect();
     const toolbarWidth = displayElementRect.width;
@@ -342,7 +344,9 @@ export const calcToolbarPositionFromRect = (
     const containerBottom = containerRect.top + containerRect.height;
     const spaceBelow = containerBottom - selectionBottom;
     const spaceAbove = baseRect.top - containerRect.top;
-    const spaceRequired = toolbarHeight + bias;
+    const belowGap = bias + belowClearance;
+    const spaceRequiredBelow = toolbarHeight + belowGap;
+    const spaceRequiredAbove = toolbarHeight + bias;
     const containerLeft = containerRect.left;
     const containerRight = containerRect.left + containerRect.width;
     const containerTop = containerRect.top;
@@ -363,13 +367,13 @@ export const calcToolbarPositionFromRect = (
 
     const preferTop = toolbarPreferPosition === "top";
     let top: number;
-    if (spaceBelow >= spaceRequired && spaceAbove >= spaceRequired) {
+    if (spaceBelow >= spaceRequiredBelow && spaceAbove >= spaceRequiredAbove) {
         top = preferTop
             ? baseRect.top - toolbarHeight - bias
-            : selectionBottom + bias;
-    } else if (spaceBelow >= spaceRequired) {
-        top = selectionBottom + bias;
-    } else if (spaceAbove >= spaceRequired) {
+            : selectionBottom + belowGap;
+    } else if (spaceBelow >= spaceRequiredBelow) {
+        top = selectionBottom + belowGap;
+    } else if (spaceAbove >= spaceRequiredAbove) {
         top = baseRect.top - toolbarHeight - bias;
     } else {
         const centerY = baseRect.top + baseRect.height / 2;
@@ -384,7 +388,8 @@ export const calcToolbarPositionInContainer = (
     base: Range | Element[] | Element,
     displayElement: Element,
     toolbarPreferPosition?: ToolbarPreferPosition,
-    containerInset?: { top?: number; bottom?: number; left?: number; right?: number }
+    containerInset?: { top?: number; bottom?: number; left?: number; right?: number },
+    belowClearance = 0
 ): { left: number; top: number; visible: boolean; baseRect?: Rect } => {
     if (!displayElement || !base)
         return hiddenToolbarPosition;
@@ -400,7 +405,7 @@ export const calcToolbarPositionInContainer = (
         return hiddenToolbarPosition;
 
     return {
-        ...calcToolbarPositionFromRect(containerRect, baseRect, displayElement, toolbarPreferPosition ?? "bottom"),
+        ...calcToolbarPositionFromRect(containerRect, baseRect, displayElement, toolbarPreferPosition ?? "bottom", undefined, belowClearance),
         baseRect,
     };
 };
@@ -511,7 +516,8 @@ export const calcToolbarPosition = (
     displayElement: Element,
     toolbarPreferPosition?: ToolbarPreferPosition,
     flipMode?: FlipMode,
-    containerInset: ToolbarContainerInset = DEFAULT_TOOLBAR_CONTAINER_INSET
+    containerInset: ToolbarContainerInset = DEFAULT_TOOLBAR_CONTAINER_INSET,
+    belowClearance = 0
 ): { left: number, top: number, visible: boolean, baseRect?: Rect } => {
     if (!displayElement || !base)
         return hiddenToolbarPosition;
@@ -539,10 +545,10 @@ export const calcToolbarPosition = (
         // Use visible client rects instead of recalculateRect. A highlight flush
         // with the iframe edge is a subpixel "overflow"; recalculateRect then
         // inflates it to the window origin, which sends large panels to 0,0.
-        return calcToolbarPositionInContainer(ownerPanel, base, displayElement, preferPosition, containerInset);
+        return calcToolbarPositionInContainer(ownerPanel, base, displayElement, preferPosition, containerInset, belowClearance);
     }
 
-    return calcToolbarPositionInContainer(ownerPanel, base, displayElement, preferPosition, containerInset);
+    return calcToolbarPositionInContainer(ownerPanel, base, displayElement, preferPosition, containerInset, belowClearance);
 };
 
 export const containsRect = (source: { left: number, top: number, right: number, bottom: number }, target: { left: number, top: number, right: number, bottom: number }) => {
