@@ -13,6 +13,10 @@ html,
 html body * {
     font-weight: var(--font-weight) !important;
 }
+html[class*="content-page-horizontal-"] body {
+    /* Keep 1px so drag handles stay visible on mobile when selecting text close to the edge */
+    padding-inline: 1px !important;
+}
 
 html.foxycape-user-font,
 html.foxycape-user-font body * {

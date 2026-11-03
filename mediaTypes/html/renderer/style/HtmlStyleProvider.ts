@@ -5,7 +5,6 @@ import { IHtmlDocument } from "../IHtmlDocument";
 import { ContentCssVariables } from "./ContentCssVariables";
 
 export class HtmlStyleProvider implements IStyleProvider {
-    readonly defaultVariables: Map<string, string> = new Map<string, string>();
     readonly currentVariables: Map<string, string> = new Map<string, string>();
     private readonly contentStyleId = "html-content-css-variables-style";
     /** Same holder class stamped by HtmlThemeApplier, repeated to beat book styles. */
@@ -15,10 +14,6 @@ export class HtmlStyleProvider implements IStyleProvider {
     private readonly specialTextAlignCssId = readerPrefixName + "reader-special-variables-text-align-css";
 
     constructor(private readonly documentsProvider: IDocumentsProvider<IHtmlDocument>) {
-        this.defaultVariables.clear();
-        for (const [key, value] of ContentCssVariables.getDefaultVariables()) {
-            this.defaultVariables.set(key, value);
-        }
     }
 
     initialize(currentVariables?: Map<string, string>): void {
@@ -36,7 +31,7 @@ export class HtmlStyleProvider implements IStyleProvider {
     }
 
     getDefaultVariables(): Map<string, string> {
-        return this.defaultVariables;
+        return ContentCssVariables.getDefaultVariables();
     }
 
     getCurrentVariables(): Map<string, string> {
@@ -44,11 +39,11 @@ export class HtmlStyleProvider implements IStyleProvider {
     }
 
     getDefaultVariableValue(variableName: string): string {
-        return this.defaultVariables.get(variableName) ?? "";
+        return this.getDefaultVariables().get(variableName) ?? "";
     }
 
     getVariableValue(variableName: string): string {
-        return this.currentVariables.get(variableName) ?? this.defaultVariables.get(variableName) ?? "";
+        return this.currentVariables.get(variableName) ?? this.getDefaultVariableValue(variableName);
     }
 
     async injectStyles(doc: IDocument): Promise<void> {
@@ -61,7 +56,7 @@ export class HtmlStyleProvider implements IStyleProvider {
         }
         const ownerDocument = contentContainer.ownerDocument;
         const documentElement = ownerDocument.documentElement;
-        for (const [key, value] of this.defaultVariables) {
+        for (const [key, value] of this.getDefaultVariables()) {
             if (!this.currentVariables.has(key)) {
                 documentElement.style.setProperty(key, value);
             }
@@ -160,7 +155,6 @@ export class HtmlStyleProvider implements IStyleProvider {
     }
 
     async dispose(): Promise<void> {
-        this.defaultVariables.clear();
         this.currentVariables.clear();
     }
 }
