@@ -1,24 +1,37 @@
 import * as pdfjsLib from "../../../../pdfjs/legacy/build/pdf.mjs";
+import { ReaderHub } from "../../../../ReaderHub";
+import type { Reader } from "../../../../kernal/Reader";
 import { MultiPDFViewer } from "../MultiPdfViewer";
 
 export type PdfFindRequestHandler = () => void;
 
+type PdfZoomShortcut = "in" | "out" | "reset";
+
 export class PdfKeyboardController {
     private findRequestHandler?: PdfFindRequestHandler;
+    private zoomWindow: Window | null = null;
 
     constructor(
         private readonly pdfViewer: MultiPDFViewer,
         private readonly container: HTMLDivElement,
+        private readonly reader: Reader,
     ) {}
 
     bind() {
         this.container.addEventListener("click", this.webViewerClick);
         this.container.addEventListener("keydown", this.webViewerKeyDown);
+        const view = this.container.ownerDocument.defaultView;
+        if (view) {
+            this.zoomWindow = view;
+            view.addEventListener("keydown", this.onZoomShortcut, true);
+        }
     }
 
     unbind() {
         this.container.removeEventListener("click", this.webViewerClick);
         this.container.removeEventListener("keydown", this.webViewerKeyDown);
+        this.zoomWindow?.removeEventListener("keydown", this.onZoomShortcut, true);
+        this.zoomWindow = null;
     }
 
     setFindRequestHandler(handler?: PdfFindRequestHandler) {
@@ -56,32 +69,6 @@ export class PdfKeyboardController {
                     }
                     break;
                 case 71:
-                    break;
-                case 61:
-                case 107:
-                case 187:
-                case 171:
-                    if (!isViewerInPresentationMode) {
-                        pdfViewer.increaseScale({ drawingDelay: 400 });
-                    }
-                    handled = true;
-                    break;
-                case 173:
-                case 109:
-                case 189:
-                    if (!isViewerInPresentationMode) {
-                        pdfViewer.decreaseScale({ drawingDelay: 400 });
-                    }
-                    handled = true;
-                    break;
-                case 48:
-                case 96:
-                    if (!isViewerInPresentationMode) {
-                        setTimeout(() => {
-                            pdfViewer.currentScaleValue = "auto";
-                        });
-                        handled = false;
-                    }
                     break;
                 case 38:
                     if (isViewerInPresentationMode || pdfViewer.currentPageNumber > 1) {
@@ -208,6 +195,44 @@ export class PdfKeyboardController {
         }
     };
 
+    /**
+     * Capture phase on window: Ctrl/Cmd +/-/0 is the browser zoom shortcut.
+     * The PDF container bubble listener never sees it when focus is on the page chrome.
+     */
+    private onZoomShortcut = (evt: KeyboardEvent) => {
+        const action = zoomShortcutAction(evt);
+        if (!action || this.pdfViewer.isInPresentationMode) {
+            return;
+        }
+        if (!this.isFocusedReader() || !this.isViewerOnScreen()) {
+            return;
+        }
+        evt.preventDefault();
+        evt.stopPropagation();
+        const previousScale = this.pdfViewer.currentScale;
+        if (action === "in") {
+            this.pdfViewer.increaseScale({ drawingDelay: 400 });
+        } else if (action === "out") {
+            this.pdfViewer.decreaseScale({ drawingDelay: 400 });
+        } else {
+            this.pdfViewer.currentScaleValue = "auto";
+        }
+        this.pdfViewer.adjustScrollForViewportCenter(previousScale);
+    };
+
+    private isFocusedReader = () => {
+        const current = ReaderHub.getFocusReader() ?? ReaderHub.getActiveReader();
+        return current?.id === this.reader.id;
+    };
+
+    private isViewerOnScreen = () => {
+        if (!this.container.isConnected) {
+            return false;
+        }
+        const rect = this.container.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    };
+
     private getActiveOrFocusedElement = (): Element | null => {
         let curRoot: Document | ShadowRoot = this.container.ownerDocument;
         let curActiveOrFocused: Element | null =
@@ -221,3 +246,45 @@ export class PdfKeyboardController {
         return curActiveOrFocused;
     };
 }
+
+/** Ctrl/Cmd (+ optional Shift, no Alt) zoom keys. key and code, not keyCode alone. */
+const zoomShortcutAction = (evt: KeyboardEvent): PdfZoomShortcut | null => {
+    if (evt.altKey || !(evt.ctrlKey || evt.metaKey)) {
+        return null;
+    }
+    const key = evt.key;
+    const code = evt.code;
+    if (
+        key === "+" ||
+        key === "=" ||
+        code === "Equal" ||
+        code === "NumpadAdd" ||
+        evt.keyCode === 61 ||
+        evt.keyCode === 107 ||
+        evt.keyCode === 187 ||
+        evt.keyCode === 171
+    ) {
+        return "in";
+    }
+    if (
+        key === "-" ||
+        key === "_" ||
+        code === "Minus" ||
+        code === "NumpadSubtract" ||
+        evt.keyCode === 173 ||
+        evt.keyCode === 109 ||
+        evt.keyCode === 189
+    ) {
+        return "out";
+    }
+    if (
+        key === "0" ||
+        code === "Digit0" ||
+        code === "Numpad0" ||
+        evt.keyCode === 48 ||
+        evt.keyCode === 96
+    ) {
+        return "reset";
+    }
+    return null;
+};

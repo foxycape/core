@@ -60,7 +60,7 @@ export class PdfRenderer extends PdfDocumentsProvider implements IPdfRenderer {
         this.viewerEvents = new PdfViewerEvents(this.owner.events, this.eventBus, this, this.pdfViewer);
         const rendererContainer = this.getRendererContainer();
         this.zoomInputController = new PdfZoomInputController(this.pdfViewer, rendererContainer);
-        this.keyboardController = new PdfKeyboardController(this.pdfViewer, rendererContainer);
+        this.keyboardController = new PdfKeyboardController(this.pdfViewer, rendererContainer, this.owner);
         this.keyboardController.setFindRequestHandler(() => {
             this.owner.events.emit(EventNames.RequestOpenFind);
         });

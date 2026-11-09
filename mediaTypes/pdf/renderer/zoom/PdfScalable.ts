@@ -35,11 +35,13 @@ export class PdfScalable implements IPdfScalable {
         if (this.pdfViewer.isInPresentationMode) {
             return;
         }
+        const previousScale = this.pdfViewer.currentScale;
         this.pdfViewer.increaseScale({
             drawingDelay: 400,
             steps,
             scaleFactor,
         });
+        this.pdfViewer.adjustScrollForViewportCenter(previousScale);
         await this.persistScaleValue();
     }
 
@@ -47,11 +49,13 @@ export class PdfScalable implements IPdfScalable {
         if (this.pdfViewer.isInPresentationMode) {
             return;
         }
+        const previousScale = this.pdfViewer.currentScale;
         this.pdfViewer.decreaseScale({
             drawingDelay: 400,
             steps,
             scaleFactor,
         });
+        this.pdfViewer.adjustScrollForViewportCenter(previousScale);
         await this.persistScaleValue();
     }
 
@@ -59,7 +63,9 @@ export class PdfScalable implements IPdfScalable {
         if (this.pdfViewer.isInPresentationMode) {
             return;
         }
+        const previousScale = this.pdfViewer.currentScale;
         await this.scaleTo(this.DEFAULT_SCALE_VALUE);
+        this.pdfViewer.adjustScrollForViewportCenter(previousScale);
     }
 
     /**

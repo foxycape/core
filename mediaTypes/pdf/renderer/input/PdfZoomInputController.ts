@@ -318,12 +318,7 @@ export class PdfZoomInputController {
     };
 
     private _centerAtPos = (previousScale: number, x: number, y: number) => {
-        const scaleDiff = this.pdfViewer.currentScale / previousScale - 1;
-        if (scaleDiff !== 0) {
-            const [top, left] = this.pdfViewer.containerTopLeft;
-            this.pdfViewer.container.scrollLeft += (x - left) * scaleDiff;
-            this.pdfViewer.container.scrollTop += (y - top) * scaleDiff;
-        }
+        this.pdfViewer.adjustScrollForScaleOrigin(previousScale, x, y);
     };
 
     private normalizeWheelEventDirection = (evt: WheelEvent) => {

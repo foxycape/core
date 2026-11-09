@@ -304,6 +304,33 @@ export class MultiPDFViewer extends pdfjsViewer.PDFViewer implements IDisposable
       });
    }
 
+   /**
+    * Keep a client point fixed after a scale change.
+    * Ctrl+wheel passes the cursor; keyboard zoom passes the visible center.
+    */
+   adjustScrollForScaleOrigin(previousScale: number, clientX: number, clientY: number) {
+      if (!(previousScale > 0)) {
+         return;
+      }
+      const scaleDiff = this.currentScale / previousScale - 1;
+      if (scaleDiff === 0) {
+         return;
+      }
+      const [top, left] = this.containerTopLeft;
+      this.container.scrollLeft += (clientX - left) * scaleDiff;
+      this.container.scrollTop += (clientY - top) * scaleDiff;
+   }
+
+   /** Keep the center of the visible container fixed after a scale change. */
+   adjustScrollForViewportCenter(previousScale: number) {
+      const rect = this.container.getBoundingClientRect();
+      this.adjustScrollForScaleOrigin(
+         previousScale,
+         rect.left + rect.width / 2,
+         rect.top + rect.height / 2,
+      );
+   }
+
    override _updateScrollMode(pageNumber?: null): void {
       const scrollMode = this._scrollMode,
          viewer = this.viewer;
