@@ -122,7 +122,7 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
         if (!spineFile.url) {
             return new Uint8Array(0);
         }
-        const parsed = await this.fileUrlParser.parse(spineFile.url, { requireFullFile: false });
+        const parsed = await this.fileUrlParser.parse(spineFile.url, { requireMaterializedFile: false });
         if (parsed.data && parsed.data.byteLength > 0) {
             const source = parsed.byteSource;
             parsed.byteSource = undefined;
@@ -172,7 +172,7 @@ export class PdfFileParser extends BaseFileParser implements IPdfFileParser {
     }
 
     override async load(options?: FileLoadOptions): Promise<void> {
-        const result = await this.parseUrl(this.url, { requireFullFile: false });
+        const result = await this.parseUrl(this.url, { requireMaterializedFile: false });
         await this.initializeDatas(result);
         if (options?.measureFilePercentage) {
             await this.measureFilePercentage(result.spineFiles ?? [], result.requireCalculateFileSymbolCount)

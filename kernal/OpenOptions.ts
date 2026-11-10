@@ -66,8 +66,17 @@ export class OpenOptions {
 
     /** AbortController */
     abortController?: AbortController;
-    /** whether to require full file */
-    requireFullFile?: boolean;
+    /**
+     * When true, the parser needs the whole file as an in-memory ArrayBuffer.
+     * When false, a byte source is enough.
+     * This does not decide whether a remote file is downloaded into the reading cache.
+     */
+    requireMaterializedFile?: boolean;
+    /**
+     * Prefer HTTP range reads instead of downloading the whole remote file first.
+     * When a request still returns the entire file, that copy is stored in the reading cache.
+     */
+    preferRemoteRange?: boolean;
     /**
      * File downloading / local-read progress callback.
      * contentLength: total bytes when known; receivedLength: bytes already read; done: finished.

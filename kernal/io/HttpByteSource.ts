@@ -31,16 +31,16 @@ const downloadAll = async (
 }
 
 /**
- * Open an HTTP URL as a random-access source.
- * A 206 probe with a total length keeps range reads. Otherwise the file is downloaded once.
+ * Open an HTTP URL as a range source when the server answers the probe with 206.
+ * CORS-proxied URLs and servers that ignore Range return undefined. No full download.
  */
-export const openHttpByteSource = async (
+export const tryOpenHttpRange = async (
     httpClient: IHttpClient,
     url: string,
     options?: FileUrlParserOptions,
-): Promise<IByteSource> => {
+): Promise<HttpByteSource | undefined> => {
     if (options?.requireCORSProxy) {
-        return downloadAll(httpClient, url, options)
+        return undefined
     }
     const probe = await httpClient.getRange(url, { start: 0, end: 1 }, {
         headers: authorizationHeaders(options),
@@ -49,6 +49,22 @@ export const openHttpByteSource = async (
     })
     if (probe.partial && probe.totalSize != null && probe.totalSize > 0) {
         return new HttpByteSource(httpClient, url, probe.totalSize, options)
+    }
+    return undefined
+}
+
+/**
+ * Open an HTTP URL as a random-access source.
+ * A 206 probe with a total length keeps range reads. Otherwise the file is downloaded once.
+ */
+export const openHttpByteSource = async (
+    httpClient: IHttpClient,
+    url: string,
+    options?: FileUrlParserOptions,
+): Promise<IByteSource> => {
+    const ranged = await tryOpenHttpRange(httpClient, url, options)
+    if (ranged) {
+        return ranged
     }
     return downloadAll(httpClient, url, options)
 }
