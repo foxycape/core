@@ -53,15 +53,28 @@ export class PdfThemeApplier implements IPdfThemeApplier {
         .pdfViewer .page .annotationEditorLayer:not(.disabled):not([hidden]){
             pointer-events:auto !important;
         }
+        .pdfViewer .page svg.custom-text-layer,
+        .pdfViewer .page svg.custom-text-layer text{
+            fill:currentColor !important;
+            color:transparent !important;
+            -webkit-text-fill-color:transparent !important;
+            color-scheme:only light;
+            forced-color-adjust:none;
+        }
         .pdfViewer .textLayer ::selection,
         .pdfViewer .textLayer span::selection,
-        .pdfViewer .page svg ::selection{
+        .pdfViewer .page svg ::selection,
+        .pdfViewer .page svg.custom-text-layer text::selection{
             background:var(${Theme.SelectionBackground}) !important;
             background-color:var(${Theme.SelectionBackground}) !important;
+            color:transparent !important;
+            -webkit-text-fill-color:transparent !important;
         }
         .pdfViewer .textLayer br::selection{
             background:transparent !important;
             background-color:transparent !important;
+            color:transparent !important;
+            -webkit-text-fill-color:transparent !important;
         }`;
 
         injectCssContent(this.readerContainer.ownerDocument, css, true, "pdf-renderer-other-css");

@@ -577,7 +577,7 @@ export class PdfSvgBuilder implements IPdfSvgBuilder {
         svg.setAttribute("data-loaded", "false");
         svg.setAttribute(
             "style",
-            "fill:transparent;position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;contain:size layout paint;",
+            "fill:currentColor;color:transparent;forced-color-adjust:none;position:absolute;left:0;top:0;width:100%;height:100%;z-index:1;contain:size layout paint;",
         );
         return svg;
     };
