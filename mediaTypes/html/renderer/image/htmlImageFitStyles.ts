@@ -6,14 +6,16 @@ const widthRatio = `var(${Var.MaxImageWidthRatio})`;
 const heightRatio = `var(${Var.MaxImageHeightRatio})`;
 
 /**
- * Fit an image into the physical column box.
+ * Fit an image into the smaller of its containing block and the physical column box.
  *
- * `--column-width` is the CSS `column-width` (inline size). In vertical page
- * mode that is page height, so it must not be used as a physical max-width —
- * that overshoots the column and overflow:hidden clips the image.
+ * Percentage width tracks a fixed-width parent, so a nested div cannot be overflowed.
+ * The column box is still required: in multi-column layout `100%` is the whole
+ * container, and in vertical page mode a percentage can resolve wider than the
+ * physical column. `--column-width` is the CSS inline size and must not be used —
+ * vertical page mode remaps it to page height, which overshoots and gets clipped.
  */
 export const getImageFitStyles = (width: number, height: number) => {
-    const widthValue = `calc(${boxWidth} * ${widthRatio})`;
+    const widthValue = `min(calc(100% * ${widthRatio}),calc(${boxWidth} * ${widthRatio}))`;
     const maxHeightValue = `min(${height}px,${boxHeight},calc(${boxWidth} / ${width} * ${height}))`;
     return {
         width: widthValue,

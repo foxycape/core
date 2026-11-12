@@ -4,7 +4,7 @@ import { getImageFitStyles, getImageForcedHeightCss } from '@/mediaTypes/html/re
 describe('htmlImageFitStyles', () => {
     it('sizes images against the physical column box, not CSS column-width', () => {
         const styles = getImageFitStyles(800, 400)
-        expect(styles.width).toBe('calc(var(--column-box-width) * var(--max-image-width-ratio))')
+        expect(styles.width).toBe('min(calc(100% * var(--max-image-width-ratio)),calc(var(--column-box-width) * var(--max-image-width-ratio)))')
         expect(styles['max-width']).toBe(styles.width)
         expect(styles['max-height']).toBe('min(400px,var(--column-box-height),calc(var(--column-box-width) / 800 * 400))')
         expect(styles['aspect-ratio']).toBe('800 / 400')

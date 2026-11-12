@@ -25,6 +25,7 @@ import { IHtmlThemeApplier } from "./style/IHtmlThemeApplier";
 import { ILanguageHighlighter } from "./style/ILanguageHighlighter";
 import { HtmlImageLoader } from "./image/HtmlImageLoader";
 import { HtmlImageObserver } from "./image/HtmlImageObserver";
+import { HtmlFullscreenRestorer } from "./documents/HtmlFullscreenRestorer";
 import { IHtmlImageLoader } from "./image/IHtmlImageLoader";
 import { isProgrammaticScroll, isUserScrollSettling, markUserScroll, releaseAbsoluteLocate } from "./location/scrollActivity";
 
@@ -43,6 +44,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
     private readonly contentProcessor: IHtmlContentProcessor;
     protected imageLoader: IHtmlImageLoader;
     private readonly imageObserver: HtmlImageObserver;
+    private readonly fullscreenRestorer: HtmlFullscreenRestorer;
     private scrollWatchTarget?: Document | Element;
     private scrollWatchState?: { _eventHandler: (e: Event) => void };
 
@@ -62,6 +64,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
         this.contentProcessor = new HtmlContentProcessor(fileParser);
         this.imageLoader = this.createImageLoader();
         this.imageObserver = new HtmlImageObserver(this, htmlOptions);
+        this.fullscreenRestorer = new HtmlFullscreenRestorer(this, this.progressTracker);
         this.bindEvents();
         this.bindScrollWatch();
         this.injectProcessHandlers();
@@ -247,6 +250,7 @@ export class HtmlRenderer extends HtmlDocumentsProvider implements IHtmlRenderer
             this.scrollWatchTarget = undefined;
         }
         await this.progressTracker.dispose();
+        await this.fullscreenRestorer.dispose();
         await this.imageObserver.dispose();
         await this.imageLoader.dispose();
         await super.dispose();
