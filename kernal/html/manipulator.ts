@@ -20,7 +20,7 @@ export const wrapFloatingTextNodes = (ownerDocument: Document, wrapFullTextNode?
         const tag = el.tagName
         if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT'
             || tag === 'IFRAME' || tag === 'OBJECT' || tag === 'EMBED'
-            || tag === 'TEMPLATE' || tag === 'TEXTAREA') {
+            || tag === 'TEMPLATE' || tag === 'TEXTAREA' || tag === 'PRE') {
             return true
         }
         const ns = el.namespaceURI
