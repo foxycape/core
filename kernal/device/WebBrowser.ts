@@ -1,5 +1,5 @@
 import { BrowserCapabilities } from '../web/BrowserCapabilities';
-import { ArchType, DeviceInfo, DeviceType, IDevice, OSType } from './IDevice';
+import { ArchType, DeviceInfo, DeviceType, HostType, IDevice, OSType } from './IDevice';
 import { uaParser } from '../web/ua';
 
 export class WebBrowser implements IDevice {
@@ -39,6 +39,10 @@ export class WebBrowser implements IDevice {
             return 'androidPad';
         }
         return 'desktop';
+    }
+
+    getHostType(): HostType {
+        return 'web';
     }
 
     getInfo(): DeviceInfo {

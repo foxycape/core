@@ -5,6 +5,9 @@ export interface IDevice {
     /** Gets the device type. */
     getDeviceType(): DeviceType;
 
+    /** Gets whether this build runs in a browser page or a native shell. */
+    getHostType(): HostType;
+
     /** Gets aggregated device information. */
     getInfo(): DeviceInfo;
 
@@ -48,6 +51,8 @@ export class DeviceInfo {
     deviceSize: string | undefined;
 }
 
-export type DeviceType = 'pad' | 'desktop' | 'androidPad' | 'ipad' | 'mobile' | 'mobileAndroid' | 'mobileIOS' | (string & {});
+export type DeviceType = 'desktop' | 'pad' | 'androidPad' | 'ipad' | 'mobile' | 'mobileAndroid' | 'mobileIOS' | (string & {});
+/** `web` is a browser page. `native` is the Electron or Capacitor shell. */
+export type HostType = 'web' | 'native';
 export type OSType = 'windows' | 'macos' | 'linux'|'ios'|'android'|'openbsd'|'netbsd'|(string & {});
 export type ArchType = 'x86' | 'x64' | 'arm' | 'arm64' | (string & {});
