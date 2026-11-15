@@ -47,6 +47,8 @@ export type HttpRangeResult = {
     /** Set when the response is 206 and Content-Range includes a total length. */
     totalSize?: number
     partial: boolean
+    /** Set when the body is already stored and `data` is empty. */
+    storedBytes?: number
 }
 
 export class HttpClientOptions {
@@ -65,6 +67,8 @@ export class HttpClientOptions {
     abortController?: AbortController;
     /** Size of the file to download */
     contentLength?: number;
+    /** Native file that should receive a downloaded range without copying the bytes into JavaScript. */
+    appendPath?: string;
     /** Download progress callback */
     downloadProgressCallback?: (contentLength: number, receivedLength: number, done: boolean) => void
     /** Upload progress callback (not supported in fetch mode) */

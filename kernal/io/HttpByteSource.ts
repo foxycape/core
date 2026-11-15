@@ -5,6 +5,11 @@ import { MemoryByteSource } from "./MemoryByteSource";
 
 const RANGE_TIMEOUT_MS = 600000
 
+const listedFileSize = (options?: FileUrlParserOptions) => {
+    const size = options?.fileSize
+    return typeof size === 'number' && Number.isFinite(size) && size > 0 ? size : undefined
+}
+
 const authorizationHeaders = (options?: FileUrlParserOptions): Record<string, string> => {
     const headers: Record<string, string> = {}
     if (options?.authorizationKey && options?.authorizationValue) {
@@ -32,25 +37,29 @@ const downloadAll = async (
 
 /**
  * Open an HTTP URL as a range source when the server answers the probe with 206.
- * CORS-proxied URLs and servers that ignore Range return undefined. No full download.
+ * A known file size wins over Content-Range. Servers that ignore Range return undefined.
  */
 export const tryOpenHttpRange = async (
     httpClient: IHttpClient,
     url: string,
     options?: FileUrlParserOptions,
 ): Promise<HttpByteSource | undefined> => {
-    if (options?.requireCORSProxy) {
-        return undefined
-    }
     const probe = await httpClient.getRange(url, { start: 0, end: 1 }, {
         headers: authorizationHeaders(options),
         timeout: RANGE_TIMEOUT_MS,
         abortController: options?.abortController,
+        requireCORSProxy: options?.requireCORSProxy,
+        contentLength: listedFileSize(options),
     })
-    if (probe.partial && probe.totalSize != null && probe.totalSize > 0) {
-        return new HttpByteSource(httpClient, url, probe.totalSize, options)
+    if (!probe.partial) {
+        return undefined
     }
-    return undefined
+    const probed = probe.totalSize != null && probe.totalSize > 0 ? probe.totalSize : undefined
+    const size = listedFileSize(options) ?? probed
+    if (size == null) {
+        return undefined
+    }
+    return new HttpByteSource(httpClient, url, size, options)
 }
 
 /**
@@ -69,7 +78,7 @@ export const openHttpByteSource = async (
     return downloadAll(httpClient, url, options)
 }
 
-/** HTTP resource that supports range reads. `size` comes from the Content-Range total. */
+/** HTTP resource that supports range reads. `size` is the known file length, or the Content-Range total when that length is absent. */
 export class HttpByteSource implements IByteSource {
     private readonly lifetime = new AbortController()
 
@@ -117,6 +126,7 @@ export class HttpByteSource implements IByteSource {
             timeout: RANGE_TIMEOUT_MS,
             abortController: controller,
             requireCORSProxy: this.options?.requireCORSProxy,
+            contentLength: listedFileSize(this.options),
         }
     }
 }

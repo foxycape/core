@@ -106,6 +106,26 @@ describe('HTTP byte source', () => {
         expect(range).toBe('bytes=8-9')
     })
 
+    it('uses a known file size instead of the Content-Range total', async () => {
+        const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+            const rangeHeader = new Headers(init?.headers).get('Range')
+            const match = /bytes=(\d+)-(\d+)/.exec(rangeHeader ?? '')
+            const start = Number(match?.[1] ?? 0)
+            const inclusiveEnd = Number(match?.[2] ?? 0)
+            const slice = bytes.slice(start, Math.min(inclusiveEnd + 1, bytes.byteLength))
+            return new Response(slice, {
+                status: 206,
+                headers: { 'Content-Range': `bytes ${start}-${inclusiveEnd}/4` },
+            })
+        })
+        vi.stubGlobal('fetch', fetchMock)
+        const source = await openHttpByteSource(new HttpClient(), 'https://example.com/book.epub', {
+            fileSize: 20,
+        })
+        expect(source.size).toBe(20)
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
     it('falls back to one full download when the server returns 200', async () => {
         const fetchMock = installFetch(false)
         const source = await openHttpByteSource(new HttpClient(), 'https://example.com/book.epub')

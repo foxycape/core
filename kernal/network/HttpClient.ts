@@ -158,15 +158,73 @@ export class HttpClient implements IHttpClient {
             clearTimeout()
         }
         await this.throwIfFailed(response)
-        const data = new Uint8Array(await response.arrayBuffer())
         const contentRange = parseContentRange(response.headers.get('Content-Range'))
         const partial = response.status === 206
+        const declaredLength = Number(response.headers.get('Content-Length'))
+        const storedLength = Number(options?.contentLength)
+        const fileTotal = Number.isFinite(storedLength) && storedLength > 0
+            ? storedLength
+            : partial
+                ? (contentRange?.totalSize ?? 0)
+                : (Number.isFinite(declaredLength) ? declaredLength : 0)
+        const data = await this.readRangeBody(response, range, options, partial, fileTotal)
         return {
             data,
             status: response.status,
             totalSize: partial ? contentRange?.totalSize : undefined,
             partial,
         }
+    }
+
+    private async readRangeBody(
+        response: Response,
+        range: HttpByteRange,
+        options: HttpClientOptions | undefined,
+        partial: boolean,
+        fileTotal: number,
+    ): Promise<Uint8Array> {
+        const reader = options?.downloadProgressCallback ? response.body?.getReader() : undefined
+        if (!reader || !options?.downloadProgressCallback) {
+            return new Uint8Array(await response.arrayBuffer())
+        }
+        const report = options.downloadProgressCallback
+        const base = partial ? range.start : 0
+        const signal = options.abortController?.signal
+        const chunks: Uint8Array[] = []
+        let received = 0
+        const cancelReader = () => {
+            void reader.cancel().catch(() => undefined)
+        }
+        signal?.addEventListener('abort', cancelReader)
+        try {
+            while (true) {
+                if (signal?.aborted) {
+                    throw createAbortError()
+                }
+                const { done, value } = await reader.read()
+                if (done) {
+                    break
+                }
+                if (!value?.byteLength) {
+                    continue
+                }
+                chunks.push(value)
+                received += value.byteLength
+                report(fileTotal, base + received, false)
+            }
+        } finally {
+            signal?.removeEventListener('abort', cancelReader)
+        }
+        if (signal?.aborted) {
+            throw createAbortError()
+        }
+        const data = new Uint8Array(received)
+        let position = 0
+        for (const chunk of chunks) {
+            data.set(chunk, position)
+            position += chunk.byteLength
+        }
+        return data
     }
 
     private async throwIfFailed(response: Response): Promise<void> {
