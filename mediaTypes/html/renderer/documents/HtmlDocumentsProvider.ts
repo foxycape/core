@@ -1,11 +1,9 @@
 import { isNullOrWhiteSpace } from "../../../../kernal/common/text";
 import { parseNumber } from "../../../../kernal/common/number";
-import { compareTagName } from "../../../../kernal/html/finder";
 import { emptyElement } from "../../../../kernal/html/dom";
-import { createRange } from "../../../../kernal/html/selection";
 import { getLocateClientRect, getLocateElement, isDomRange, type LocateTarget } from "../../../../kernal/html/geometry";
 import { scrollElementIntoView, getTransformLength } from "../../../../kernal/html/style";
-import { FileLocation, IFileParser, ILogger, SpineFile, STTAG, asyncDebounce, BrowserCapabilities, yieldToMain } from "../../../../kernal";
+import { FileLocation, IFileParser, ILogger, SpineFile, asyncDebounce, BrowserCapabilities, yieldToMain } from "../../../../kernal";
 import type { Reader } from "../../../../kernal/Reader";
 import { HtmlSettings } from "../../HtmlSettings";
 import { BaseDocumentsProvider } from "../../../base/renderer/BaseDocumentsProvider";
@@ -24,6 +22,7 @@ import { IHtmlElementLocator } from "../location/IHtmlElementLocator";
 import { getLayoutGeometry } from "../layout/resolveLayoutRoute";
 import { getLayoutOffsetLeft } from "../layout/geometry/getLayoutOffsetLeft";
 import { remapStoredPageNumber } from "../location/remapStoredPageNumber";
+import { resolveContentRedirectTarget } from "../location/resolveRedirectTarget";
 import { beginAbsoluteLocate, shouldBeginAbsoluteLocate } from "../location/scrollActivity";
 
 /**
@@ -262,24 +261,10 @@ export class HtmlDocumentsProvider extends BaseDocumentsProvider<IHtmlDocument> 
     /**
      * Map location.textOffset to a live Range so scroll / page calc can use
      * character geometry without wrapping each glyph into a DOM node.
+     * An image-only element has no character box, so the range wraps the media node.
      */
     private resolveRedirectTarget(target: Element | undefined, location: FileLocation): LocateTarget | undefined {
-        if (!target || !(location?.textOffset >= 0)) {
-            return target;
-        }
-        const textContent = target.textContent ?? "";
-        if (location.textOffset >= textContent.length) {
-            return target;
-        }
-        let offset = location.textOffset;
-        const firstChild = target.firstElementChild;
-        if (firstChild && compareTagName(firstChild.tagName, STTAG) && firstChild.getBoundingClientRect().width == 0) {
-            offset = firstChild.textContent?.length ?? 0;
-        }
-        if (offset >= textContent.length) {
-            return target;
-        }
-        return createRange(target, target, offset, Math.min(offset + 1, textContent.length)) ?? target;
+        return resolveContentRedirectTarget(target, location);
     }
 
     /**
