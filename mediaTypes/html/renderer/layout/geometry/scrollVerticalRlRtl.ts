@@ -1,4 +1,4 @@
-import type { IframeSizeInput, ILayoutGeometry, RestoreScrollInput } from "./ILayoutGeometry";
+import type { IframeSizeInput, ILayoutGeometry } from "./ILayoutGeometry";
 import { formatTranslate3d, signedTranslateLength } from "./formatTranslate3d";
 import { ViewportCssVariableNames } from "../ViewportCssVariableNames";
 import {
@@ -13,34 +13,9 @@ import {
     readLogicalScrollAlongX,
     readPageTransformAlongX,
     restorePageTransformAlongEnd,
+    restoreScrollAlongLeftAnchoredReverse,
     writeLogicalScrollAlongX,
 } from "./restoreLayoutState";
-
-const clampScroll = (value: number) => Math.max(0, value);
-
-const restoreScrollVerticalRlRtl = ({
-    liveScroll,
-    capturedScroll,
-    sizeDelta,
-    offsetDelta,
-    foundElement,
-    currentIndex,
-    anchorIndex,
-}: RestoreScrollInput) => {
-    if (currentIndex < 0 || anchorIndex < 0 || currentIndex > anchorIndex) {
-        return liveScroll;
-    }
-    if (currentIndex === anchorIndex) {
-        if (foundElement) {
-            return clampScroll(liveScroll + offsetDelta);
-        }
-        return liveScroll;
-    }
-    if (Math.abs(liveScroll - capturedScroll) > 2) {
-        return liveScroll;
-    }
-    return clampScroll(capturedScroll + sizeDelta);
-};
 
 const sizeScrollVerticalRlRtlIframe = ({ iframe, contentRoot, body, parentContentHeight }: IframeSizeInput) => {
     iframe.style.removeProperty("min-height");
@@ -81,7 +56,7 @@ export const scrollVerticalRlRtl: ILayoutGeometry = {
     measureColumnsAsLtr: false,
     usesRtlPageStart: true,
     compensationAnchorEdge: "end",
-    documentOrderAnchor: "last",
+    documentOrderAnchor: "first",
     preloadRangeMode: "visual-edge",
     rewritesWrapperVisibility: true,
     holdsAbsoluteLocate: true,
@@ -117,7 +92,7 @@ export const scrollVerticalRlRtl: ILayoutGeometry = {
         height: wrapper.offsetHeight,
     }),
     restorePageTransform: restorePageTransformAlongEnd,
-    restoreScroll: restoreScrollVerticalRlRtl,
+    restoreScroll: restoreScrollAlongLeftAnchoredReverse,
     readLogicalScroll: readLogicalScrollAlongX,
     readCapturedLogicalScroll: readCapturedLogicalScrollAlongX,
     writeLogicalScroll: writeLogicalScrollAlongX,

@@ -13,7 +13,7 @@
     display: flex;
     flex-wrap: nowrap;
     align-items: stretch;
-    flex-direction: row;
+    flex-direction: row-reverse;
 }
 
 .renderer.layout-scroll-vertical-rl-rtl .file-content-container {

@@ -45,7 +45,13 @@ export const applyRendererLayoutClass = (element: HTMLElement, geometry: ILayout
         ...RENDERER_LAYOUT_CLASSES,
         ...LEGACY_RENDERER_LAYOUT_CLASSES,
     ]);
-    element.style.setProperty("direction", geometry.direction);
+    // Vertical scroll uses a native horizontal scrollbar. An rtl scrollport
+    // clamps a drag past scrollLeft 0 to the opposite end. Text direction
+    // stays on the document; the strip order is handled by flex.
+    const scrollportDirection = geometry.flipMode == "scroll" && geometry.isVerticalWriting
+        ? "ltr"
+        : geometry.direction;
+    element.style.setProperty("direction", scrollportDirection);
 };
 
 export const applyContentLayoutClass = (element: HTMLElement, geometry: ILayoutGeometry) => {

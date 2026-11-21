@@ -154,6 +154,32 @@ describe('layout routes', () => {
     expect(page.holdsAbsoluteLocate).toBe(false)
   })
 
+  it('keeps vertical scrollports ltr while the document stays rtl', () => {
+    for (const writingMode of ['vertical-rl', 'vertical-lr'] as const) {
+      const geometry = getLayoutGeometry(routeOptions({
+        flipMode: 'scroll',
+        writingMode,
+        direction: 'rtl',
+      }))
+      const renderer = document.createElement('div')
+      const content = document.createElement('html')
+      applyRendererLayoutClass(renderer, geometry)
+      applyContentLayoutClass(content, geometry)
+      expect(geometry.direction).toBe('rtl')
+      expect(renderer.style.direction).toBe('ltr')
+      expect(content.classList.contains(geometry.contentClass)).toBe(true)
+    }
+
+    const page = getLayoutGeometry(routeOptions({
+      flipMode: 'page',
+      writingMode: 'vertical-rl',
+      direction: 'rtl',
+    }))
+    const pageRenderer = document.createElement('div')
+    applyRendererLayoutClass(pageRenderer, page)
+    expect(pageRenderer.style.direction).toBe('rtl')
+  })
+
   it('lets loaded vertical scroll wrappers shrink to content width', () => {
     for (const writingMode of ['vertical-rl', 'vertical-lr'] as const) {
       for (const direction of ['ltr', 'rtl'] as const) {

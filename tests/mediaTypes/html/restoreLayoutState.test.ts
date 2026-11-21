@@ -411,6 +411,17 @@ describe('rtl vertical scrollLeft axis', () => {
         expect(writeBack(-400, 200, scrollVerticalRlRtl.restoreScroll)).toBe(-400)
     })
 
+    it('follows the current chapter width on vertical-rl rtl while pinned to the reading start', () => {
+        expect(scrollVerticalRlRtl.restoreScroll(scrollInput({
+            liveScroll: 400,
+            capturedScroll: 400,
+            sizeDelta: 200,
+            currentIndex: 0,
+            anchorIndex: 0,
+            atReadingStart: true,
+        }))).toBe(600)
+    })
+
     it('follows the current chapter width on vertical-lr rtl', () => {
         expect(scrollVerticalLrRtl.restoreScroll(scrollInput({
             liveScroll: 400,
@@ -499,12 +510,12 @@ describe('layout axis measurement', () => {
 })
 
 describe('document order compensation anchor', () => {
-    it('uses the last visible document on scroll routes that compensate earlier chapters', () => {
+    it('anchors vertical-rl scroll on the first document and other scroll routes on the last', () => {
         expect(scrollHorizontalTbLtr.documentOrderAnchor).toBe('last')
         expect(scrollHorizontalTbRtl.documentOrderAnchor).toBe('last')
         expect(scrollVerticalLrLtr.documentOrderAnchor).toBe('last')
         expect(scrollVerticalLrRtl.documentOrderAnchor).toBe('last')
-        expect(scrollVerticalRlRtl.documentOrderAnchor).toBe('last')
+        expect(scrollVerticalRlRtl.documentOrderAnchor).toBe('first')
         expect(scrollVerticalRlLtr.documentOrderAnchor).toBe('first')
     })
 
